@@ -1,14 +1,13 @@
+// src/main.ts
+import { createApp } from 'vue'
 import { DefaultApolloClient } from '@vue/apollo-composable'
-import { createApp, h, provide } from 'vue'
-import { apolloClient } from '../apollo'
-import './style.css'
 import App from './App.vue'
+import { apolloClient } from '../apollo-client'
+import './style.css' // (ถ้ามี)
 
-const app = createApp({
-  setup() {
-    provide(DefaultApolloClient, apolloClient)
-  },
-  render: () => h(App),
-})
+const app = createApp(App)
+
+// Provide Apollo Client ให้กับโปรเจกต์ Vue
+app.provide(DefaultApolloClient, apolloClient)
 
 app.mount('#app')
