@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { supabase } from '../lib/supabase'
+import { supabase } from '../services/supabase'
 import { Upload } from 'lucide-vue-next'
 
 const router = useRouter()
