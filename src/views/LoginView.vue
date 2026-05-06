@@ -76,7 +76,13 @@ const handleLogin = async () => {
       localStorage.removeItem('periokit_remember')
     }
 
-    router.push('/')
+    // Redirect based on role
+    const user = result.data.user
+    if (user.role === 'admin') {
+      router.push('/admin/dashboard')
+    } else {
+      router.push('/dashboard/home')
+    }
   } catch (error: any) {
     errorMessage.value = error.message || 'An unexpected error occurred'
   } finally {
