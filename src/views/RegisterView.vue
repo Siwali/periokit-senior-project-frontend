@@ -108,7 +108,27 @@ const register = async () => {
     const data = await response.json()
 
     if (!response.ok) {
-      throw new Error(data.message || 'Registration failed')
+      // Handle Email already exists
+      if (response.status === 409 || data.message?.toLowerCase().includes('email already exists')) {
+        errorMessage.value = 'Email already exists'
+        errors.email = 'Email already exists'
+        return
+      }
+      
+      // Handle field validation errors from backend
+      if (data.errors && typeof data.errors === 'object') {
+        Object.keys(data.errors).forEach(key => {
+          if (key === 'email') errors.email = data.errors.email
+          if (key === 'password') errors.password = data.errors.password
+          if (key === 'first_name') errors.firstName = data.errors.first_name
+          if (key === 'last_name') errors.surname = data.errors.last_name
+          if (key === 'student_id') errors.studentId = data.errors.student_id
+        })
+        errorMessage.value = 'Validation error'
+      } else {
+        errorMessage.value = data.message || 'Registration failed'
+      }
+      return
     }
 
     successMessage.value = 'Registration successful!'
@@ -117,7 +137,11 @@ const register = async () => {
       router.push('/login')
     }, 2000)
   } catch (error: any) {
-    errorMessage.value = error.message
+    if (error instanceof TypeError || error.message?.toLowerCase().includes('fetch')) {
+      errorMessage.value = 'Cannot connect to server'
+    } else {
+      errorMessage.value = error.message
+    }
   } finally {
     loading.value = false
   }
@@ -285,7 +309,7 @@ const register = async () => {
 
           <!-- Error & Success Messages -->
           <div class="space-y-2 mt-2 text-center">
-            <div v-if="errorMessage" class="text-red-500 text-[12px] font-bold">
+            <div v-if="errorMessage" class="text-red-600 text-[14px] font-bold bg-red-50 p-3 rounded-[10px] border border-red-100">
               {{ errorMessage }}
             </div>
             <div v-if="successMessage" class="text-green-600 text-[14px] font-bold bg-green-50 p-3 rounded-[10px] border border-green-100">
