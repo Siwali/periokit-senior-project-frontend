@@ -57,12 +57,23 @@ const handleRegister = async () => {
   if (!form.studentId) errors.studentId = 'Please enter your Student ID'
   if (!form.firstName) errors.firstName = 'Please enter your First Name'
   if (!form.surname) errors.surname = 'Please enter your Surname'
-  if (!form.email) errors.email = 'Please enter your Email'
+  
+  // Email validation
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  if (!form.email) {
+    errors.email = 'Please enter your Email'
+  } else if (!emailRegex.test(form.email)) {
+    errors.email = 'Please enter a valid email address'
+  }
+
+  // Password validation
   if (!form.password) {
     errors.password = 'Please enter your Password'
   } else if (form.password.length < 6) {
     errors.password = 'Password must be at least 6 characters'
   }
+
+  // Confirm Password validation
   if (!form.confirmPassword) {
     errors.confirmPassword = 'Please confirm your password'
   } else if (form.password !== form.confirmPassword) {
