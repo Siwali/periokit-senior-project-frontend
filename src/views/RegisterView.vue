@@ -36,35 +36,25 @@ const handleRegister = async () => {
   errorMessage.value = ''
   successMessage.value = ''
 
-  // 2. Validate ทีละช่อง
-  if (!form.studentId) {
-    errors.studentId = 'Please enter your Student ID'
-    return
-  }
-  if (!form.firstName) {
-    errors.firstName = 'Please enter your First Name'
-    return
-  }
-  if (!form.surname) {
-    errors.surname = 'Please enter your Surname'
-    return
-  }
-  if (!form.email) {
-    errors.email = 'Please enter your Email'
-    return
-  }
+  // 2. Validate ทุกช่องพร้อมกัน
+  if (!form.studentId) errors.studentId = 'Please enter your Student ID'
+  if (!form.firstName) errors.firstName = 'Please enter your First Name'
+  if (!form.surname) errors.surname = 'Please enter your Surname'
+  if (!form.email) errors.email = 'Please enter your Email'
   if (!form.password) {
     errors.password = 'Please enter your Password'
-    return
-  }
-  if (form.password.length < 6) {
+  } else if (form.password.length < 6) {
     errors.password = 'Password must be at least 6 characters'
-    return
   }
-  if (form.password !== form.confirmPassword) {
+  if (!form.confirmPassword) {
+    errors.confirmPassword = 'Please confirm your password'
+  } else if (form.password !== form.confirmPassword) {
     errors.confirmPassword = 'Passwords do not match'
-    return
   }
+
+  // 3. เช็คว่ามี error ในช่องใดๆ หรือไม่
+  const hasErrors = Object.values(errors).some(error => error !== '')
+  if (hasErrors) return
 
   loading.value = true
   errorMessage.value = ''
