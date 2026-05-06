@@ -1,9 +1,8 @@
 <script setup lang="ts">
-import { reactive,ref } from 'vue'
+import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { supabase } from '../services/supabase'
-import { Upload } from 'lucide-vue-next'
-
+import { Upload, Eye, EyeOff } from 'lucide-vue-next'
 
 const router = useRouter()
 
@@ -46,6 +45,9 @@ const errors = reactive({
   password: '',
   confirmPassword: ''
 })
+
+const showPassword = ref(false)
+const showConfirmPassword = ref(false)
 
 const handleRegister = async () => {
   // 1. ล้าง error เก่าทั้งหมดก่อน
@@ -196,7 +198,7 @@ const handleRegister = async () => {
               type="text"
               :class="[
                 'w-full bg-[#f1f5f9] border-none rounded-[10px] py-2.5 px-4 text-[#1f2937] placeholder-[#9ca3af] focus:ring-2 focus:ring-[#0052ff] outline-none transition-all',
-                errors.studentId ? 'ring-1 ring-red-500 bg-red-50' : ''
+                errors.studentId ? 'ring-2 ring-red-500 bg-red-50' : ''
               ]"
             />
             <p v-if="errors.studentId" class="text-red-500 text-[11px] font-bold mt-1 ml-1">{{ errors.studentId }}</p>
@@ -212,7 +214,7 @@ const handleRegister = async () => {
                   placeholder="enter..."
                   :class="[
                     'w-full bg-[#f1f5f9] border-none rounded-[10px] py-2.5 px-4 text-[#1f2937] placeholder-[#9ca3af] focus:ring-2 focus:ring-[#0052ff] outline-none transition-all',
-                    errors.firstName ? 'ring-1 ring-red-500 bg-red-50' : ''
+                    errors.firstName ? 'ring-2 ring-red-500 bg-red-50' : ''
                   ]"
                 />
                 <p v-if="errors.firstName" class="text-red-500 text-[11px] font-bold mt-1 ml-1">{{ errors.firstName }}</p>
@@ -225,7 +227,7 @@ const handleRegister = async () => {
                   placeholder="enter..."
                   :class="[
                     'w-full bg-[#f1f4f9] border-none rounded-[10px] py-2.5 px-4 text-[#1f2937] placeholder-[#9ca3af] focus:ring-2 focus:ring-[#0052ff] outline-none transition-all',
-                    errors.surname ? 'ring-1 ring-red-500 bg-red-50' : ''
+                    errors.surname ? 'ring-2 ring-red-500 bg-red-50' : ''
                   ]"
                 />
                 <p v-if="errors.surname" class="text-red-500 text-[11px] font-bold mt-1 ml-1">{{ errors.surname }}</p>
@@ -241,7 +243,7 @@ const handleRegister = async () => {
               placeholder="example@gmail.com"
               :class="[
                 'w-full bg-[#f1f5f9] border-none rounded-[10px] py-2.5 px-4 text-[#1f2937] placeholder-[#9ca3af] focus:ring-2 focus:ring-[#0052ff] outline-none transition-all',
-                errors.email ? 'ring-1 ring-red-500 bg-red-50' : ''
+                errors.email ? 'ring-2 ring-red-500 bg-red-50' : ''
               ]"
             />
             <p v-if="errors.email" class="text-red-500 text-[11px] font-bold mt-1 ml-1">{{ errors.email }}</p>
@@ -251,28 +253,48 @@ const handleRegister = async () => {
           <div class="grid grid-cols-2 gap-4">
             <div>
               <label class="block text-[13px] font-bold text-[#1f2937] mb-1.5">Password</label>
-                <input
-                  v-model="form.password"
-                  type="password"
-                  placeholder="enter..."
-                  :class="[
-                    'w-full bg-[#f1f5f9] border-none rounded-[10px] py-2.5 px-4 text-[#1f2937] placeholder-[#9ca3af] focus:ring-2 focus:ring-[#0052ff] outline-none transition-all',
-                    errors.password ? 'ring-1 ring-red-500 bg-red-50' : ''
-                  ]"
-                />
+                <div class="relative">
+                  <input
+                    v-model="form.password"
+                    :type="showPassword ? 'text' : 'password'"
+                    placeholder="enter..."
+                    :class="[
+                      'w-full bg-[#f1f5f9] border-none rounded-[10px] py-2.5 pl-4 pr-10 text-[#1f2937] placeholder-[#9ca3af] focus:ring-2 focus:ring-[#0052ff] outline-none transition-all',
+                      errors.password ? 'ring-2 ring-red-500 bg-red-50' : ''
+                    ]"
+                  />
+                  <button 
+                    type="button"
+                    @click="showPassword = !showPassword"
+                    class="absolute inset-y-0 right-0 pr-3 flex items-center text-[#9ca3af] hover:text-[#0052ff] transition-colors"
+                  >
+                    <Eye v-if="!showPassword" class="w-4 h-4" />
+                    <EyeOff v-else class="h-5 w-5" />
+                  </button>
+                </div>
                 <p v-if="errors.password" class="text-red-500 text-[11px] font-bold mt-1 ml-1">{{ errors.password }}</p>
             </div>
             <div>
               <label class="block text-[13px] font-bold text-[#1f2937] mb-1.5">Confirm Password</label>
-                <input
-                  v-model="form.confirmPassword"
-                  type="password"
-                  placeholder="enter..."
-                  :class="[
-                    'w-full bg-[#f1f5f9] border-none rounded-[10px] py-2.5 px-4 text-[#1f2937] placeholder-[#9ca3af] focus:ring-2 focus:ring-[#0052ff] outline-none transition-all',
-                    errors.confirmPassword ? 'ring-1 ring-red-500 bg-red-50' : ''
-                  ]"
-                />
+                <div class="relative">
+                  <input
+                    v-model="form.confirmPassword"
+                    :type="showConfirmPassword ? 'text' : 'password'"
+                    placeholder="enter..."
+                    :class="[
+                      'w-full bg-[#f1f5f9] border-none rounded-[10px] py-2.5 pl-4 pr-10 text-[#1f2937] placeholder-[#9ca3af] focus:ring-2 focus:ring-[#0052ff] outline-none transition-all',
+                      errors.confirmPassword ? 'ring-2 ring-red-500 bg-red-50' : ''
+                    ]"
+                  />
+                  <button 
+                    type="button"
+                    @click="showConfirmPassword = !showConfirmPassword"
+                    class="absolute inset-y-0 right-0 pr-3 flex items-center text-[#9ca3af] hover:text-[#0052ff] transition-colors"
+                  >
+                    <Eye v-if="!showConfirmPassword" class="w-4 h-4" />
+                    <EyeOff v-else class="h-5 w-5" />
+                  </button>
+                </div>
                 <p v-if="errors.confirmPassword" class="text-red-500 text-[11px] font-bold mt-1 ml-1">{{ errors.confirmPassword }}</p>
             </div>
           </div>
