@@ -1,46 +1,135 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { reactive,ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { supabase } from '../services/supabase'
 import { Upload } from 'lucide-vue-next'
 
+
 const router = useRouter()
 
-const studentId = ref('')
-const firstName = ref('')
-const surname = ref('')
-const email = ref('')
-const password = ref('')
-const confirmPassword = ref('')
+const form = reactive({
+  studentId: '',
+  firstName: '',
+  surname: '',
+  email: '',
+  password: '',
+  confirmPassword: ''
+})
+
+const profileFile = ref<File | null>(null)
+const previewUrl = ref<string | null>(null)
+const fileInput = ref<HTMLInputElement | null>(null)
+
+const triggerFileInput = () => {
+  fileInput.value?.click()
+}
+
+const handleFileChange = (event: Event) => {
+  const input = event.target as HTMLInputElement
+  if (input.files && input.files[0]) {
+    const file = input.files[0]
+    profileFile.value = file
+    previewUrl.value = URL.createObjectURL(file)
+  }
+}
+
 const loading = ref(false)
 const errorMessage = ref('')
+const successMessage = ref('')
+
+// เพิ่ม state สำหรับเก็บ error แยกแต่ละช่อง
+const errors = reactive({
+  studentId: '',
+  firstName: '',
+  surname: '',
+  email: '',
+  password: '',
+  confirmPassword: ''
+})
 
 const handleRegister = async () => {
-  if (password.value !== confirmPassword.value) {
-    errorMessage.value = 'Passwords do not match'
-    return
+  // 1. ล้าง error เก่าทั้งหมดก่อน
+  Object.keys(errors).forEach(key => (errors[key as keyof typeof errors] = ''))
+  errorMessage.value = ''
+  successMessage.value = ''
+
+  // 2. Validate ทุกช่องพร้อมกัน
+  if (!form.studentId) errors.studentId = 'Please enter your Student ID'
+  if (!form.firstName) errors.firstName = 'Please enter your First Name'
+  if (!form.surname) errors.surname = 'Please enter your Surname'
+  
+  // Email validation
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  if (!form.email) {
+    errors.email = 'Please enter your Email'
+  } else if (!emailRegex.test(form.email)) {
+    errors.email = 'Please enter a valid email address'
   }
+
+  // Password validation
+  if (!form.password) {
+    errors.password = 'Please enter your Password'
+  } else if (form.password.length < 6) {
+    errors.password = 'Password must be at least 6 characters'
+  }
+
+  // Confirm Password validation
+  if (!form.confirmPassword) {
+    errors.confirmPassword = 'Please confirm your password'
+  } else if (form.password !== form.confirmPassword) {
+    errors.confirmPassword = 'Passwords do not match'
+  }
+
+  // 3. เช็คว่ามี error ในช่องใดๆ หรือไม่
+  const hasErrors = Object.values(errors).some(error => error !== '')
+  if (hasErrors) return
 
   loading.value = true
   errorMessage.value = ''
+  successMessage.value = ''
 
   try {
+    let avatarUrl = ''
+
+    // Upload profile picture if exists
+    if (profileFile.value) {
+      const fileExt = profileFile.value.name.split('.').pop()
+      const fileName = `${Math.random()}.${fileExt}`
+      const filePath = `avatars/${fileName}`
+
+      const { error: uploadError } = await supabase.storage
+        .from('profiles')
+        .upload(filePath, profileFile.value)
+
+      if (uploadError) throw uploadError
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('profiles')
+        .getPublicUrl(filePath)
+      
+      avatarUrl = publicUrl
+    }
+
     const { data, error } = await supabase.auth.signUp({
-      email: email.value,
-      password: password.value,
+      email: form.email,
+      password: form.password,
       options: {
         data: {
-          student_id: studentId.value,
-          first_name: firstName.value,
-          surname: surname.value,
+          student_id: form.studentId,
+          first_name: form.firstName,
+          surname: form.surname,
+          avatar_url: avatarUrl
         }
       }
     })
 
     if (error) throw error
 
-    alert('Registration successful! Please check your email for verification.')
-    router.push('/login')
+    successMessage.value = 'Registration successful! Please check your email for verification.'
+    
+    setTimeout(() => {
+      router.push('/login')
+    }, 3000)
   } catch (error: any) {
     errorMessage.value = error.message
   } finally {
@@ -64,10 +153,38 @@ const handleRegister = async () => {
           <!-- Profile Picture -->
           <div class="flex flex-col items-center mb-2">
             <span class="text-[13px] font-bold text-[#1f2937] mb-3">Profile Picture</span>
-            <div class="w-[80px] h-[80px] rounded-full bg-[#f1f5f9] border border-[#e2e8f0] mb-4"></div>
-            <button type="button" class="flex items-center gap-2 px-4 py-1.5 border border-[#e2e8f0] rounded-[8px] text-[13px] font-medium text-[#374151] hover:bg-gray-50 transition-colors">
+            
+            <div 
+              @click="triggerFileInput"
+              class="w-[100px] h-[100px] rounded-full bg-[#f1f5f9] border-2 border-dashed border-[#e2e8f0] mb-4 flex items-center justify-center overflow-hidden cursor-pointer hover:border-[#0052ff] transition-all group relative"
+            >
+              <img v-if="previewUrl" :src="previewUrl" class="w-full h-full object-cover" />
+              <div v-else class="flex flex-col items-center text-[#9ca3af] group-hover:text-[#0052ff]">
+                <Upload class="w-6 h-6 mb-1" />
+                <span class="text-[10px] font-medium">Upload</span>
+              </div>
+              
+              <!-- Overlay on hover when image exists -->
+              <div v-if="previewUrl" class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                <Upload class="w-6 h-6 text-white" />
+              </div>
+            </div>
+
+            <input 
+              ref="fileInput"
+              type="file" 
+              accept="image/*" 
+              class="hidden" 
+              @change="handleFileChange"
+            />
+
+            <button 
+              type="button" 
+              @click="triggerFileInput"
+              class="flex items-center gap-2 px-4 py-1.5 border border-[#e2e8f0] rounded-[8px] text-[13px] font-medium text-[#374151] hover:bg-gray-50 transition-colors"
+            >
               <Upload class="w-3.5 h-3.5" />
-              Upload
+              {{ previewUrl ? 'Change Photo' : 'Upload Photo' }}
             </button>
           </div>
 
@@ -75,31 +192,43 @@ const handleRegister = async () => {
           <div>
             <label class="block text-[13px] font-bold text-[#1f2937] mb-1.5">Student ID</label>
             <input
-              v-model="studentId"
+              v-model="form.studentId"
               type="text"
-              class="w-full bg-[#f1f5f9] border-none rounded-[10px] py-2.5 px-4 text-[#1f2937] placeholder-[#9ca3af] focus:ring-2 focus:ring-[#0052ff] outline-none"
+              :class="[
+                'w-full bg-[#f1f5f9] border-none rounded-[10px] py-2.5 px-4 text-[#1f2937] placeholder-[#9ca3af] focus:ring-2 focus:ring-[#0052ff] outline-none transition-all',
+                errors.studentId ? 'ring-1 ring-red-500 bg-red-50' : ''
+              ]"
             />
+            <p v-if="errors.studentId" class="text-red-500 text-[11px] font-bold mt-1 ml-1">{{ errors.studentId }}</p>
           </div>
 
           <!-- First Name & Surname -->
           <div class="grid grid-cols-2 gap-4">
             <div>
               <label class="block text-[13px] font-bold text-[#1f2937] mb-1.5">First Name</label>
-              <input
-                v-model="firstName"
-                type="text"
-                placeholder="enter..."
-                class="w-full bg-[#f1f5f9] border-none rounded-[10px] py-2.5 px-4 text-[#1f2937] placeholder-[#9ca3af] focus:ring-2 focus:ring-[#0052ff] outline-none"
-              />
+                <input
+                  v-model="form.firstName"
+                  type="text"
+                  placeholder="enter..."
+                  :class="[
+                    'w-full bg-[#f1f5f9] border-none rounded-[10px] py-2.5 px-4 text-[#1f2937] placeholder-[#9ca3af] focus:ring-2 focus:ring-[#0052ff] outline-none transition-all',
+                    errors.firstName ? 'ring-1 ring-red-500 bg-red-50' : ''
+                  ]"
+                />
+                <p v-if="errors.firstName" class="text-red-500 text-[11px] font-bold mt-1 ml-1">{{ errors.firstName }}</p>
             </div>
             <div>
               <label class="block text-[13px] font-bold text-[#1f2937] mb-1.5">Surname</label>
-              <input
-                v-model="surname"
-                type="text"
-                placeholder="enter..."
-                class="w-full bg-[#f1f4f9] border-none rounded-[10px] py-2.5 px-4 text-[#1f2937] placeholder-[#9ca3af] focus:ring-2 focus:ring-[#0052ff] outline-none"
-              />
+                <input
+                  v-model="form.surname"
+                  type="text"
+                  placeholder="enter..."
+                  :class="[
+                    'w-full bg-[#f1f4f9] border-none rounded-[10px] py-2.5 px-4 text-[#1f2937] placeholder-[#9ca3af] focus:ring-2 focus:ring-[#0052ff] outline-none transition-all',
+                    errors.surname ? 'ring-1 ring-red-500 bg-red-50' : ''
+                  ]"
+                />
+                <p v-if="errors.surname" class="text-red-500 text-[11px] font-bold mt-1 ml-1">{{ errors.surname }}</p>
             </div>
           </div>
 
@@ -107,38 +236,55 @@ const handleRegister = async () => {
           <div>
             <label class="block text-[13px] font-bold text-[#1f2937] mb-1.5">Email</label>
             <input
-              v-model="email"
+              v-model="form.email"
               type="email"
               placeholder="example@gmail.com"
-              class="w-full bg-[#f1f5f9] border-none rounded-[10px] py-2.5 px-4 text-[#1f2937] placeholder-[#9ca3af] focus:ring-2 focus:ring-[#0052ff] outline-none"
+              :class="[
+                'w-full bg-[#f1f5f9] border-none rounded-[10px] py-2.5 px-4 text-[#1f2937] placeholder-[#9ca3af] focus:ring-2 focus:ring-[#0052ff] outline-none transition-all',
+                errors.email ? 'ring-1 ring-red-500 bg-red-50' : ''
+              ]"
             />
+            <p v-if="errors.email" class="text-red-500 text-[11px] font-bold mt-1 ml-1">{{ errors.email }}</p>
           </div>
 
           <!-- Password & Confirm Password -->
           <div class="grid grid-cols-2 gap-4">
             <div>
               <label class="block text-[13px] font-bold text-[#1f2937] mb-1.5">Password</label>
-              <input
-                v-model="password"
-                type="password"
-                placeholder="enter..."
-                class="w-full bg-[#f1f5f9] border-none rounded-[10px] py-2.5 px-4 text-[#1f2937] placeholder-[#9ca3af] focus:ring-2 focus:ring-[#0052ff] outline-none"
-              />
+                <input
+                  v-model="form.password"
+                  type="password"
+                  placeholder="enter..."
+                  :class="[
+                    'w-full bg-[#f1f5f9] border-none rounded-[10px] py-2.5 px-4 text-[#1f2937] placeholder-[#9ca3af] focus:ring-2 focus:ring-[#0052ff] outline-none transition-all',
+                    errors.password ? 'ring-1 ring-red-500 bg-red-50' : ''
+                  ]"
+                />
+                <p v-if="errors.password" class="text-red-500 text-[11px] font-bold mt-1 ml-1">{{ errors.password }}</p>
             </div>
             <div>
               <label class="block text-[13px] font-bold text-[#1f2937] mb-1.5">Confirm Password</label>
-              <input
-                v-model="confirmPassword"
-                type="password"
-                placeholder="enter..."
-                class="w-full bg-[#f1f5f9] border-none rounded-[10px] py-2.5 px-4 text-[#1f2937] placeholder-[#9ca3af] focus:ring-2 focus:ring-[#0052ff] outline-none"
-              />
+                <input
+                  v-model="form.confirmPassword"
+                  type="password"
+                  placeholder="enter..."
+                  :class="[
+                    'w-full bg-[#f1f5f9] border-none rounded-[10px] py-2.5 px-4 text-[#1f2937] placeholder-[#9ca3af] focus:ring-2 focus:ring-[#0052ff] outline-none transition-all',
+                    errors.confirmPassword ? 'ring-1 ring-red-500 bg-red-50' : ''
+                  ]"
+                />
+                <p v-if="errors.confirmPassword" class="text-red-500 text-[11px] font-bold mt-1 ml-1">{{ errors.confirmPassword }}</p>
             </div>
           </div>
 
-          <!-- Error Message -->
-          <div v-if="errorMessage" class="text-red-500 text-[12px] font-bold text-center mt-2">
-            {{ errorMessage }}
+          <!-- Error & Success Messages -->
+          <div class="space-y-2 mt-2 text-center">
+            <div v-if="errorMessage" class="text-red-500 text-[12px] font-bold">
+              {{ errorMessage }}
+            </div>
+            <div v-if="successMessage" class="text-green-600 text-[14px] font-bold bg-green-50 p-3 rounded-[10px] border border-green-100">
+              {{ successMessage }}
+            </div>
           </div>
 
           <!-- Submit Button -->
