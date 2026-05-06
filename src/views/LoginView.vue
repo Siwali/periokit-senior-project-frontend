@@ -2,7 +2,8 @@
 import { reactive,ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { supabase } from '../services/supabase'
-import { Mail, Lock, CheckCircle2 } from 'lucide-vue-next'
+import { Mail, Lock, CheckCircle2, Eye, EyeOff } from 'lucide-vue-next'
+import { onMounted } from 'vue'
 
 const router = useRouter()
 
@@ -16,6 +17,19 @@ const errorMessage = ref('')
 const errors = reactive({
   email: '',
   password: ''
+})
+const showPassword = ref(false)
+
+onMounted(() => {
+  const savedEmail = localStorage.getItem('periokit_email')
+  const savedPassword = localStorage.getItem('periokit_password')
+  const savedRemember = localStorage.getItem('periokit_remember') === 'true'
+
+  if (savedRemember) {
+    form.email = savedEmail || ''
+    form.password = savedPassword || ''
+    rememberPassword.value = true
+  }
 })
 
 const handleLogin = async () => {
@@ -43,6 +57,17 @@ const handleLogin = async () => {
     })
 
     if (error) throw error
+
+    // Handle Remember Password
+    if (rememberPassword.value) {
+      localStorage.setItem('periokit_email', form.email)
+      localStorage.setItem('periokit_password', form.password)
+      localStorage.setItem('periokit_remember', 'true')
+    } else {
+      localStorage.removeItem('periokit_email')
+      localStorage.removeItem('periokit_password')
+      localStorage.removeItem('periokit_remember')
+    }
 
     router.push('/')
   } catch (error: any) {
@@ -94,13 +119,22 @@ const handleLogin = async () => {
               </div>
               <input
                 v-model="form.password"
-                type="password"
+                :type="showPassword ? 'text' : 'password'"
                 placeholder="Enter your password"
                 :class="[
-                  'w-full bg-[#f1f5f9] border-none rounded-[12px] py-3.5 pl-12 pr-4 text-[#1f2937] placeholder-[#9ca3af] focus:ring-2 focus:ring-[#0052ff] outline-none text-[15px] transition-all',
+                  'w-full bg-[#f1f5f9] border-none rounded-[12px] py-3.5 pl-12 pr-12 text-[#1f2937] placeholder-[#9ca3af] focus:ring-2 focus:ring-[#0052ff] outline-none text-[15px] transition-all',
                   errors.password ? 'ring-2 ring-red-500 bg-red-50' : ''
                 ]"
               />
+              <!-- Toggle Password Visibility -->
+              <button 
+                type="button"
+                @click="showPassword = !showPassword"
+                class="absolute inset-y-0 right-0 pr-4 flex items-center text-[#9ca3af] hover:text-[#0052ff] transition-colors"
+              >
+                <Eye v-if="!showPassword" class="h-5 w-5" />
+                <EyeOff v-else class="h-5 w-5" />
+              </button>
             </div>
             <p v-if="errors.password" class="text-red-500 text-[12px] font-bold mt-1.5 ml-1">{{ errors.password }}</p>
           </div>
