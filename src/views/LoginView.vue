@@ -1,9 +1,8 @@
 <script setup lang="ts">
-import { reactive,ref } from 'vue'
+import { reactive, ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { supabase } from '../services/supabase'
+import { authService } from '../services/auth'
 import { Mail, Lock, CheckCircle2, Eye, EyeOff } from 'lucide-vue-next'
-import { onMounted } from 'vue'
 
 const router = useRouter()
 
@@ -37,7 +36,9 @@ const handleLogin = async () => {
   errors.email = ''
   errors.password = ''
   errorMessage.value = ''
+  
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  
   // Simple validation
   if (!form.email) {
     errors.email = 'Please enter your email'
@@ -57,14 +58,14 @@ const handleLogin = async () => {
   loading.value = true
 
   try {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: form.email,
-      password: form.password,
-    })
+    const result = await authService.login(form.email, form.password)
 
-    if (error) throw error
+    if (!result.success) {
+      errorMessage.value = result.message || 'Login failed'
+      return
+    }
 
-    // Handle Remember Password
+    // Handle Remember Password (stores credentials, not session)
     if (rememberPassword.value) {
       localStorage.setItem('periokit_email', form.email)
       localStorage.setItem('periokit_password', form.password)
@@ -77,7 +78,7 @@ const handleLogin = async () => {
 
     router.push('/')
   } catch (error: any) {
-    errorMessage.value = error.message
+    errorMessage.value = error.message || 'An unexpected error occurred'
   } finally {
     loading.value = false
   }
