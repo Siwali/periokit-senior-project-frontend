@@ -98,6 +98,7 @@ const register = async () => {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
+        student_id: form.studentId,
         first_name: form.firstName,
         last_name: form.surname,
         email: form.email,
