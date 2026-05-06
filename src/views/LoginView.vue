@@ -37,13 +37,19 @@ const handleLogin = async () => {
   errors.email = ''
   errors.password = ''
   errorMessage.value = ''
-
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
   // Simple validation
   if (!form.email) {
     errors.email = 'Please enter your email'
+  } else if (!emailRegex.test(form.email)) {
+    errors.email = 'Please enter a valid email address'
   }
+
+  // Password validation
   if (!form.password) {
     errors.password = 'Please enter your password'
+  } else if (form.password.length < 6) {
+    errors.password = 'Password must be at least 6 characters'
   }
 
   if (errors.email || errors.password) return
