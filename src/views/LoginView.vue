@@ -1,0 +1,148 @@
+<script setup lang="ts">
+import { ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { supabase } from '../services/supabase'
+import { Mail, Lock, CheckCircle2 } from 'lucide-vue-next'
+
+const router = useRouter()
+
+const email = ref('')
+const password = ref('')
+const rememberPassword = ref(false)
+const loading = ref(false)
+const errorMessage = ref('')
+
+const handleLogin = async () => {
+  loading.value = true
+  errorMessage.value = ''
+
+  try {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: email.value,
+      password: password.value,
+    })
+
+    if (error) throw error
+
+    router.push('/')
+  } catch (error: any) {
+    errorMessage.value = error.message
+  } finally {
+    loading.value = false
+  }
+}
+</script>
+
+<template>
+  <div class="min-h-screen bg-[#f3f6ff] flex flex-col items-center justify-center py-8 px-4 font-sans">
+    <div class="w-full max-w-[480px]">
+      <div class="bg-white rounded-[24px] shadow-[0_10px_40px_rgba(0,0,0,0.05)] p-12">
+        <!-- Logo & Header -->
+        <div class="mb-10 text-center flex flex-col items-center">
+          <img src="../assets/mini_Logo_Periokit.png" alt="PerioKit Logo" class="h-23 w-20 mb-4" />
+          <h2 class="text-[36px] font-bold text-[#0052ff] leading-none mb-3">PerioKit</h2>
+          <p class="text-[#6b7280] text-[16px] font-medium">Periodontal Charting System</p>
+        </div>
+
+        <form @submit.prevent="handleLogin" class="space-y-6">
+          <!-- Email -->
+          <div>
+            <label class="block text-[14px] font-bold text-[#1f2937] mb-2">Email</label>
+            <div class="relative">
+              <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                <Mail class="h-5 w-5 text-[#9ca3af]" />
+              </div>
+              <input
+                v-model="email"
+                type="email"
+                placeholder="Enter your email"
+                class="w-full bg-[#f1f5f9] border-none rounded-[12px] py-3.5 pl-12 pr-4 text-[#1f2937] placeholder-[#9ca3af] focus:ring-2 focus:ring-[#0052ff] outline-none text-[15px]"
+              />
+            </div>
+          </div>
+
+          <!-- Password -->
+          <div>
+            <label class="block text-[14px] font-bold text-[#1f2937] mb-2">Password</label>
+            <div class="relative">
+              <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                <Lock class="h-5 w-5 text-[#9ca3af]" />
+              </div>
+              <input
+                v-model="password"
+                type="password"
+                placeholder="Enter your password"
+                class="w-full bg-[#f1f5f9] border-none rounded-[12px] py-3.5 pl-12 pr-4 text-[#1f2937] placeholder-[#9ca3af] focus:ring-2 focus:ring-[#0052ff] outline-none text-[15px]"
+              />
+            </div>
+          </div>
+
+          <!-- Remember Password -->
+          <div class="flex items-center gap-2">
+            <button 
+              type="button" 
+              @click="rememberPassword = !rememberPassword"
+              class="flex items-center gap-2 focus:outline-none group"
+            >
+              <div class="w-5 h-5 flex items-center justify-center">
+                <CheckCircle2 
+                  v-if="rememberPassword" 
+                  class="w-5 h-5 text-[#0052ff] fill-[#0052ff] text-white" 
+                />
+                <div 
+                  v-else 
+                  class="w-5 h-5 rounded-full border-2 border-[#d1d5db] group-hover:border-[#0052ff] transition-colors"
+                ></div>
+              </div>
+              <span class="text-[14px] text-[#9ca3af] font-medium">Remember Password</span>
+            </button>
+          </div>
+
+          <!-- Error Message -->
+          <div v-if="errorMessage" class="text-red-500 text-[12px] font-bold text-center mt-2">
+            {{ errorMessage }}
+          </div>
+
+          <!-- Submit Button -->
+          <div class="pt-2">
+            <button
+              type="submit"
+              :disabled="loading"
+              class="w-full bg-[#0052ff] hover:bg-[#0042cc] text-white font-bold py-4 rounded-[12px] transition-colors disabled:opacity-50 text-[16px] shadow-lg shadow-blue-200"
+            >
+              {{ loading ? 'Signing In...' : 'Sign In' }}
+            </button>
+          </div>
+        </form>
+
+        <!-- Register Link -->
+        <div class="mt-8 text-center">
+          <p class="text-[14px] text-[#6b7280] font-medium">
+            Don't have an account? 
+            <router-link to="/register" class="text-[#0052ff] hover:underline font-bold">
+              Create Account
+            </router-link>
+          </p>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div class="mt-8 text-center">
+        <p class="text-[14px] text-[#9ca3af] font-medium">© 2026 PerioKit.</p>
+      </div>
+    </div>
+  </div>
+</template>
+
+<style scoped>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+.font-sans {
+  font-family: 'Inter', sans-serif;
+}
+
+input::placeholder {
+  color: #9ca3af;
+  font-size: 15px;
+}
+</style>
