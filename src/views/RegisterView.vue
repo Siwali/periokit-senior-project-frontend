@@ -16,6 +16,23 @@ const form = reactive({
   confirmPassword: ''
 })
 
+const profileFile = ref<File | null>(null)
+const previewUrl = ref<string | null>(null)
+const fileInput = ref<HTMLInputElement | null>(null)
+
+const triggerFileInput = () => {
+  fileInput.value?.click()
+}
+
+const handleFileChange = (event: Event) => {
+  const input = event.target as HTMLInputElement
+  if (input.files && input.files[0]) {
+    const file = input.files[0]
+    profileFile.value = file
+    previewUrl.value = URL.createObjectURL(file)
+  }
+}
+
 const loading = ref(false)
 const errorMessage = ref('')
 const successMessage = ref('')
@@ -61,6 +78,27 @@ const handleRegister = async () => {
   successMessage.value = ''
 
   try {
+    let avatarUrl = ''
+
+    // Upload profile picture if exists
+    if (profileFile.value) {
+      const fileExt = profileFile.value.name.split('.').pop()
+      const fileName = `${Math.random()}.${fileExt}`
+      const filePath = `avatars/${fileName}`
+
+      const { error: uploadError } = await supabase.storage
+        .from('profiles')
+        .upload(filePath, profileFile.value)
+
+      if (uploadError) throw uploadError
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('profiles')
+        .getPublicUrl(filePath)
+      
+      avatarUrl = publicUrl
+    }
+
     const { data, error } = await supabase.auth.signUp({
       email: form.email,
       password: form.password,
@@ -69,6 +107,7 @@ const handleRegister = async () => {
           student_id: form.studentId,
           first_name: form.firstName,
           surname: form.surname,
+          avatar_url: avatarUrl
         }
       }
     })
@@ -103,10 +142,38 @@ const handleRegister = async () => {
           <!-- Profile Picture -->
           <div class="flex flex-col items-center mb-2">
             <span class="text-[13px] font-bold text-[#1f2937] mb-3">Profile Picture</span>
-            <div class="w-[80px] h-[80px] rounded-full bg-[#f1f5f9] border border-[#e2e8f0] mb-4"></div>
-            <button type="button" class="flex items-center gap-2 px-4 py-1.5 border border-[#e2e8f0] rounded-[8px] text-[13px] font-medium text-[#374151] hover:bg-gray-50 transition-colors">
+            
+            <div 
+              @click="triggerFileInput"
+              class="w-[100px] h-[100px] rounded-full bg-[#f1f5f9] border-2 border-dashed border-[#e2e8f0] mb-4 flex items-center justify-center overflow-hidden cursor-pointer hover:border-[#0052ff] transition-all group relative"
+            >
+              <img v-if="previewUrl" :src="previewUrl" class="w-full h-full object-cover" />
+              <div v-else class="flex flex-col items-center text-[#9ca3af] group-hover:text-[#0052ff]">
+                <Upload class="w-6 h-6 mb-1" />
+                <span class="text-[10px] font-medium">Upload</span>
+              </div>
+              
+              <!-- Overlay on hover when image exists -->
+              <div v-if="previewUrl" class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                <Upload class="w-6 h-6 text-white" />
+              </div>
+            </div>
+
+            <input 
+              ref="fileInput"
+              type="file" 
+              accept="image/*" 
+              class="hidden" 
+              @change="handleFileChange"
+            />
+
+            <button 
+              type="button" 
+              @click="triggerFileInput"
+              class="flex items-center gap-2 px-4 py-1.5 border border-[#e2e8f0] rounded-[8px] text-[13px] font-medium text-[#374151] hover:bg-gray-50 transition-colors"
+            >
               <Upload class="w-3.5 h-3.5" />
-              Upload
+              {{ previewUrl ? 'Change Photo' : 'Upload Photo' }}
             </button>
           </div>
 
