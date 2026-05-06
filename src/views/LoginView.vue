@@ -1,25 +1,45 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { reactive,ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { supabase } from '../services/supabase'
 import { Mail, Lock, CheckCircle2 } from 'lucide-vue-next'
 
 const router = useRouter()
 
-const email = ref('')
-const password = ref('')
+const form = reactive({
+  email: '',
+  password: ''
+})
 const rememberPassword = ref(false)
 const loading = ref(false)
 const errorMessage = ref('')
+const errors = reactive({
+  email: '',
+  password: ''
+})
 
 const handleLogin = async () => {
-  loading.value = true
+  // Clear previous errors
+  errors.email = ''
+  errors.password = ''
   errorMessage.value = ''
+
+  // Simple validation
+  if (!form.email) {
+    errors.email = 'Please enter your email'
+  }
+  if (!form.password) {
+    errors.password = 'Please enter your password'
+  }
+
+  if (errors.email || errors.password) return
+
+  loading.value = true
 
   try {
     const { data, error } = await supabase.auth.signInWithPassword({
-      email: email.value,
-      password: password.value,
+      email: form.email,
+      password: form.password,
     })
 
     if (error) throw error
@@ -53,12 +73,16 @@ const handleLogin = async () => {
                 <Mail class="h-5 w-5 text-[#9ca3af]" />
               </div>
               <input
-                v-model="email"
+                v-model="form.email"
                 type="email"
                 placeholder="Enter your email"
-                class="w-full bg-[#f1f5f9] border-none rounded-[12px] py-3.5 pl-12 pr-4 text-[#1f2937] placeholder-[#9ca3af] focus:ring-2 focus:ring-[#0052ff] outline-none text-[15px]"
+                :class="[
+                  'w-full bg-[#f1f5f9] border-none rounded-[12px] py-3.5 pl-12 pr-4 text-[#1f2937] placeholder-[#9ca3af] focus:ring-2 focus:ring-[#0052ff] outline-none text-[15px] transition-all',
+                  errors.email ? 'ring-2 ring-red-500 bg-red-50' : ''
+                ]"
               />
             </div>
+            <p v-if="errors.email" class="text-red-500 text-[12px] font-bold mt-1.5 ml-1">{{ errors.email }}</p>
           </div>
 
           <!-- Password -->
@@ -69,12 +93,16 @@ const handleLogin = async () => {
                 <Lock class="h-5 w-5 text-[#9ca3af]" />
               </div>
               <input
-                v-model="password"
+                v-model="form.password"
                 type="password"
                 placeholder="Enter your password"
-                class="w-full bg-[#f1f5f9] border-none rounded-[12px] py-3.5 pl-12 pr-4 text-[#1f2937] placeholder-[#9ca3af] focus:ring-2 focus:ring-[#0052ff] outline-none text-[15px]"
+                :class="[
+                  'w-full bg-[#f1f5f9] border-none rounded-[12px] py-3.5 pl-12 pr-4 text-[#1f2937] placeholder-[#9ca3af] focus:ring-2 focus:ring-[#0052ff] outline-none text-[15px] transition-all',
+                  errors.password ? 'ring-2 ring-red-500 bg-red-50' : ''
+                ]"
               />
             </div>
+            <p v-if="errors.password" class="text-red-500 text-[12px] font-bold mt-1.5 ml-1">{{ errors.password }}</p>
           </div>
 
           <!-- Remember Password -->
