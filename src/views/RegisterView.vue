@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { supabase } from '../services/supabase'
+//import { supabase } from '../services/supabase'
 import { Upload, Eye, EyeOff } from 'lucide-vue-next'
 
 const router = useRouter()
@@ -49,7 +49,7 @@ const errors = reactive({
 const showPassword = ref(false)
 const showConfirmPassword = ref(false)
 
-const handleRegister = async () => {
+const register = async () => {
   // 1. ล้าง error เก่าทั้งหมดก่อน
   Object.keys(errors).forEach(key => (errors[key as keyof typeof errors] = ''))
   errorMessage.value = ''
@@ -91,47 +91,31 @@ const handleRegister = async () => {
   successMessage.value = ''
 
   try {
-    let avatarUrl = ''
-
-    // Upload profile picture if exists
-    if (profileFile.value) {
-      const fileExt = profileFile.value.name.split('.').pop()
-      const fileName = `${Math.random()}.${fileExt}`
-      const filePath = `avatars/${fileName}`
-
-      const { error: uploadError } = await supabase.storage
-        .from('profiles')
-        .upload(filePath, profileFile.value)
-
-      if (uploadError) throw uploadError
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('profiles')
-        .getPublicUrl(filePath)
-      
-      avatarUrl = publicUrl
-    }
-
-    const { data, error } = await supabase.auth.signUp({
-      email: form.email,
-      password: form.password,
-      options: {
-        data: {
-          student_id: form.studentId,
-          first_name: form.firstName,
-          surname: form.surname,
-          avatar_url: avatarUrl
-        }
-      }
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000'
+    const response = await fetch(`${apiUrl}/auth/register`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        first_name: form.firstName,
+        last_name: form.surname,
+        email: form.email,
+        password: form.password
+      })
     })
 
-    if (error) throw error
+    const data = await response.json()
 
-    successMessage.value = 'Registration successful! Please check your email for verification.'
+    if (!response.ok) {
+      throw new Error(data.message || 'Registration failed')
+    }
+
+    successMessage.value = 'Registration successful!'
     
     setTimeout(() => {
       router.push('/login')
-    }, 3000)
+    }, 2000)
   } catch (error: any) {
     errorMessage.value = error.message
   } finally {
@@ -151,7 +135,7 @@ const handleRegister = async () => {
           <p class="text-[#6b7280] text-[15px]">Enter your details below to create your account and get started.</p>
         </div>
 
-        <form @submit.prevent="handleRegister" class="space-y-5">
+        <form @submit.prevent="register" class="space-y-5">
           <!-- Profile Picture -->
           <div class="flex flex-col items-center mb-2">
             <span class="text-[13px] font-bold text-[#1f2937] mb-3">Profile Picture</span>
