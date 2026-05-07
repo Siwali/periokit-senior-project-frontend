@@ -2,10 +2,12 @@
 import { reactive, ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { useNotificationStore } from '../stores/notification'
 import { Mail, Lock, CheckCircle2, Eye, EyeOff } from 'lucide-vue-next'
 
 const router = useRouter()
 const authStore = useAuthStore()
+const notificationStore = useNotificationStore()
 
 const form = reactive({
   email: '',
@@ -13,8 +15,6 @@ const form = reactive({
 })
 const rememberPassword = ref(false)
 const loading = ref(false)
-const errorMessage = ref('')
-const successMessage = ref('')
 const errors = reactive({
   email: '',
   password: ''
@@ -24,7 +24,7 @@ const showPassword = ref(false)
 onMounted(() => {
   // Check for logout message
   if (router.currentRoute.value.query.logout === 'true') {
-    successMessage.value = 'You have been successfully signed out.'
+    notificationStore.success('You have been successfully signed out.')
     // Clear the query param from URL without reloading
     router.replace({ query: {} })
   }
@@ -44,7 +44,6 @@ const handleLogin = async () => {
   // Clear previous errors
   errors.email = ''
   errors.password = ''
-  errorMessage.value = ''
   
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
   
@@ -70,9 +69,11 @@ const handleLogin = async () => {
     const result = await authStore.login(form.email, form.password)
 
     if (!result.success) {
-      errorMessage.value = result.message || 'Login failed'
+      notificationStore.error(result.message || 'Login failed')
       return
     }
+
+    notificationStore.success('Successfully signed in!')
 
     // Handle Remember Password (stores credentials, not session)
     if (rememberPassword.value) {
@@ -96,7 +97,7 @@ const handleLogin = async () => {
     }
   } catch (error: any) {
     console.error('Login Error:', error)
-    errorMessage.value = error.message || 'An unexpected error occurred'
+    notificationStore.error(error.message || 'An unexpected error occurred')
   } finally {
     loading.value = false
   }
@@ -185,13 +186,6 @@ const handleLogin = async () => {
             </button>
           </div>
 
-          <!-- Messages -->
-          <div v-if="errorMessage" class="text-red-600 text-[14px] font-bold bg-red-50 p-3 rounded-[12px] border border-red-100 text-center">
-            {{ errorMessage }}
-          </div>
-          <div v-if="successMessage" class="text-green-600 text-[14px] font-bold bg-green-50 p-3 rounded-[12px] border border-green-100 text-center">
-            {{ successMessage }}
-          </div>
 
           <!-- Submit Button -->
           <div class="pt-2">
