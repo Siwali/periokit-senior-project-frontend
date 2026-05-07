@@ -14,7 +14,7 @@ const httpLink = createHttpLink({
 const authLink = setContext((_, { headers }) => {
   // หากระบบของคุณมีระบบ Login (เช่น เก็บ token ไว้ใน localStorage) 
   // คุณสามารถดึง Token ของ User มาใส่แทน supabaseAnonKey เพื่อทำ RLS (Row Level Security) ได้
-  const token = localStorage.getItem('access_token') || supabaseAnonKey
+  const token = localStorage.getItem('periokit_access_token') || supabaseAnonKey
 
   return {
     headers: {

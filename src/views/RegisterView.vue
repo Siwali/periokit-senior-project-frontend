@@ -128,13 +128,14 @@ const register = async () => {
       // Handle field validation errors from backend (array format)
       if (Array.isArray(data.errors)) {
         data.errors.forEach((err: any) => {
-          if (err.path === 'email') errors.email = err.message
-          if (err.path === 'password') errors.password = err.message
-          if (err.path === 'firstName') errors.firstName = err.message
-          if (err.path === 'lastName') errors.surname = err.message
-          if (err.path === 'studentId') errors.studentId = err.message
+          const path = err.path
+          if (path === 'email') errors.email = err.message
+          if (path === 'password') errors.password = err.message
+          if (path === 'firstName') errors.firstName = err.message
+          if (path === 'lastName') errors.surname = err.message
+          if (path === 'studentId') errors.studentId = err.message
         })
-        errorMessage.value = data.message || 'Validation error'
+        errorMessage.value = 'Validation failed. Please check your inputs.'
       } else {
         errorMessage.value = data.message || 'Registration failed'
       }

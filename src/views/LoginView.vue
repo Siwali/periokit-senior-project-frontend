@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { reactive, ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { authService } from '../services/auth'
+import { useAuthStore } from '../stores/auth'
 import { Mail, Lock, CheckCircle2, Eye, EyeOff } from 'lucide-vue-next'
 
 const router = useRouter()
+const authStore = useAuthStore()
 
 const form = reactive({
   email: '',
@@ -58,7 +59,7 @@ const handleLogin = async () => {
   loading.value = true
 
   try {
-    const result = await authService.login(form.email, form.password)
+    const result = await authStore.login(form.email, form.password)
 
     if (!result.success) {
       errorMessage.value = result.message || 'Login failed'
@@ -77,8 +78,8 @@ const handleLogin = async () => {
     }
 
     // Redirect based on role
-    const user = result.data.user
-    if (user.role === 'admin') {
+    const user = result.user
+    if (user && user.role === 'admin') {
       router.push('/admin/dashboard')
     } else {
       router.push('/dashboard/home')
