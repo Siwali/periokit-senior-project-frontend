@@ -14,6 +14,7 @@ const form = reactive({
 const rememberPassword = ref(false)
 const loading = ref(false)
 const errorMessage = ref('')
+const successMessage = ref('')
 const errors = reactive({
   email: '',
   password: ''
@@ -21,6 +22,13 @@ const errors = reactive({
 const showPassword = ref(false)
 
 onMounted(() => {
+  // Check for logout message
+  if (router.currentRoute.value.query.logout === 'true') {
+    successMessage.value = 'You have been successfully signed out.'
+    // Clear the query param from URL without reloading
+    router.replace({ query: {} })
+  }
+
   const savedEmail = localStorage.getItem('periokit_email')
   const savedPassword = localStorage.getItem('periokit_password')
   const savedRemember = localStorage.getItem('periokit_remember') === 'true'
@@ -177,9 +185,12 @@ const handleLogin = async () => {
             </button>
           </div>
 
-          <!-- Error Message -->
+          <!-- Messages -->
           <div v-if="errorMessage" class="text-red-600 text-[14px] font-bold bg-red-50 p-3 rounded-[12px] border border-red-100 text-center">
             {{ errorMessage }}
+          </div>
+          <div v-if="successMessage" class="text-green-600 text-[14px] font-bold bg-green-50 p-3 rounded-[12px] border border-green-100 text-center">
+            {{ successMessage }}
           </div>
 
           <!-- Submit Button -->
