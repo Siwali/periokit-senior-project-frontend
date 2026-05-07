@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
-//import { supabase } from '../services/supabase'
+import { useAuthStore } from '../stores/auth'
 import { Upload, Eye, EyeOff } from 'lucide-vue-next'
 
 const router = useRouter()
+const authStore = useAuthStore()
 
 const form = reactive({
   studentId: '',
@@ -144,9 +145,24 @@ const register = async () => {
 
     successMessage.value = 'Registration successful!'
     
-    setTimeout(() => {
-      router.push('/login')
-    }, 2000)
+    // Auto login after successful registration
+    const loginResult = await authStore.login(form.email, form.password)
+    
+    if (loginResult.success) {
+      setTimeout(() => {
+        const user = loginResult.user || authStore.user
+        if (user && user.role === 'admin') {
+          router.push('/admin/dashboard')
+        } else {
+          router.push('/dashboard/home')
+        }
+      }, 1500)
+    } else {
+      // If auto-login fails for some reason, redirect to login page as fallback
+      setTimeout(() => {
+        router.push('/login')
+      }, 2000)
+    }
   } catch (error: any) {
     if (error instanceof TypeError || error.message?.toLowerCase().includes('fetch')) {
       errorMessage.value = 'Cannot connect to server'
