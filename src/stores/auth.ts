@@ -84,14 +84,26 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  function logout() {
-    localStorage.removeItem(TOKEN_KEY)
-    localStorage.removeItem(USER_KEY)
-    token.value = null
-    user.value = null
+  async function logout() {
+    try {
+      if (token.value) {
+        await fetch(`${API_URL}/auth/logout`, {
+          method: 'POST',
+          headers: getAuthHeaders()
+        })
+      }
+    } catch (error) {
+      console.error('Logout Error:', error)
+    } finally {
+      // Clear local storage
+      localStorage.removeItem(TOKEN_KEY)
+      localStorage.removeItem(USER_KEY)
+      token.value = null
+      user.value = null
+    }
   }
 
-  function getAuthHeaders() {
+  function getAuthHeaders(): Record<string, string> {
     return token.value ? { 'Authorization': `Bearer ${token.value}` } : {}
   }
 

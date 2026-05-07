@@ -3,13 +3,10 @@ import { useAuthStore } from '../stores/auth'
 import { useRouter } from 'vue-router'
 import { LogOut, ShieldCheck, Users, BarChart3, Settings } from 'lucide-vue-next'
 
+import Navbar from '../components/layout/Navbar.vue'
+
 const authStore = useAuthStore()
 const router = useRouter()
-
-const handleLogout = () => {
-  authStore.logout()
-  router.push('/login')
-}
 
 const user = authStore.user
 </script>
@@ -17,7 +14,7 @@ const user = authStore.user
 <template>
   <div class="min-h-screen bg-slate-900 font-sans flex text-white">
     <!-- Sidebar -->
-    <aside class="w-64 bg-slate-800 border-r border-slate-700 flex flex-col">
+    <aside class="w-64 bg-slate-800 border-r border-slate-700 flex flex-col sticky top-0 h-screen">
       <div class="p-6 flex items-center gap-3">
         <ShieldCheck class="h-8 w-8 text-blue-400" />
         <span class="text-xl font-bold tracking-tight">Admin Portal</span>
@@ -37,36 +34,17 @@ const user = authStore.user
           System Settings
         </a>
       </nav>
-
-      <div class="p-4 border-t border-slate-700">
-        <button 
-          @click="handleLogout"
-          class="w-full flex items-center gap-3 px-4 py-3 text-red-400 hover:bg-red-900/20 rounded-xl transition-colors font-medium"
-        >
-          <LogOut class="w-5 h-5" />
-          Sign Out
-        </button>
-      </div>
     </aside>
 
     <!-- Main Content -->
-    <main class="flex-1 p-8">
-      <header class="flex justify-between items-center mb-10">
-        <div>
+    <div class="flex-1 flex flex-col">
+      <Navbar />
+      
+      <main class="p-8">
+        <header class="mb-10">
           <h1 class="text-3xl font-bold">Admin Dashboard</h1>
           <p class="text-slate-400 mt-1">System status and administrative controls.</p>
-        </div>
-        
-        <div class="flex items-center gap-4">
-          <div class="text-right">
-            <p class="text-sm font-bold">{{ user?.first_name }} {{ user?.last_name }}</p>
-            <span class="px-2 py-0.5 bg-blue-500/20 text-blue-400 rounded text-[10px] font-bold uppercase tracking-wider">Administrator</span>
-          </div>
-          <div class="w-12 h-12 rounded-xl bg-slate-700 border border-slate-600 flex items-center justify-center text-blue-400 font-bold text-xl">
-            {{ user?.first_name?.charAt(0) || 'A' }}
-          </div>
-        </div>
-      </header>
+        </header>
 
       <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
         <!-- Admin Stats -->
@@ -91,7 +69,8 @@ const user = authStore.user
           <p class="text-green-400 text-xs mt-2">Normal</p>
         </div>
       </div>
-    </main>
+      </main>
+    </div>
   </div>
 </template>
 
