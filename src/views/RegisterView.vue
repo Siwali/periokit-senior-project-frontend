@@ -2,10 +2,12 @@
 import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { useNotificationStore } from '../stores/notification'
 import { Upload, Eye, EyeOff } from 'lucide-vue-next'
 
 const router = useRouter()
 const authStore = useAuthStore()
+const notificationStore = useNotificationStore()
 
 const form = reactive({
   studentId: '',
@@ -34,8 +36,6 @@ const handleFileChange = (event: Event) => {
 }
 
 const loading = ref(false)
-const errorMessage = ref('')
-const successMessage = ref('')
 
 // เพิ่ม state สำหรับเก็บ error แยกแต่ละช่อง
 const errors = reactive({
@@ -53,8 +53,6 @@ const showConfirmPassword = ref(false)
 const register = async () => {
   // 1. ล้าง error เก่าทั้งหมดก่อน
   Object.keys(errors).forEach(key => (errors[key as keyof typeof errors] = ''))
-  errorMessage.value = ''
-  successMessage.value = ''
 
   // 2. Validate ทุกช่องพร้อมกัน
   if (!form.studentId) errors.studentId = 'Please enter your Student ID'
@@ -88,8 +86,6 @@ const register = async () => {
   if (hasErrors) return
 
   loading.value = true
-  errorMessage.value = ''
-  successMessage.value = ''
 
   try {
     const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000'
@@ -119,7 +115,7 @@ const register = async () => {
     if (!response.ok) {
       // Handle Email already exists or other conflict errors
       if (response.status === 409 || data.message?.toLowerCase().includes('already exists')) {
-        errorMessage.value = data.message || 'Email already exists'
+        notificationStore.error(data.message || 'Email already exists')
         if (data.message?.toLowerCase().includes('email')) {
           errors.email = 'Email already exists'
         }
@@ -136,19 +132,20 @@ const register = async () => {
           if (path === 'lastName') errors.surname = err.message
           if (path === 'studentId') errors.studentId = err.message
         })
-        errorMessage.value = 'Validation failed. Please check your inputs.'
+        notificationStore.error('Validation failed. Please check your inputs.')
       } else {
-        errorMessage.value = data.message || 'Registration failed'
+        notificationStore.error(data.message || 'Registration failed')
       }
       return
     }
 
-    successMessage.value = 'Registration successful!'
+    notificationStore.success('Registration successful!')
     
     // Auto login after successful registration
     const loginResult = await authStore.login(form.email, form.password)
     
     if (loginResult.success) {
+      notificationStore.success('Signing you in...')
       setTimeout(() => {
         const user = loginResult.user || authStore.user
         if (user && user.role === 'admin') {
@@ -165,9 +162,9 @@ const register = async () => {
     }
   } catch (error: any) {
     if (error instanceof TypeError || error.message?.toLowerCase().includes('fetch')) {
-      errorMessage.value = 'Cannot connect to server'
+      notificationStore.error('Cannot connect to server')
     } else {
-      errorMessage.value = error.message
+      notificationStore.error(error.message)
     }
   } finally {
     loading.value = false
@@ -231,6 +228,7 @@ const register = async () => {
             <input
               v-model="form.studentId"
               type="text"
+              placeholder="66xxxxxxx"
               :class="[
                 'w-full bg-[#f1f5f9] border-none rounded-[10px] py-2.5 px-4 text-[#1f2937] placeholder-[#9ca3af] focus:ring-2 focus:ring-[#0052ff] outline-none transition-all',
                 errors.studentId ? 'ring-2 ring-red-500 bg-red-50' : ''
@@ -246,7 +244,7 @@ const register = async () => {
                 <input
                   v-model="form.firstName"
                   type="text"
-                  placeholder="enter..."
+                  placeholder="John"
                   :class="[
                     'w-full bg-[#f1f5f9] border-none rounded-[10px] py-2.5 px-4 text-[#1f2937] placeholder-[#9ca3af] focus:ring-2 focus:ring-[#0052ff] outline-none transition-all',
                     errors.firstName ? 'ring-2 ring-red-500 bg-red-50' : ''
@@ -259,7 +257,7 @@ const register = async () => {
                 <input
                   v-model="form.surname"
                   type="text"
-                  placeholder="enter..."
+                  placeholder="Doe"
                   :class="[
                     'w-full bg-[#f1f4f9] border-none rounded-[10px] py-2.5 px-4 text-[#1f2937] placeholder-[#9ca3af] focus:ring-2 focus:ring-[#0052ff] outline-none transition-all',
                     errors.surname ? 'ring-2 ring-red-500 bg-red-50' : ''
@@ -292,7 +290,7 @@ const register = async () => {
                   <input
                     v-model="form.password"
                     :type="showPassword ? 'text' : 'password'"
-                    placeholder="enter..."
+                    placeholder="********"
                     :class="[
                       'w-full bg-[#f1f5f9] border-none rounded-[10px] py-2.5 pl-4 pr-10 text-[#1f2937] placeholder-[#9ca3af] focus:ring-2 focus:ring-[#0052ff] outline-none transition-all',
                       errors.password ? 'ring-2 ring-red-500 bg-red-50' : ''
@@ -315,7 +313,7 @@ const register = async () => {
                   <input
                     v-model="form.confirmPassword"
                     :type="showConfirmPassword ? 'text' : 'password'"
-                    placeholder="enter..."
+                    placeholder="********"
                     :class="[
                       'w-full bg-[#f1f5f9] border-none rounded-[10px] py-2.5 pl-4 pr-10 text-[#1f2937] placeholder-[#9ca3af] focus:ring-2 focus:ring-[#0052ff] outline-none transition-all',
                       errors.confirmPassword ? 'ring-2 ring-red-500 bg-red-50' : ''
@@ -334,15 +332,6 @@ const register = async () => {
             </div>
           </div>
 
-          <!-- Error & Success Messages -->
-          <div class="space-y-2 mt-2 text-center">
-            <div v-if="errorMessage" class="text-red-600 text-[14px] font-bold bg-red-50 p-3 rounded-[10px] border border-red-100">
-              {{ errorMessage }}
-            </div>
-            <div v-if="successMessage" class="text-green-600 text-[14px] font-bold bg-green-50 p-3 rounded-[10px] border border-green-100">
-              {{ successMessage }}
-            </div>
-          </div>
 
           <!-- Submit Button -->
           <div class="pt-2">
