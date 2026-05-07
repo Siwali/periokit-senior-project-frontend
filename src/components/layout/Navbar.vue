@@ -1,12 +1,21 @@
 <script setup lang="ts">
+import { ref } from 'vue'
 import { useAuthStore } from '../../stores/auth'
 import { useRouter } from 'vue-router'
 import { LogOut, Bell, Search } from 'lucide-vue-next'
+import ConfirmModal from '../common/ConfirmModal.vue'
 
 const authStore = useAuthStore()
 const router = useRouter()
 
-const handleLogout = async () => {
+const showLogoutConfirm = ref(false)
+
+const handleLogout = () => {
+  showLogoutConfirm.value = true
+}
+
+const confirmLogout = async () => {
+  showLogoutConfirm.value = false
   await authStore.logout()
   router.replace({ path: '/login', query: { logout: 'true' } })
 }
@@ -70,6 +79,17 @@ const user = authStore.user
       </div>
     </div>
   </nav>
+
+  <!-- Logout Confirmation Modal -->
+  <ConfirmModal
+    :show="showLogoutConfirm"
+    title="Sign Out"
+    message="Are you sure you want to sign out of PerioKit? You will need to login again to access your charts."
+    confirmText="Sign Out"
+    type="danger"
+    @confirm="confirmLogout"
+    @cancel="showLogoutConfirm = false"
+  />
 </template>
 
 <style scoped>
