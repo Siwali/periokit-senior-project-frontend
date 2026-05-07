@@ -11,6 +11,7 @@ export interface UserProfile {
   last_name: string
   student_id?: string
   role?: string
+  profile_image_url?: string
 }
 
 export const useAuthStore = defineStore('auth', () => {
@@ -44,15 +45,28 @@ export const useAuthStore = defineStore('auth', () => {
 
       // 1. รับ access token/session
       // โครงสร้างที่ส่งกลับมาจาก backend คือ { success: true, data: { user, session: { access_token, ... } } }
-      const userData = data.data?.user
-      const access_token = data.data?.session?.access_token
+      const rawUser = data.data?.user
+      const session = data.data?.session
+      const access_token = session?.access_token
 
-      if (!access_token || !userData) {
+      if (!access_token || !rawUser) {
         console.error('Data Structure Error:', data)
         throw new Error('Invalid response from server structure')
       }
 
-      // 2. เก็บ token ใน local storage
+      // 2. แปลงข้อมูล user ให้ตรงกับ UserProfile interface
+      // ดึงข้อมูลจาก user_metadata ที่ Supabase เก็บไว้
+      const userData: UserProfile = {
+        id: rawUser.id,
+        email: rawUser.email || '',
+        first_name: rawUser.user_metadata?.firstName || '',
+        last_name: rawUser.user_metadata?.lastName || '',
+        student_id: rawUser.user_metadata?.studentId,
+        role: rawUser.user_metadata?.role,
+        profile_image_url: rawUser.user_metadata?.profileImageUrl
+      }
+
+      // 3. เก็บ token ใน local storage
       localStorage.setItem(TOKEN_KEY, access_token)
       localStorage.setItem(USER_KEY, JSON.stringify(userData))
 
