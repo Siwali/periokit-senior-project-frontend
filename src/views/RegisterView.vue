@@ -92,40 +92,49 @@ const register = async () => {
 
   try {
     const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000'
+    
+    // Use FormData for multipart/form-data support (profile image)
+    const formData = new FormData()
+    formData.append('email', form.email)
+    formData.append('password', form.password)
+    formData.append('firstName', form.firstName)
+    formData.append('lastName', form.surname)
+    
+    if (form.studentId) {
+      formData.append('studentId', form.studentId)
+    }
+    
+    if (profileFile.value) {
+      formData.append('profileImage', profileFile.value)
+    }
+
     const response = await fetch(`${apiUrl}/auth/register`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        student_id: form.studentId,
-        first_name: form.firstName,
-        last_name: form.surname,
-        email: form.email,
-        password: form.password
-      })
+      body: formData
     })
 
     const data = await response.json()
 
     if (!response.ok) {
-      // Handle Email already exists
-      if (response.status === 409 || data.message?.toLowerCase().includes('email already exists')) {
-        errorMessage.value = 'Email already exists'
-        errors.email = 'Email already exists'
+      // Handle Email already exists or other conflict errors
+      if (response.status === 409 || data.message?.toLowerCase().includes('already exists')) {
+        errorMessage.value = data.message || 'Email already exists'
+        if (data.message?.toLowerCase().includes('email')) {
+          errors.email = 'Email already exists'
+        }
         return
       }
       
-      // Handle field validation errors from backend
-      if (data.errors && typeof data.errors === 'object') {
-        Object.keys(data.errors).forEach(key => {
-          if (key === 'email') errors.email = data.errors.email
-          if (key === 'password') errors.password = data.errors.password
-          if (key === 'first_name') errors.firstName = data.errors.first_name
-          if (key === 'last_name') errors.surname = data.errors.last_name
-          if (key === 'student_id') errors.studentId = data.errors.student_id
+      // Handle field validation errors from backend (array format)
+      if (Array.isArray(data.errors)) {
+        data.errors.forEach((err: any) => {
+          if (err.path === 'email') errors.email = err.message
+          if (err.path === 'password') errors.password = err.message
+          if (err.path === 'firstName') errors.firstName = err.message
+          if (err.path === 'lastName') errors.surname = err.message
+          if (err.path === 'studentId') errors.studentId = err.message
         })
-        errorMessage.value = 'Validation error'
+        errorMessage.value = data.message || 'Validation error'
       } else {
         errorMessage.value = data.message || 'Registration failed'
       }
