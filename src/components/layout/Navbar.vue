@@ -1,14 +1,14 @@
 <script setup lang="ts">
 import { useAuthStore } from '../../stores/auth'
 import { useRouter } from 'vue-router'
-import { LogOut, User, Bell, Search } from 'lucide-vue-next'
+import { LogOut, Bell, Search } from 'lucide-vue-next'
 
 const authStore = useAuthStore()
 const router = useRouter()
 
 const handleLogout = async () => {
   await authStore.logout()
-  router.push('/login')
+  router.replace({ path: '/login', query: { logout: 'true' } })
 }
 
 const user = authStore.user
