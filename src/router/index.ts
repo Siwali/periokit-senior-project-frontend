@@ -32,4 +32,21 @@ const router = createRouter({
   ]
 })
 
+// Navigation Guard
+router.beforeEach((to, from, next) => {
+  const token = localStorage.getItem('periokit_access_token')
+  const isAuthPage = to.name === 'login' || to.name === 'register'
+  const isDashboardRoute = to.path.startsWith('/dashboard') || to.path.startsWith('/admin')
+
+  if (isDashboardRoute && !token) {
+    // If trying to access dashboard without token, redirect to login
+    next({ name: 'login' })
+  } else if (isAuthPage && token) {
+    // If already logged in and trying to access auth pages, redirect to dashboard
+    next({ name: 'home' })
+  } else {
+    next()
+  }
+})
+
 export default router
