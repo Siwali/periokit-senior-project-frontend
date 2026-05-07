@@ -2,6 +2,8 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { supabase } from '../services/supabase'
 import { apolloClient } from '../services/apollo-client'
+import { useNotificationStore } from './notification'
+import router from '../router'
 
 
 const TOKEN_KEY = 'periokit_access_token'
@@ -118,6 +120,43 @@ export const useAuthStore = defineStore('auth', () => {
 
   }
 
+  /**
+   * เคลียร์ session และ redirect ไปหน้า login เมื่อ token หมดอายุ หรือไม่ถูกต้อง (401)
+   */
+  let isHandlingUnauthorized = false
+  async function handleUnauthorized() {
+    // ป้องกัน Loop และการทำงานซ้ำซ้อน
+    if (isHandlingUnauthorized || router.currentRoute.value.name === 'login') {
+      return
+    }
+
+    isHandlingUnauthorized = true
+
+    try {
+      // 1. เคลียร์ state ทั้งหมด
+      localStorage.removeItem(TOKEN_KEY)
+      localStorage.removeItem(USER_KEY)
+      token.value = null
+      user.value = null
+
+      // 2. แจ้งเตือนผู้ใช้
+      const notificationStore = useNotificationStore()
+      notificationStore.error('Please login again (Session expired)')
+
+      // 3. Redirect ไปหน้า login
+      await router.push({ name: 'login' })
+      
+      // 4. Reset Apollo cache
+      try {
+        await apolloClient.resetStore()
+      } catch (e) {
+        console.error('Apollo reset error:', e)
+      }
+    } finally {
+      isHandlingUnauthorized = false
+    }
+  }
+
   function getAuthHeaders(): Record<string, string> {
     return token.value ? { 'Authorization': `Bearer ${token.value}` } : {}
   }
@@ -129,6 +168,7 @@ export const useAuthStore = defineStore('auth', () => {
     userProfile,
     login,
     logout,
+    handleUnauthorized,
     getAuthHeaders
   }
 })
