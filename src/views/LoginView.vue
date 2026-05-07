@@ -78,13 +78,16 @@ const handleLogin = async () => {
     }
 
     // Redirect based on role
-    const user = result.user
+    // Ensure we check authStore.user as well for reliability
+    const user = result.user || authStore.user
+    
     if (user && user.role === 'admin') {
       router.push('/admin/dashboard')
     } else {
       router.push('/dashboard/home')
     }
   } catch (error: any) {
+    console.error('Login Error:', error)
     errorMessage.value = error.message || 'An unexpected error occurred'
   } finally {
     loading.value = false
@@ -175,7 +178,7 @@ const handleLogin = async () => {
           </div>
 
           <!-- Error Message -->
-          <div v-if="errorMessage" class="text-red-500 text-[12px] font-bold text-center mt-2">
+          <div v-if="errorMessage" class="text-red-600 text-[14px] font-bold bg-red-50 p-3 rounded-[12px] border border-red-100 text-center">
             {{ errorMessage }}
           </div>
 

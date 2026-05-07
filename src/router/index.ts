@@ -16,6 +16,16 @@ const router = createRouter({
       component: LoginView
     },
     {
+      path: '/dashboard/home',
+      name: 'home',
+      component: () => import('../views/HomeView.vue')
+    },
+    {
+      path: '/admin/dashboard',
+      name: 'admin-dashboard',
+      component: () => import('../views/AdminDashboardView.vue')
+    },
+    {
       path: '/',
       redirect: '/login'
     }
