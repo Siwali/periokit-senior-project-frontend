@@ -28,6 +28,8 @@
     "postcss": "^8.5.14",
     "tailwindcss": "^4.2.4",
     "typescript": "~6.0.2",
+    "unplugin-auto-import": "^21.0.0",
+    "unplugin-vue-components": "^32.0.0",
     "vite": "^8.0.10",
     "vue-tsc": "^3.2.7"
   }

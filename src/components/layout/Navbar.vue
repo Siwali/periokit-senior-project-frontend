@@ -84,7 +84,7 @@ const user = authStore.user
   <ConfirmModal
     :show="showLogoutConfirm"
     title="Sign Out"
-    message="Are you sure you want to sign out of PerioKit? You will need to login again to access your charts."
+    :message="`Are you sure you want to sign out of PerioKit?\nYou will need to login again to access your charts.`"
     confirmText="Sign Out"
     type="danger"
     @confirm="confirmLogout"
@@ -92,10 +92,4 @@ const user = authStore.user
   />
 </template>
 
-<style scoped>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
-nav {
-  font-family: 'Inter', sans-serif;
-}
-</style>

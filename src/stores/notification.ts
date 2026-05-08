@@ -13,7 +13,7 @@ export interface Notification {
 export const useNotificationStore = defineStore('notification', () => {
   const notifications = ref<Notification[]>([])
 
-  const show = (message: string, type: NotificationType = 'info', duration: number = 4000) => {
+  const show = (message: string, type: NotificationType = 'info', duration: number = 1000) => {
     const id = Math.random().toString(36).substring(2, 9)
     const notification: Notification = { id, message, type, duration }
     
