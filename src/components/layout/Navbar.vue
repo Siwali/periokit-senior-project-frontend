@@ -84,7 +84,7 @@ const user = authStore.user
   <ConfirmModal
     :show="showLogoutConfirm"
     title="Sign Out"
-    message="Are you sure you want to sign out of PerioKit? You will need to login again to access your charts."
+    :message="`Are you sure you want to sign out of PerioKit?\nYou will need to login again to access your charts.`"
     confirmText="Sign Out"
     type="danger"
     @confirm="confirmLogout"

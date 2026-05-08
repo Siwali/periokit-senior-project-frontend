@@ -12,6 +12,8 @@ export {}
 declare module 'vue' {
   export interface GlobalComponents {
     ConfirmModal: typeof import('./src/components/common/ConfirmModal.vue')['default']
+    LAlertCircle: typeof import('lucide-vue-next')['AlertCircle']
+    LLogOut: typeof import('lucide-vue-next')['LogOut']
     LX: typeof import('lucide-vue-next')['X']
     Navbar: typeof import('./src/components/layout/Navbar.vue')['default']
     NotificationToast: typeof import('./src/components/common/NotificationToast.vue')['default']
