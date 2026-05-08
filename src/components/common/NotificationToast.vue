@@ -1,14 +1,15 @@
 <script setup lang="ts">
 import { useNotificationStore } from '../../stores/notification'
+import { CheckCircle2, AlertCircle, AlertTriangle, Info, X } from 'lucide-vue-next'
 
 const notificationStore = useNotificationStore()
 
 const getIcon = (type: string) => {
   switch (type) {
-    case 'success': return 'l-check-circle-2'
-    case 'error': return 'l-alert-circle'
-    case 'warning': return 'l-alert-triangle'
-    default: return 'l-info'
+    case 'success': return CheckCircle2
+    case 'error': return AlertCircle
+    case 'warning': return AlertTriangle
+    default: return Info
   }
 }
 
@@ -72,7 +73,7 @@ const getIconClass = (type: string) => {
           @click="notificationStore.remove(notification.id)"
           class="flex-shrink-0 ml-4 text-gray-400 hover:text-gray-600 transition-colors"
         >
-          <l-x class="w-4 h-4" />
+          <X class="w-4 h-4" />
         </button>
 
         <!-- Progress Bar -->
