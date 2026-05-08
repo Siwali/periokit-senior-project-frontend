@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useAuthStore } from '../stores/auth'
 import { useRouter } from 'vue-router'
-import { LogOut, ShieldCheck, Users, BarChart3, Settings } from 'lucide-vue-next'
+import { ShieldCheck, BarChart3, Users, Settings } from 'lucide-vue-next'
 
 import Navbar from '../components/layout/Navbar.vue'
 

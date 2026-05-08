@@ -2,7 +2,7 @@
 import { ref } from 'vue'
 import { useAuthStore } from '../../stores/auth'
 import { useRouter } from 'vue-router'
-import { LogOut, Bell, Search } from 'lucide-vue-next'
+import { Search, Bell, LogOut } from 'lucide-vue-next'
 import ConfirmModal from '../common/ConfirmModal.vue'
 
 const authStore = useAuthStore()

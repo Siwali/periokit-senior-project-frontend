@@ -6,6 +6,18 @@
   font-family: 'Inter', sans-serif;
 }
 
+button, 
+[role="button"],
+a,
+input[type="submit"],
+input[type="button"],
+input[type="checkbox"],
+input[type="radio"],
+select,
+label {
+  cursor: pointer;
+}
+
 .font-sans {
   font-family: 'Inter', sans-serif;
 }
