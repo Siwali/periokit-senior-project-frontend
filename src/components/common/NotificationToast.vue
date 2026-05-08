@@ -88,28 +88,4 @@ const getIconClass = (type: string) => {
   </div>
 </template>
 
-<style scoped>
-@keyframes progress {
-  from { width: 100%; }
-  to { width: 0%; }
-}
 
-.notification-enter-active,
-.notification-leave-active {
-  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-}
-
-.notification-enter-from {
-  opacity: 0;
-  transform: translateX(50px) scale(0.9);
-}
-
-.notification-leave-to {
-  opacity: 0;
-  transform: translateX(20px) scale(0.95);
-}
-
-.notification-move {
-  transition: transform 0.4s ease;
-}
-</style>

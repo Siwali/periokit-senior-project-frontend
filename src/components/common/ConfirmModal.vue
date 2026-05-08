@@ -88,19 +88,4 @@ const emit = defineEmits(['confirm', 'cancel'])
   </Transition>
 </template>
 
-<style scoped>
-.fade-enter-active, .fade-leave-active {
-  transition: opacity 0.3s ease;
-}
-.fade-enter-from, .fade-leave-to {
-  opacity: 0;
-}
 
-.scale-enter-active, .scale-leave-active {
-  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-.scale-enter-from, .scale-leave-to {
-  opacity: 0;
-  transform: scale(0.9) translateY(20px);
-}
-</style>
