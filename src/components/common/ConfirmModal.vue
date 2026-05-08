@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { AlertCircle, LogOut, X } from 'lucide-vue-next'
+//import { AlertCircle, LogOut, X } from 'lucide-vue-next'
 
 defineProps<{
   show: boolean
@@ -41,14 +41,14 @@ const emit = defineEmits(['confirm', 'cancel'])
                 type === 'danger' ? 'bg-red-500 text-white' : 'bg-[#0052ff] text-white'
               ]"
             >
-              <component :is="type === 'danger' ? LogOut : AlertCircle" class="w-10 h-10" />
+              <component :is="type === 'danger' ? 'l-log-out' : 'l-alert-circle'" class="w-10 h-10" />
             </div>
             
             <button 
               @click="emit('cancel')"
               class="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-600 transition-colors rounded-full hover:bg-black/5"
             >
-              <X class="w-5 h-5" />
+              <l-x class="w-5 h-5" />
             </button>
           </div>
 
