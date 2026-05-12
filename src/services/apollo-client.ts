@@ -2,7 +2,7 @@ import { ApolloClient, createHttpLink, InMemoryCache, from } from '@apollo/clien
 import { setContext } from '@apollo/client/link/context'
 import { onError } from '@apollo/client/link/error'
 import { getAccessToken } from './token-storage'
-import { useAuthStore } from '../stores/auth'
+import { handleUnauthorizedSession, registerApolloResetHandler } from './session'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 
@@ -26,8 +26,7 @@ const errorLink = onError(({ graphQLErrors, networkError }) => {
   if (graphQLErrors) {
     for (const err of graphQLErrors) {
       if (err.extensions?.code === 'UNAUTHENTICATED' || err.message?.toLowerCase().includes('unauthorized') || err.message?.includes('401')) {
-        const authStore = useAuthStore()
-        authStore.handleUnauthorized()
+        handleUnauthorizedSession()
         break
       }
     }
@@ -35,12 +34,15 @@ const errorLink = onError(({ graphQLErrors, networkError }) => {
 
   // สำหรับ Network Error เช่น 401
   if (networkError && 'statusCode' in networkError && networkError.statusCode === 401) {
-    const authStore = useAuthStore()
-    authStore.handleUnauthorized()
+    handleUnauthorizedSession()
   }
 })
 
 export const apolloClient = new ApolloClient({
   link: from([errorLink, authLink, httpLink]),
   cache: new InMemoryCache(),
+})
+
+registerApolloResetHandler(async () => {
+  await apolloClient.clearStore()
 })
