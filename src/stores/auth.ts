@@ -1,6 +1,5 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { supabase } from '../services/supabase'
 import { apolloClient } from '../services/apollo-client'
 import { useNotificationStore } from './notification'
 import router from '../router'
@@ -91,10 +90,6 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function logout() {
     try {
-      // 1. Call Supabase signOut
-      await supabase.auth.signOut()
-      
-      // 2. Optional: Call backend logout if needed (keeping it for robustness)
       if (token.value) {
         await fetch(`${API_URL}/auth/logout`, {
           method: 'POST',
@@ -104,14 +99,13 @@ export const useAuthStore = defineStore('auth', () => {
     } catch (error) {
       console.error('Logout Error:', error)
     } finally {
-      // 3. Reset Apollo cache to prevent stale data/token usage
+      // Reset Apollo cache to prevent stale data/token usage
       try {
         await apolloClient.resetStore()
       } catch (e) {
         console.error('Apollo reset error:', e)
       }
 
-      // 4. Clear local storage and state
       localStorage.removeItem(TOKEN_KEY)
       localStorage.removeItem(USER_KEY)
       token.value = null

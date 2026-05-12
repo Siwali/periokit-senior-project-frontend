@@ -1,5 +1,26 @@
-# Vue 3 + TypeScript + Vite
+# PerioKit Frontend
 
-This template should help get you started developing with Vue 3 and TypeScript in Vite. The template uses Vue 3 `<script setup>` SFCs, check out the [script setup docs](https://v3.vuejs.org/api/sfc-script-setup.html#sfc-script-setup) to learn more.
+Vue 3 + TypeScript frontend for the PerioKit periodontal charting system.
 
-Learn more about the recommended Project Setup and IDE Support in the [Vue Docs TypeScript Guide](https://vuejs.org/guide/typescript/overview.html#project-setup).
+## API Boundary
+
+Frontend must call the Express backend as the main API boundary.
+
+- REST is used for authentication and file upload flows.
+- Apollo Client/GraphQL is used for application data through the backend `/graphql` endpoint.
+- Frontend must not call Supabase directly unless a future feature explicitly requires it, such as realtime subscriptions or direct upload with a reviewed access policy.
+
+## Environment
+
+```env
+VITE_API_URL=http://localhost:3000
+```
+
+Supabase URL and anon key are intentionally not required by the frontend in the current architecture.
+
+## Development
+
+```bash
+npm install
+npm run dev
+```
