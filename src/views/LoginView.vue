@@ -13,7 +13,7 @@ const form = reactive({
   email: '',
   password: ''
 })
-const rememberPassword = ref(false)
+const rememberEmail = ref(false)
 const loading = ref(false)
 const errors = reactive({
   email: '',
@@ -30,13 +30,14 @@ onMounted(() => {
   }
 
   const savedEmail = localStorage.getItem('periokit_email')
-  const savedPassword = localStorage.getItem('periokit_password')
-  const savedRemember = localStorage.getItem('periokit_remember') === 'true'
+  const savedRemember = localStorage.getItem('periokit_remember_email') === 'true'
+
+  localStorage.removeItem('periokit_password')
+  localStorage.removeItem('periokit_remember')
 
   if (savedRemember) {
     form.email = savedEmail || ''
-    form.password = savedPassword || ''
-    rememberPassword.value = true
+    rememberEmail.value = true
   }
 })
 
@@ -75,15 +76,12 @@ const handleLogin = async () => {
 
     notificationStore.success('Successfully signed in!')
 
-    // Handle Remember Password (stores credentials, not session)
-    if (rememberPassword.value) {
+    if (rememberEmail.value) {
       localStorage.setItem('periokit_email', form.email)
-      localStorage.setItem('periokit_password', form.password)
-      localStorage.setItem('periokit_remember', 'true')
+      localStorage.setItem('periokit_remember_email', 'true')
     } else {
       localStorage.removeItem('periokit_email')
-      localStorage.removeItem('periokit_password')
-      localStorage.removeItem('periokit_remember')
+      localStorage.removeItem('periokit_remember_email')
     }
 
     // Redirect based on role
@@ -165,16 +163,16 @@ const handleLogin = async () => {
             <p v-if="errors.password" class="text-red-500 text-[12px] font-bold mt-1.5 ml-1">{{ errors.password }}</p>
           </div>
 
-          <!-- Remember Password -->
+          <!-- Remember Email -->
           <div class="flex items-center gap-2">
             <button 
               type="button" 
-              @click="rememberPassword = !rememberPassword"
+              @click="rememberEmail = !rememberEmail"
               class="flex items-center gap-2 focus:outline-none group"
             >
               <div class="w-5 h-5 flex items-center justify-center">
                 <CheckCircle2 
-                  v-if="rememberPassword" 
+                  v-if="rememberEmail" 
                   class="w-5 h-5 text-[#0052ff] fill-[#0052ff] text-white" 
                 />
                 <div 
@@ -182,7 +180,7 @@ const handleLogin = async () => {
                   class="w-5 h-5 rounded-full border-2 border-[#d1d5db] group-hover:border-[#0052ff] transition-colors"
                 ></div>
               </div>
-              <span class="text-[14px] text-[#9ca3af] font-medium">Remember Password</span>
+              <span class="text-[14px] text-[#9ca3af] font-medium">Remember Email</span>
             </button>
           </div>
 

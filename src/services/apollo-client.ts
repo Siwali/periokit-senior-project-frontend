@@ -1,6 +1,7 @@
 import { ApolloClient, createHttpLink, InMemoryCache, from } from '@apollo/client/core'
 import { setContext } from '@apollo/client/link/context'
 import { onError } from '@apollo/client/link/error'
+import { getAccessToken } from './token-storage'
 import { useAuthStore } from '../stores/auth'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
@@ -11,7 +12,7 @@ const httpLink = createHttpLink({
 })
 
 const authLink = setContext((_, { headers }) => {
-  const token = localStorage.getItem('periokit_access_token')
+  const token = getAccessToken()
 
   return {
     headers: {

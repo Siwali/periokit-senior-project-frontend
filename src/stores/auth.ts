@@ -1,30 +1,22 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { apolloClient } from '../services/apollo-client'
+import { loginUser, logoutUser, registerUser, type RegisterInput } from '../services/api/auth.api'
+import {
+  clearSessionStorage,
+  getAccessToken,
+  getAuthHeaders as getStoredAuthHeaders,
+  getStoredUserProfile,
+  saveSession,
+} from '../services/token-storage'
 import { useNotificationStore } from './notification'
 import router from '../router'
-
-
-const TOKEN_KEY = 'periokit_access_token'
-const USER_KEY = 'periokit_user_profile'
-
-export interface UserProfile {
-  id: string
-  email: string
-  first_name: string
-  last_name: string
-  student_id?: string
-  role?: string
-  profile_image_url?: string
-}
+import type { UserProfile } from '../types/auth'
 
 export const useAuthStore = defineStore('auth', () => {
   // State
-  const savedUser = localStorage.getItem(USER_KEY)
-  const initialUser = (savedUser && savedUser !== 'undefined') ? JSON.parse(savedUser) : null
-  const user = ref<UserProfile | null>(initialUser)
-  const token = ref<string | null>(localStorage.getItem(TOKEN_KEY))
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
+  const user = ref<UserProfile | null>(getStoredUserProfile())
+  const token = ref<string | null>(getAccessToken())
 
   // Getters
   const isAuthenticated = computed(() => !!token.value)
@@ -33,52 +25,13 @@ export const useAuthStore = defineStore('auth', () => {
   // Actions
   async function login(email: string, password: string) {
     try {
-      const response = await fetch(`${API_URL}/auth/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ email, password })
-      })
+      const result = await loginUser(email, password)
 
-      const data = await response.json()
+      saveSession(result.token, result.user)
+      token.value = result.token
+      user.value = result.user
 
-      if (!response.ok) {
-        throw new Error(data.message || 'Login failed')
-      }
-
-      // 1. รับ access token/session
-      // โครงสร้างที่ส่งกลับมาจาก backend คือ { success: true, data: { user, session: { access_token, ... } } }
-      const rawUser = data.data?.user
-      const session = data.data?.session
-      const access_token = session?.access_token
-
-      if (!access_token || !rawUser) {
-        console.error('Data Structure Error:', data)
-        throw new Error('Invalid response from server structure')
-      }
-
-      // 2. แปลงข้อมูล user ให้ตรงกับ UserProfile interface
-      // ดึงข้อมูลจาก user_metadata ที่ Supabase เก็บไว้
-      const userData: UserProfile = {
-        id: rawUser.id,
-        email: rawUser.email || '',
-        first_name: rawUser.user_metadata?.firstName || '',
-        last_name: rawUser.user_metadata?.lastName || '',
-        student_id: rawUser.user_metadata?.studentId,
-        role: rawUser.user_metadata?.role,
-        profile_image_url: rawUser.user_metadata?.profileImageUrl
-      }
-
-      // 3. เก็บ token ใน local storage
-      localStorage.setItem(TOKEN_KEY, access_token)
-      localStorage.setItem(USER_KEY, JSON.stringify(userData))
-
-      // 3. เก็บ user profile ใน auth state
-      token.value = access_token
-      user.value = userData
-
-      return { success: true, user: userData, token: access_token }
+      return { success: true, user: result.user, token: result.token }
     } catch (error: any) {
       console.error('Login Error:', error)
       return { 
@@ -88,13 +41,25 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  async function register(input: RegisterInput) {
+    try {
+      await registerUser(input)
+      return { success: true }
+    } catch (error: any) {
+      console.error('Register Error:', error)
+      return {
+        success: false,
+        message: error.message || 'Cannot connect to server',
+        status: error.status,
+        errors: error.errors,
+      }
+    }
+  }
+
   async function logout() {
     try {
       if (token.value) {
-        await fetch(`${API_URL}/auth/logout`, {
-          method: 'POST',
-          headers: getAuthHeaders()
-        })
+        await logoutUser()
       }
     } catch (error) {
       console.error('Logout Error:', error)
@@ -106,8 +71,7 @@ export const useAuthStore = defineStore('auth', () => {
         console.error('Apollo reset error:', e)
       }
 
-      localStorage.removeItem(TOKEN_KEY)
-      localStorage.removeItem(USER_KEY)
+      clearSessionStorage()
       token.value = null
       user.value = null
     }
@@ -128,8 +92,7 @@ export const useAuthStore = defineStore('auth', () => {
 
     try {
       // 1. เคลียร์ state ทั้งหมด
-      localStorage.removeItem(TOKEN_KEY)
-      localStorage.removeItem(USER_KEY)
+      clearSessionStorage()
       token.value = null
       user.value = null
 
@@ -152,7 +115,7 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   function getAuthHeaders(): Record<string, string> {
-    return token.value ? { 'Authorization': `Bearer ${token.value}` } : {}
+    return getStoredAuthHeaders()
   }
 
   return {
@@ -161,6 +124,7 @@ export const useAuthStore = defineStore('auth', () => {
     isAuthenticated,
     userProfile,
     login,
+    register,
     logout,
     handleUnauthorized,
     getAuthHeaders

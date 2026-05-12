@@ -88,43 +88,28 @@ const register = async () => {
   loading.value = true
 
   try {
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000'
-    
-    // Use FormData for multipart/form-data support (profile image)
-    const formData = new FormData()
-    formData.append('email', form.email)
-    formData.append('password', form.password)
-    formData.append('firstName', form.firstName)
-    formData.append('lastName', form.surname)
-    
-    if (form.studentId) {
-      formData.append('studentId', form.studentId)
-    }
-    
-    if (profileFile.value) {
-      formData.append('profileImage', profileFile.value)
-    }
-
-    const response = await fetch(`${apiUrl}/auth/register`, {
-      method: 'POST',
-      body: formData
+    const result = await authStore.register({
+      email: form.email,
+      password: form.password,
+      firstName: form.firstName,
+      lastName: form.surname,
+      studentId: form.studentId,
+      profileImage: profileFile.value,
     })
 
-    const data = await response.json()
-
-    if (!response.ok) {
+    if (!result.success) {
       // Handle Email already exists or other conflict errors
-      if (response.status === 409 || data.message?.toLowerCase().includes('already exists')) {
-        notificationStore.error(data.message || 'Email already exists')
-        if (data.message?.toLowerCase().includes('email')) {
+      if (result.status === 409 || result.message?.toLowerCase().includes('already exists')) {
+        notificationStore.error(result.message || 'Email already exists')
+        if (result.message?.toLowerCase().includes('email')) {
           errors.email = 'Email already exists'
         }
         return
       }
       
       // Handle field validation errors from backend (array format)
-      if (Array.isArray(data.errors)) {
-        data.errors.forEach((err: any) => {
+      if (Array.isArray(result.errors)) {
+        result.errors.forEach((err: { path?: string; message: string }) => {
           const path = err.path
           if (path === 'email') errors.email = err.message
           if (path === 'password') errors.password = err.message
@@ -134,7 +119,7 @@ const register = async () => {
         })
         notificationStore.error('Validation failed. Please check your inputs.')
       } else {
-        notificationStore.error(data.message || 'Registration failed')
+        notificationStore.error(result.message || 'Registration failed')
       }
       return
     }

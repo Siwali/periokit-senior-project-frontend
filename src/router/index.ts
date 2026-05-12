@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import RegisterView from '../views/RegisterView.vue'
 import LoginView from '../views/LoginView.vue'
+import { getAccessToken } from '../services/token-storage'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -36,9 +37,8 @@ const router = createRouter({
   ]
 })
 
-// Navigation Guard
-router.beforeEach((to, from, next) => {
-  const token = localStorage.getItem('periokit_access_token')
+router.beforeEach((to, _from, next) => {
+  const token = getAccessToken()
   const requiresAuth = to.matched.some(record => record.meta.requiresAuth)
   const requiresGuest = to.matched.some(record => record.meta.requiresGuest)
 
