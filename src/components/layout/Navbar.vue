@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { storeToRefs } from 'pinia'
 import { useAuthStore } from '../../stores/auth'
 import { useRouter } from 'vue-router'
 import { 
   Menu, 
   Activity, 
   Users,
-  User, 
   ChevronDown,
   Bell, 
   LogOut 
@@ -49,7 +49,7 @@ const confirmLogout = async () => {
   router.replace({ path: '/login', query: { logout: 'true' } })
 }
 
-const user = authStore.user
+const { user } = storeToRefs(authStore)
 
 // Check if a route exists for "My Patient"
 const hasMyPatientRoute = computed(() => {
@@ -120,18 +120,22 @@ const hasMyPatientRoute = computed(() => {
           @click="toggleProfileMenu"
           class="flex items-center gap-3 cursor-pointer group select-none"
         >
-          <div class="text-right hidden sm:block">
+          <!-- Avatar -->
+          <div class="w-10 h-10 rounded-full bg-[#0052ff]/10 flex items-center justify-center overflow-hidden border-2 border-white shadow-sm group-hover:border-[#0052ff]/30 transition-all flex-shrink-0">
+            <img v-if="user?.profile_image_url" :src="user.profile_image_url" class="w-full h-full object-cover" alt="User avatar" />
+            <span v-else class="text-[#0052ff] font-bold text-base leading-none select-none">
+              {{ user?.first_name?.charAt(0)?.toUpperCase() ?? '?' }}
+            </span>
+          </div>
+
+          <!-- Name + Email -->
+          <div class="text-left hidden sm:block">
             <p class="text-sm font-bold text-[#1f2937] leading-none mb-0.5 group-hover:text-[#0052ff] transition-colors">
               {{ user?.first_name }} {{ user?.last_name }}
             </p>
-            <p class="text-[11px] text-gray-400 font-bold uppercase tracking-wider">
-              {{ user?.role || 'Member' }}
+            <p class="text-[11px] text-gray-400 leading-none truncate max-w-[140px]">
+              {{ user?.email }}
             </p>
-          </div>
-          
-          <div class="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden border-2 border-white shadow-sm group-hover:border-[#0052ff]/20 transition-all">
-            <img v-if="user?.profile_image_url" :src="user.profile_image_url" class="w-full h-full object-cover" />
-            <User v-else class="w-6 h-6 text-gray-400" />
           </div>
 
           <ChevronDown 
@@ -147,8 +151,16 @@ const hasMyPatientRoute = computed(() => {
         >
           <!-- User Info (Mobile/Small screens) -->
           <div class="px-4 py-3 border-b border-[#e2e8f0] mb-1 sm:hidden">
-            <p class="text-sm font-bold text-[#1f2937] truncate">{{ user?.first_name }} {{ user?.last_name }}</p>
-            <p class="text-xs text-gray-400 truncate">{{ user?.email }}</p>
+            <div class="flex items-center gap-3 mb-1">
+              <div class="w-8 h-8 rounded-full bg-[#0052ff]/10 flex items-center justify-center overflow-hidden flex-shrink-0">
+                <img v-if="user?.profile_image_url" :src="user.profile_image_url" class="w-full h-full object-cover" alt="User avatar" />
+                <span v-else class="text-[#0052ff] font-bold text-sm leading-none">{{ user?.first_name?.charAt(0)?.toUpperCase() ?? '?' }}</span>
+              </div>
+              <div>
+                <p class="text-sm font-bold text-[#1f2937] truncate">{{ user?.first_name }} {{ user?.last_name }}</p>
+                <p class="text-xs text-gray-400 truncate">{{ user?.email }}</p>
+              </div>
+            </div>
           </div>
 
           <button 
