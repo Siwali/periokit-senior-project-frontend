@@ -2,10 +2,7 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useAuthStore } from '../stores/auth'
 import { 
-  Menu, 
   Activity, 
-  User, 
-  ChevronDown, 
   FileText, 
   Image as ImageIcon, 
   Download, 
@@ -13,38 +10,17 @@ import {
   Plus, 
   Save,
   X,
-  LogOut,
   Info
 } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
+import Navbar from '../components/layout/Navbar.vue'
 
 const authStore = useAuthStore()
 const router = useRouter()
 const user = authStore.user
 
 // State for active tabs/sections
-const activeNav = ref('chart')
-const isProfileMenuOpen = ref(false)
-
-const handleLogout = async () => {
-  await authStore.logout()
-  router.replace('/login')
-}
-
-const closeDropdown = (e: MouseEvent) => {
-  const target = e.target as HTMLElement
-  if (!target.closest('.profile-dropdown-container')) {
-    isProfileMenuOpen.value = false
-  }
-}
-
-onMounted(() => {
-  window.addEventListener('click', closeDropdown)
-})
-
-onUnmounted(() => {
-  window.removeEventListener('click', closeDropdown)
-})
+const activeSubNav = ref('chart')
 
 // Mock patient data
 const patientInfo = ref({
@@ -131,76 +107,31 @@ const lowerGroups = [
 
 <template>
   <div class="min-h-screen bg-[#f1f5f9] font-sans text-[#1e293b]">
-    <!-- Top Navigation Bar -->
-    <header class="bg-white border-b border-slate-200 h-16 flex items-center justify-between px-4 lg:px-8 sticky top-0 z-50 shadow-sm">
-      <div class="flex items-center gap-8">
-        <button class="p-2 hover:bg-slate-100 rounded-lg transition-colors">
-          <Menu class="w-6 h-6 text-slate-500" />
-        </button>
-        
-        <div class="flex items-center gap-2">
-          <span class="text-[#0052ff] font-black text-2xl tracking-tighter">PERIOKIT</span>
-        </div>
-
-        <nav class="hidden md:flex items-center gap-8 ml-4">
-          <button 
-            @click="activeNav = 'chart'"
-            class="flex items-center gap-2 px-1 py-5 border-b-2 transition-all text-[13px] font-bold uppercase tracking-wide"
-            :class="activeNav === 'chart' ? 'border-[#0052ff] text-[#0052ff]' : 'border-transparent text-slate-500 hover:text-slate-700'"
-          >
-            <Activity class="w-4 h-4" />
-            Periodontal Chart
-          </button>
-          <button 
-            @click="activeNav = 'patient'"
-            class="flex items-center gap-2 px-1 py-5 border-b-2 transition-all text-[13px] font-bold uppercase tracking-wide"
-            :class="activeNav === 'patient' ? 'border-[#0052ff] text-[#0052ff]' : 'border-transparent text-slate-500 hover:text-slate-700'"
-          >
-            <User class="w-4 h-4" />
-            My Patient
-          </button>
-        </nav>
-      </div>
-
-      <div class="flex items-center gap-4 relative profile-dropdown-container">
-        <div 
-          @click="isProfileMenuOpen = !isProfileMenuOpen"
-          class="flex items-center gap-3 pl-4 cursor-pointer group"
-        >
-          <div class="text-right hidden sm:block">
-            <p class="text-sm font-bold text-slate-900 group-hover:text-[#0052ff] transition-colors leading-none mb-1">
-              {{ user?.first_name }} {{ user?.last_name }}
-            </p>
-            <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
-              {{ user?.role || 'Dentist' }}
-            </p>
-          </div>
-          <div class="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center overflow-hidden border-2 border-slate-200 group-hover:border-[#0052ff]/30 transition-all">
-            <img v-if="user?.profile_image_url" :src="user.profile_image_url" class="w-full h-full object-cover" />
-            <span v-else class="font-black text-slate-400 text-xs">{{ user?.first_name?.charAt(0) }}</span>
-          </div>
-          <ChevronDown class="w-4 h-4 text-slate-400" />
-        </div>
-
-        <div v-if="isProfileMenuOpen" class="absolute top-full right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-slate-100 py-1 z-50">
-          <button @click="handleLogout" class="w-full flex items-center gap-3 px-4 py-2.5 text-red-500 hover:bg-red-50 transition-colors text-xs font-bold">
-            <LogOut class="w-4 h-4" /> Logout
-          </button>
-        </div>
-      </div>
-    </header>
+    <Navbar />
 
     <!-- Sub-Navigation -->
     <div class="bg-white border-b border-slate-200 py-1.5 sticky top-16 z-40">
-      <div class="max-w-[1600px] mx-auto px-8 flex items-center justify-center gap-6">
-        <button class="flex items-center gap-2 px-3 py-1.5 text-xs font-bold text-[#0052ff] bg-blue-50 rounded-lg">
-          <FileText class="w-3.5 h-3.5" /> Periodontal Chart
+      <div class="max-w-[1600px] mx-auto px-8 flex items-center justify-center gap-3">
+        <button 
+          @click="activeSubNav = 'chart'"
+          class="flex items-center gap-2 px-4 py-2 rounded-xl text-[13px] font-bold transition-all duration-200"
+          :class="activeSubNav === 'chart' ? 'bg-[#0052ff]/10 text-[#0052ff]' : 'text-slate-500 hover:bg-slate-50'"
+        >
+          <FileText class="w-4 h-4" /> 
+          Periodontal Chart
         </button>
-        <button class="flex items-center gap-2 px-3 py-1.5 text-xs font-bold text-slate-500 hover:bg-slate-50 rounded-lg">
-          <ImageIcon class="w-3.5 h-3.5" /> X-ray
+        <button 
+          @click="activeSubNav = 'xray'"
+          class="flex items-center gap-2 px-4 py-2 rounded-xl text-[13px] font-bold transition-all duration-200"
+          :class="activeSubNav === 'xray' ? 'bg-[#0052ff]/10 text-[#0052ff]' : 'text-slate-500 hover:bg-slate-50'"
+        >
+          <ImageIcon class="w-4 h-4" /> 
+          X-ray
         </button>
-        <button class="flex items-center gap-2 px-3 py-1.5 text-xs font-bold text-slate-500 hover:bg-slate-50 rounded-lg">
-          <Download class="w-3.5 h-3.5" /> Export
+        <div class="w-px h-5 bg-slate-200 mx-2 hidden sm:block"></div>
+        <button class="flex items-center gap-2 px-4 py-2 text-[13px] font-bold text-slate-500 hover:bg-slate-50 rounded-xl transition-all duration-200">
+          <Download class="w-4 h-4" /> 
+          Export
         </button>
       </div>
     </div>
