@@ -136,7 +136,7 @@ const register = async () => {
         if (user && user.role === 'admin') {
           router.push('/admin/dashboard')
         } else {
-          router.push('/dashboard/home')
+          router.push({ name: 'home' })
         }
       }, 1500)
     } else {
