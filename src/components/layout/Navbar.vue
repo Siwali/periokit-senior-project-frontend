@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useAuthStore } from '../../stores/auth'
 import { useRouter } from 'vue-router'
 import { 
   Menu, 
   Activity, 
+  Users,
   User, 
   ChevronDown,
   Bell, 
@@ -49,6 +50,11 @@ const confirmLogout = async () => {
 }
 
 const user = authStore.user
+
+// Check if a route exists for "My Patient"
+const hasMyPatientRoute = computed(() => {
+  return router.hasRoute('my-patient')
+})
 </script>
 
 <template>
@@ -63,7 +69,7 @@ const user = authStore.user
         
         <!-- Logo -->
         <router-link to="/chart" class="flex items-center">
-          <img src="@/assets/logo_perio.png" alt="PERIOKIT" class="h-8 w-auto" />
+          <img src="@/assets/logo_perio.png" alt="PERIOKIT" class="h-12 w-auto" />
         </router-link>
       </div>
 
@@ -77,14 +83,26 @@ const user = authStore.user
           <Activity class="w-5 h-5" />
           Periodontal Chart
         </router-link>
+
         <router-link 
+          v-if="hasMyPatientRoute"
           to="/my-patient" 
           class="flex items-center gap-2 text-[#4b5563] hover:text-[#0052ff] font-bold text-sm transition-colors"
           active-class="text-[#0052ff]"
         >
-          <User class="w-5 h-5" />
+          <Users class="w-5 h-5" />
           My Patient
         </router-link>
+        
+        <!-- Muted/Disabled state for My Patient if route doesn't exist -->
+        <div 
+          v-else
+          class="flex items-center gap-2 text-gray-400 font-bold text-sm cursor-not-allowed select-none"
+          title="This feature will be available in Sprint 2"
+        >
+          <Users class="w-5 h-5" />
+          My Patient
+        </div>
       </div>
     </div>
 
