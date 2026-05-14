@@ -34,7 +34,11 @@ const getFurLabel = (grade: number) => {
     <!-- Header -->
     <div class="p-6 border-b border-slate-100 flex items-center justify-between bg-white sticky top-0 z-10">
       <div>
-        <h2 class="text-3xl font-black text-slate-800 tracking-tight">#{{ toothId }}</h2>
+        <div class="flex items-center gap-3">
+          <h2 class="text-3xl font-black text-slate-800 tracking-tight">#{{ toothId }}</h2>
+          <span v-if="toothData.cut" class="px-2 py-1 bg-red-50 text-red-500 rounded border border-red-100 text-[9px] font-black uppercase tracking-wider">Missing</span>
+          <span v-if="toothData.implant" class="px-2 py-1 bg-slate-100 text-slate-500 rounded border border-slate-200 text-[9px] font-black uppercase tracking-wider">Implant</span>
+        </div>
         <p class="text-xs font-bold text-slate-400 uppercase tracking-widest mt-0.5">Tooth Details</p>
       </div>
       <button @click="emit('close')" class="p-2 hover:bg-slate-50 rounded-full transition-all text-slate-400 hover:text-slate-600 border border-transparent hover:border-slate-100">
@@ -180,6 +184,12 @@ const getFurLabel = (grade: number) => {
             <span class="text-[11px] font-black text-slate-700">{{ getFurLabel(analysisData?.furcation) }}</span>
           </div>
         </div>
+      </section>
+
+      <!-- Note / Remark -->
+      <section v-if="toothData.note" class="bg-yellow-50/50 border border-yellow-100 rounded-3xl p-6 shadow-sm">
+        <h3 class="text-[11px] font-black text-yellow-600 uppercase tracking-[0.15em] mb-3">Note</h3>
+        <p class="text-xs font-bold text-slate-600 leading-relaxed">{{ toothData.note }}</p>
       </section>
 
     </div>
