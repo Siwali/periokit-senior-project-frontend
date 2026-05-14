@@ -66,3 +66,34 @@ input::placeholder {
   opacity: 0;
   transform: scale(0.9) translateY(20px);
 }
+
+/* Periodontal Chart Styles */
+button, input {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  appearance: none;
+  margin: 0;
+}
+input[type=number] {
+  -moz-appearance: textfield;
+}
+
+.writing-vertical {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+}
+
+.clinical-grid-bg {
+  background-image: url('/images/teeth/fondo-grafico.png');
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+}
+
+.clinical-grid-bg-inf {
+  background-image: url('/images/teeth/fondo-grafico-inf.png');
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+}
