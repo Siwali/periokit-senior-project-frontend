@@ -53,7 +53,7 @@ const getFurLabel = (grade: number) => {
           <div class="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm text-center group hover:border-[#0052ff]/20 transition-all">
             <div class="text-2xl font-black mb-1 flex items-center justify-center gap-0.5">
               <span v-for="(val, i) in toothData.buccal.pd" :key="i" 
-                :class="parseInt(val) > 3 ? 'text-red-500' : 'text-indigo-600'">
+                :class="parseInt(val) > 4 ? 'text-red-500' : 'text-[#0052ff]'">
                 {{ val || '0' }}{{ Number(i) < 2 ? '-' : '' }}
               </span>
             </div>
@@ -63,7 +63,7 @@ const getFurLabel = (grade: number) => {
           <div class="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm text-center group hover:border-[#0052ff]/20 transition-all">
             <div class="text-2xl font-black mb-1 flex items-center justify-center gap-0.5">
               <span v-for="(val, i) in toothData.lingual.pd" :key="i" 
-                :class="parseInt(val) > 3 ? 'text-red-500' : 'text-indigo-600'">
+                :class="parseInt(val) > 4 ? 'text-red-500' : 'text-[#0052ff]'">
                 {{ val || '0' }}{{ Number(i) < 2 ? '-' : '' }}
               </span>
             </div>
@@ -80,7 +80,7 @@ const getFurLabel = (grade: number) => {
           <div class="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm text-center group hover:border-[#0052ff]/20 transition-all">
             <div class="text-2xl font-black mb-1 flex items-center justify-center gap-0.5">
               <span v-for="(val, i) in toothData.buccal.cal" :key="i" 
-                :class="parseInt(val) > 0 ? 'text-red-500' : 'text-[#0052ff]'">
+                :class="parseInt(val) > 4 ? 'text-red-500' : 'text-[#0052ff]'">
                 {{ val || '0' }}{{ Number(i) < 2 ? '-' : '' }}
               </span>
             </div>
@@ -90,7 +90,7 @@ const getFurLabel = (grade: number) => {
           <div class="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm text-center group hover:border-[#0052ff]/20 transition-all">
             <div class="text-2xl font-black mb-1 flex items-center justify-center gap-0.5">
               <span v-for="(val, i) in toothData.lingual.cal" :key="i" 
-                :class="parseInt(val) > 0 ? 'text-red-500' : 'text-[#0052ff]'">
+                :class="parseInt(val) > 4 ? 'text-red-500' : 'text-[#0052ff]'">
                 {{ val || '0' }}{{ Number(i) < 2 ? '-' : '' }}
               </span>
             </div>
