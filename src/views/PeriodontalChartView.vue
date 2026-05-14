@@ -468,7 +468,7 @@ const getToothImage = (id: number, surface: 'buccal' | 'lingual') => {
                         <div class="flex h-36 relative clinical-grid-bg-inf">
                           <div v-for="id in group" :key="id" class="w-12 sm:w-[54px] h-full flex items-center justify-center group relative z-10">
                             <span class="absolute bottom-1.5 text-[9px] font-black text-slate-300 select-none group-hover:text-slate-400 transition-colors">{{ id }}</span>
-                            <img :src="getToothImage(id, 'lingual')" :alt="`Tooth ${id} Lingual`" class="w-12 h-auto object-contain transition-all duration-300 scale-y-[-1]" />
+                            <img :src="getToothImage(id, 'lingual')" :alt="`Tooth ${id} Lingual`" class="w-12 h-auto object-contain transition-all duration-300 scale-y-[-1] scale-x-[-1]" />
                           </div>
                         </div>
                         <div v-if="gIdx !== 2" class="w-4"></div>
