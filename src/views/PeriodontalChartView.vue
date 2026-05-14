@@ -132,6 +132,8 @@ const getToothImage = (id: number, surface: 'buccal' | 'lingual') => {
   return `/images/teeth/periodontograma-dientes-${arch}-${state}${id}${suffix}.png`
 }
 
+
+
 </script>
 
 <template>
@@ -159,7 +161,11 @@ const getToothImage = (id: number, surface: 'buccal' | 'lingual') => {
             X-ray
           </button>
           <div class="w-px h-4 bg-slate-300 my-auto mx-1"></div>
-          <button class="flex items-center gap-2 px-6 py-1.5 text-[13px] font-bold text-slate-500 hover:text-slate-700 rounded-lg transition-all duration-200">
+          <button 
+            @click="activeSubNav = 'export'"
+            class="flex items-center gap-2 px-6 py-1.5 rounded-lg text-[13px] font-bold transition-all duration-200"
+            :class="activeSubNav === 'export' ? 'bg-white text-[#0052ff] shadow-sm' : 'text-slate-500 hover:text-slate-700'"
+          >
             <Download class="w-4 h-4" /> 
             Export
           </button>
@@ -171,22 +177,23 @@ const getToothImage = (id: number, surface: 'buccal' | 'lingual') => {
     <main class="max-w-[1600px] mx-auto p-6 lg:p-8">
       <!-- Top Toolbar -->
       <div class="flex items-center justify-between mb-6">
-        <button class="bg-white px-4 py-2 rounded-lg border border-slate-200 text-xs font-bold text-slate-600 flex items-center gap-2 shadow-sm">
+        <button class="bg-white px-4 py-2 rounded-lg border border-slate-200 text-xs font-bold text-slate-600 flex items-center gap-2 shadow-sm hover:bg-slate-50 transition-colors">
           <FileText class="w-4 h-4" /> Overview
         </button>
 
         <div class="flex items-center gap-3">
-          <button class="flex items-center gap-2 px-5 py-2 bg-white border border-[#9333ea]/30 text-[#9333ea] rounded-lg font-bold text-xs shadow-sm hover:bg-purple-50">
+          <button class="flex items-center gap-2 px-5 py-2 bg-white border border-[#9333ea]/30 text-[#9333ea] rounded-lg font-bold text-xs shadow-sm hover:bg-purple-50 transition-colors">
             <Stethoscope class="w-4 h-4" /> Diagnosis
           </button>
-          <button class="flex items-center gap-2 px-5 py-2 bg-white border border-slate-200 text-slate-700 rounded-lg font-bold text-xs shadow-sm hover:bg-slate-50">
+          <button class="flex items-center gap-2 px-5 py-2 bg-white border border-slate-200 text-slate-700 rounded-lg font-bold text-xs shadow-sm hover:bg-slate-50 transition-colors">
             <Plus class="w-4 h-4" /> New Chart
           </button>
-          <button class="flex items-center gap-2 px-5 py-2 bg-[#7aa4f0] text-white rounded-lg font-bold text-xs shadow-md hover:bg-[#6b94e0]">
+          <button class="flex items-center gap-2 px-5 py-2 bg-[#7aa4f0] text-white rounded-lg font-bold text-xs shadow-md hover:bg-[#6b94e0] transition-colors">
             <Save class="w-4 h-4" /> Save Chart
           </button>
         </div>
       </div>
+
 
       <!-- Tab View -->
       <div class="flex items-center gap-0 mb-0 px-0.5 relative z-10">
