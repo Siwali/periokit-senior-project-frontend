@@ -19,9 +19,9 @@ const router = createRouter({
       meta: { requiresGuest: true }
     },
     {
-      path: '/dashboard/home',
+      path: '/chart',
       name: 'home',
-      component: () => import('../views/HomeView.vue'),
+      component: () => import('../views/PeriodontalChartView.vue'),
       meta: { requiresAuth: true }
     },
     {
