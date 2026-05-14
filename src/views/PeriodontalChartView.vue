@@ -316,7 +316,7 @@ const getToothImage = (id: number, surface: 'buccal' | 'lingual') => {
                 </div>
 
                 <!-- Maxillary Tooth Illustrations -->
-                <div class="flex flex-col gap-4 mb-6">
+                <div class="flex flex-col gap-10 mb-6">
                   <!-- Buccal Illustration -->
                   <div class="flex">
                     <div class="w-20 flex flex-col items-center justify-center text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] space-y-1 py-4">
@@ -327,7 +327,7 @@ const getToothImage = (id: number, surface: 'buccal' | 'lingual') => {
                         <div class="flex h-36 relative clinical-grid-bg">
                           <div v-for="id in group" :key="id" class="w-12 sm:w-[54px] h-full flex items-center justify-center group relative z-10">
                             <span class="absolute top-1.5 text-[9px] font-black text-slate-300 select-none group-hover:text-slate-400 transition-colors">{{ id }}</span>
-                            <img :src="getToothImage(id, 'buccal')" :alt="`Tooth ${id}`" class="w-12 h-auto object-contain transition-all duration-300" />
+                            <img :src="getToothImage(id, 'buccal')" :alt="`Tooth ${id}`" class="w-12 h-auto object-contain transition-all duration-300 scale-x-[-1]" />
                           </div>
                         </div>
                         <div v-if="gIdx !== 2" class="w-4"></div>
@@ -355,7 +355,7 @@ const getToothImage = (id: number, surface: 'buccal' | 'lingual') => {
                 </div>
 
                 <!-- Maxillary Palatal Section (Bottom Grid) -->
-                <div class="flex mb-16">
+                <div class="flex mt-6 mb-16">
                   <div class="flex flex-col bg-white border-l border-y border-slate-300 text-[9px] font-bold text-slate-500 uppercase w-20 sticky left-0 z-20">
                     <div v-for="row in palatalRows" :key="row" class="h-6 flex items-center px-2 border-b border-r border-slate-200 last:border-b-0">
                       {{ row }}
@@ -399,7 +399,7 @@ const getToothImage = (id: number, surface: 'buccal' | 'lingual') => {
 
                 <!-- MANDIBULAR ARCH (Lower) -->
                 <!-- Mandibular Lingual Section (Top Grid) -->
-                <div class="flex items-end mb-1">
+                <div class="flex items-end mb-1 mt-12">
                   <div class="flex flex-col bg-white border-l border-t border-slate-300 text-[9px] font-bold text-slate-500 uppercase w-20 sticky left-0 z-20">
                     <div v-for="row in lingualRows" :key="row" class="h-6 flex items-center px-2 border-b border-r border-slate-300">
                       {{ row }}
@@ -442,7 +442,7 @@ const getToothImage = (id: number, surface: 'buccal' | 'lingual') => {
                 </div>
 
                 <!-- Mandibular Cut Row -->
-                <div class="flex mt-1 mb-4">
+                <div class="flex mt-1 mb-8">
                   <div class="w-20"></div>
                   <div class="flex">
                     <template v-for="(group, gIdx) in lowerArch" :key="gIdx">
@@ -457,7 +457,7 @@ const getToothImage = (id: number, surface: 'buccal' | 'lingual') => {
                 </div>
 
                 <!-- Mandibular Tooth Illustrations -->
-                <div class="flex flex-col gap-4 mb-6">
+                <div class="flex flex-col gap-10 mb-6">
                   <!-- Lingual Illustration -->
                   <div class="flex">
                     <div class="w-20 flex flex-col items-center justify-center text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] space-y-1 py-4">
@@ -486,7 +486,7 @@ const getToothImage = (id: number, surface: 'buccal' | 'lingual') => {
                         <div class="flex h-36 relative clinical-grid-bg-inf">
                           <div v-for="id in group" :key="id" class="w-12 sm:w-[54px] h-full flex items-center justify-center group relative z-10">
                             <span class="absolute bottom-1.5 text-[9px] font-black text-slate-300 select-none group-hover:text-slate-400 transition-colors">{{ id }}</span>
-                            <img :src="getToothImage(id, 'buccal')" :alt="`Tooth ${id}`" class="w-12 h-auto object-contain transition-all duration-300 scale-y-[-1]" />
+                            <img :src="getToothImage(id, 'buccal')" :alt="`Tooth ${id}`" class="w-12 h-auto object-contain transition-all duration-300 scale-y-[-1] scale-x-[-1]" />
                           </div>
                         </div>
                         <div v-if="gIdx !== 2" class="w-4"></div>
