@@ -13,14 +13,15 @@ const user = authStore.user
 const activeSubNav = ref('chart')
 
 // Mock patient data
+// Patient data (Doctor and Student ID based on user account, others cleared for manual input)
 const patientInfo = ref({
-  hn: '65-010',
-  doctor: 'Aj. Dr. Chatchai',
-  studentId: '6310210000',
-  patientName: 'John Doe',
-  age: 45,
-  nationality: 'Thai',
-  gender: 'Male',
+  hn: '',
+  doctor: user?.first_name ? `${user.first_name} ${user.last_name}` : 'Aj. Dr. Chatchai',
+  studentId: user?.student_id || '6310210000',
+  patientName: '',
+  age: null as number | null,
+  nationality: '',
+  gender: '',
   date: new Date().toISOString().split('T')[0]
 })
 
@@ -207,7 +208,7 @@ const getToothImage = (id: number, surface: 'buccal' | 'lingual') => {
               <div class="flex items-center justify-between mb-8">
                 <div class="flex items-center gap-2">
                   <span class="text-sm font-black text-slate-800">HN-</span>
-                  <input type="text" v-model="patientInfo.hn" class="bg-slate-50 border border-slate-100 rounded-lg px-3 py-1.5 text-sm font-bold w-40" />
+                  <input type="text" v-model="patientInfo.hn" placeholder="YY-XXX" class="bg-slate-50 border border-slate-100 rounded-lg px-3 py-1.5 text-sm font-bold w-40" />
                 </div>
                 <h1 class="text-3xl font-black text-slate-800 tracking-tight text-center">Periodontal Chart</h1>
                 <div class="w-40"></div>
@@ -228,16 +229,16 @@ const getToothImage = (id: number, surface: 'buccal' | 'lingual') => {
                 </div>
                 <div class="col-span-4 flex items-center gap-2">
                   <span class="text-xs font-bold text-slate-400 uppercase">Patient:</span>
-                  <input type="text" v-model="patientInfo.patientName" class="bg-slate-50 border border-slate-100 rounded-lg px-3 py-1.5 text-xs font-bold w-full" />
+                  <input type="text" v-model="patientInfo.patientName" placeholder="Full Name" class="bg-slate-50 border border-slate-100 rounded-lg px-3 py-1.5 text-xs font-bold w-full" />
                 </div>
                 <div class="col-span-2 flex items-center gap-2">
                   <span class="text-xs font-bold text-slate-400 uppercase">Age:</span>
-                  <input type="number" v-model="patientInfo.age" class="bg-slate-50 border border-slate-100 rounded-lg px-3 py-1.5 text-xs font-bold w-12" />
+                  <input type="number" v-model="patientInfo.age" placeholder="0" class="bg-slate-50 border border-slate-100 rounded-lg px-3 py-1.5 text-xs font-bold w-12" />
                   <span class="text-[10px] font-bold text-slate-400">Y/O</span>
                 </div>
                 <div class="col-span-3 flex items-center gap-2">
                   <span class="text-xs font-bold text-slate-400 uppercase">Nationality:</span>
-                  <input type="text" v-model="patientInfo.nationality" class="bg-slate-50 border border-slate-100 rounded-lg px-3 py-1.5 text-xs font-bold w-full" />
+                  <input type="text" v-model="patientInfo.nationality" placeholder="e.g. Thai" class="bg-slate-50 border border-slate-100 rounded-lg px-3 py-1.5 text-xs font-bold w-full" />
                 </div>
                 <div class="col-span-3 flex items-center gap-6 pl-4">
                   <span class="text-xs font-bold text-slate-400 uppercase">Gender:</span>
