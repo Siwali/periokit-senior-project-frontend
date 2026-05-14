@@ -92,47 +92,72 @@ const getFurSymbol = (grade: number) => {
   return '●'
 }
 
-const upperGroups = [
+const upperArch = [
   [18, 17, 16, 15, 14],
   [13, 12, 11, 21, 22, 23],
   [24, 25, 26, 27, 28]
 ]
 
-const lowerGroups = [
+const lowerArch = [
   [48, 47, 46, 45, 44],
   [43, 42, 41, 31, 32, 33],
   [34, 35, 36, 37, 38]
 ]
+
+
+const buccalRows = ['Implant', 'Mo', 'KTW', 'Fur', 'BoP', 'PI', 'REC', 'PD', 'CAL']
+const palatalRows = ['CAL', 'PD', 'REC', 'PI', 'BoP', 'Fur', 'KTW', 'Mo', 'Implant']
+const lingualRows = ['Implant', 'Mo', 'KTW', 'Fur', 'BoP', 'PI', 'REC', 'PD', 'CAL']
+const mandibularBuccalRows = ['CAL', 'PD', 'REC', 'PI', 'BoP', 'Fur', 'KTW', 'Mo', 'Implant']
+
+const getToothImage = (id: number, surface: 'buccal' | 'lingual') => {
+  const data = teethData.value[id]
+  if (!data) return ''
+  
+  const isUpper = (id >= 11 && id <= 18) || (id >= 21 && id <= 28)
+  const arch = isUpper ? 'arriba' : 'abajo'
+  const isInner = surface === 'lingual'
+  const suffix = isInner ? 'b' : ''
+  
+  let state = ''
+  if (data.cut) state = 'tachados-'
+  else if (data.implant) state = 'tornillo-'
+  
+  return `/images/teeth/periodontograma-dientes-${arch}-${state}${id}${suffix}.png`
+}
+
 </script>
 
 <template>
   <div class="min-h-screen bg-[#f1f5f9] font-sans text-[#1e293b]">
     <Navbar />
 
-    <!-- Sub-Navigation -->
-    <div class="bg-white border-b border-slate-200 py-1.5 sticky top-16 z-40">
-      <div class="max-w-[1600px] mx-auto px-8 flex items-center justify-center gap-3">
-        <button 
-          @click="activeSubNav = 'chart'"
-          class="flex items-center gap-2 px-4 py-2 rounded-xl text-[13px] font-bold transition-all duration-200"
-          :class="activeSubNav === 'chart' ? 'bg-[#0052ff]/10 text-[#0052ff]' : 'text-slate-500 hover:bg-slate-50'"
-        >
-          <FileText class="w-4 h-4" /> 
-          Periodontal Chart
-        </button>
-        <button 
-          @click="activeSubNav = 'xray'"
-          class="flex items-center gap-2 px-4 py-2 rounded-xl text-[13px] font-bold transition-all duration-200"
-          :class="activeSubNav === 'xray' ? 'bg-[#0052ff]/10 text-[#0052ff]' : 'text-slate-500 hover:bg-slate-50'"
-        >
-          <ImageIcon class="w-4 h-4" /> 
-          X-ray
-        </button>
-        <div class="w-px h-5 bg-slate-200 mx-2 hidden sm:block"></div>
-        <button class="flex items-center gap-2 px-4 py-2 text-[13px] font-bold text-slate-500 hover:bg-slate-50 rounded-xl transition-all duration-200">
-          <Download class="w-4 h-4" /> 
-          Export
-        </button>
+    <!-- Sub-Navigation (Segmented Control style) -->
+    <div class="bg-white border-b border-slate-200 py-2.5 sticky top-16 z-40">
+      <div class="max-w-[1600px] mx-auto px-8 flex items-center justify-center">
+        <div class="inline-flex p-1 bg-slate-100/80 rounded-xl border border-slate-200">
+          <button 
+            @click="activeSubNav = 'chart'"
+            class="flex items-center gap-2 px-6 py-1.5 rounded-lg text-[13px] font-bold transition-all duration-200"
+            :class="activeSubNav === 'chart' ? 'bg-white text-[#0052ff] shadow-sm' : 'text-slate-500 hover:text-slate-700'"
+          >
+            <FileText class="w-4 h-4" /> 
+            Periodontal Chart
+          </button>
+          <button 
+            @click="activeSubNav = 'xray'"
+            class="flex items-center gap-2 px-6 py-1.5 rounded-lg text-[13px] font-bold transition-all duration-200"
+            :class="activeSubNav === 'xray' ? 'bg-white text-[#0052ff] shadow-sm' : 'text-slate-500 hover:text-slate-700'"
+          >
+            <ImageIcon class="w-4 h-4" /> 
+            X-ray
+          </button>
+          <div class="w-px h-4 bg-slate-300 my-auto mx-1"></div>
+          <button class="flex items-center gap-2 px-6 py-1.5 text-[13px] font-bold text-slate-500 hover:text-slate-700 rounded-lg transition-all duration-200">
+            <Download class="w-4 h-4" /> 
+            Export
+          </button>
+        </div>
       </div>
     </div>
 
@@ -158,12 +183,12 @@ const lowerGroups = [
       </div>
 
       <!-- Tab View -->
-      <div class="flex items-center gap-1 mb-6">
-        <div class="bg-white px-6 py-2 rounded-t-xl border-t border-l border-r border-slate-200 text-[11px] font-black text-slate-500 flex items-center gap-3 shadow-sm">
+      <div class="flex items-center gap-0 mb-0 px-0.5 relative z-10">
+        <div class="bg-white px-6 py-2.5 rounded-t-xl border-t border-l border-r border-slate-200 text-[11px] font-black text-[#0052ff] flex items-center gap-3 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] -mb-[1px]">
           CHART 1
-          <X class="w-3 h-3 cursor-pointer hover:text-red-500" />
+          <X class="w-3.5 h-3.5 cursor-pointer hover:text-red-500 transition-colors" />
         </div>
-        <button class="p-2 text-slate-300 hover:text-slate-500"><Plus class="w-4 h-4" /></button>
+        <button class="p-2.5 text-slate-400 hover:text-[#0052ff] transition-colors"><Plus class="w-5 h-5" /></button>
       </div>
 
       <!-- Chart Content Area -->
@@ -181,7 +206,7 @@ const lowerGroups = [
                 <div class="w-40"></div>
               </div>
 
-              <div class="grid grid-cols-12 gap-y-4 gap-x-6 items-center">
+              <div class="grid grid-cols-12 gap-y-4 gap-x-4 items-center">
                 <div class="col-span-3 flex items-center gap-2">
                   <span class="text-xs font-bold text-slate-400 uppercase">Date:</span>
                   <input type="date" v-model="patientInfo.date" class="bg-slate-50 border border-slate-100 rounded-lg px-3 py-1.5 text-xs font-bold w-full" />
@@ -222,271 +247,309 @@ const lowerGroups = [
 
           <!-- Chart Grid Card -->
           <section class="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden">
-            <div class="p-8 bg-[#f8fafc] space-y-0">
-              <!-- UPPER JAW -->
-              <!-- Upper Grid (Buccal - TOP) -->
-              <div class="flex gap-4 mb-2">
-                <div v-for="(group, gIdx) in upperGroups" :key="gIdx" class="flex border border-slate-300 bg-white shadow-sm">
-                  <div class="flex flex-col bg-slate-50 border-r border-slate-300 text-[8px] font-black text-slate-400 uppercase w-20">
-                    <div class="h-6 flex items-center px-2 bg-slate-100 font-bold text-slate-500 border-b border-slate-200">ID</div>
-                    <div class="h-6 flex items-center px-2 border-b border-slate-200">Implant</div>
-                    <div class="h-6 flex items-center px-2 border-b border-slate-200">Mo</div>
-                    <div class="h-6 flex items-center px-2 border-b border-slate-200">KTW</div>
-                    <div class="h-6 flex items-center px-2 border-b border-slate-200">Fur</div>
-                    <div class="h-6 flex items-center px-2 border-b border-slate-200">BoP</div>
-                    <div class="h-6 flex items-center px-2 border-b border-slate-200">PI</div>
-                    <div class="h-6 flex items-center px-2 border-b border-slate-200">REC</div>
-                    <div class="h-6 flex items-center px-2 border-b border-slate-200">PD</div>
-                    <div class="h-6 flex items-center px-2 border-b border-slate-200">CAL</div>
-                    <div class="h-6 flex items-center px-2 text-red-400">CUT</div>
-                  </div>
-                  <div v-for="id in group" :key="id" class="flex flex-col border-r border-slate-200 last:border-r-0 w-[54px]">
-                    <div class="h-6 bg-slate-100 flex items-center justify-center font-black text-slate-800 text-[11px] border-b border-slate-200">{{ id }}</div>
-                    <div class="h-6 border-b border-slate-200 flex items-center justify-center"><input type="checkbox" v-model="teethData[id].implant" class="w-3.5 h-3.5 accent-slate-800" /></div>
-                    <div class="h-6 border-b border-slate-200"><input type="text" v-model="teethData[id].mo" class="w-full h-full text-center text-[11px] outline-none" /></div>
-                    <div class="h-6 border-b border-slate-200"><input type="text" v-model="teethData[id].ktw" class="w-full h-full text-center text-[11px] outline-none" /></div>
-                    <div class="h-6 border-b border-slate-200 flex items-center justify-center cursor-pointer select-none text-slate-800" @click="toggleFur(id)">
-                      <svg v-if="teethData[id].fur > 0" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                        <circle cx="12" cy="12" r="9" :fill="teethData[id].fur === 3 ? 'currentColor' : 'none'" />
-                        <path v-if="teethData[id].fur === 2" d="M12 3a9 9 0 0 1 0 18z" fill="currentColor" stroke="none" />
-                      </svg>
-                    </div>
-                    <div class="flex h-6 border-b border-slate-200">
-                      <div v-for="s in [0,1,2]" :key="s" @click="toggleBop(id, 'buccal', s)" class="flex-1 border-r border-slate-100 last:border-r-0 cursor-pointer transition-colors" :class="teethData[id].buccal.bop[s] ? 'bg-red-500' : ''"></div>
-                    </div>
-                    <div class="flex h-6 border-b border-slate-200">
-                      <div v-for="s in [0,1,2]" :key="s" @click="togglePi(id, 'buccal', s)" class="flex-1 border-r border-slate-100 last:border-r-0 cursor-pointer transition-colors" :class="teethData[id].buccal.pi[s] ? 'bg-blue-500' : ''"></div>
-                    </div>
-                    <div class="flex h-6 border-b border-slate-200">
-                      <input v-for="s in [0,1,2]" :key="s" type="text" v-model="teethData[id].buccal.rec[s]" @input="updateCal(id, 'buccal', s)" class="w-0 flex-1 text-center text-[10px] border-r border-slate-100 last:border-r-0 outline-none" />
-                    </div>
-                    <div class="flex h-6 border-b border-slate-200">
-                      <input v-for="s in [0,1,2]" :key="s" type="text" v-model="teethData[id].buccal.pd[s]" @input="updateCal(id, 'buccal', s)" class="w-0 flex-1 text-center text-[10px] border-r border-slate-100 last:border-r-0 outline-none" />
-                    </div>
-                    <div class="flex h-6 border-b border-slate-200 bg-slate-50/50">
-                      <div v-for="s in [0,1,2]" :key="s" class="flex-1 text-center text-[10px] font-bold text-slate-600 border-r border-slate-100 last:border-r-0">{{ teethData[id].buccal.cal[s] || '0' }}</div>
-                    </div>
-                    <div class="h-6 flex items-center justify-center">
-                      <button @click="teethData[id].cut = !teethData[id].cut" class="w-full h-full text-[8px] font-black uppercase transition-all" :class="teethData[id].cut ? 'bg-red-500 text-white' : 'text-slate-300 hover:text-red-400'">cut</button>
+            <div class="p-8 bg-[#f8fafc] overflow-x-auto">
+              <!-- MAXILLARY ARCH (Upper) -->
+              <div class="min-w-max">
+                <!-- Maxillary Buccal Section (Top Grid) -->
+                <div class="flex items-end mb-1">
+                  <!-- Labels -->
+                  <div class="flex flex-col bg-white border-l border-t border-slate-300 text-[9px] font-bold text-slate-500 uppercase w-20 sticky left-0 z-20">
+                    <div class="h-7 border-b border-r border-slate-300"></div>
+                    <div v-for="row in buccalRows" :key="row" class="h-6 flex items-center px-2 border-b border-r border-slate-300">
+                      {{ row }}
                     </div>
                   </div>
-                </div>
-              </div>
 
-              <!-- Upper Illustrations (BUCCAL & PALATAL) -->
-              <div class="flex gap-4">
-                <div class="w-20 flex flex-col justify-center items-center text-[8px] font-black text-slate-400">
-                  <div class="writing-vertical flex items-center justify-center gap-1 uppercase tracking-widest">BUCCAL</div>
-                </div>
-                <div class="flex-1 relative h-32 bg-white border border-slate-200 rounded-xl overflow-hidden mb-1">
-                  <div class="absolute inset-0 flex flex-col justify-between py-2">
-                    <div v-for="i in 10" :key="i" class="w-full h-[1px] bg-slate-50"></div>
+                  <!-- Tooth Columns -->
+                  <div class="flex">
+                    <template v-for="(group, gIdx) in upperArch" :key="gIdx">
+                      <div class="flex border-t border-r border-slate-300 bg-white first:border-l">
+                        <div v-for="(id, idx) in group" :key="id" class="flex flex-col border-r border-slate-200 last:border-r-0 w-12 sm:w-[54px]" :class="gIdx === 1 && idx === 3 ? 'border-l-2 border-l-slate-400' : ''">
+                          <!-- Tooth ID Header -->
+                          <div class="h-7 bg-slate-50 flex items-center justify-center font-black text-slate-800 text-[11px] border-b border-slate-300">{{ id }}</div>
+                          
+                          <!-- Measurement Rows -->
+                          <div class="h-6 border-b border-slate-200 flex items-center justify-center"><input type="checkbox" v-model="teethData[id].implant" class="w-3.5 h-3.5 accent-slate-800" /></div>
+                          <div class="h-6 border-b border-slate-200"><input type="text" v-model="teethData[id].mo" class="w-full h-full text-center text-[11px] outline-none" /></div>
+                          <div class="h-6 border-b border-slate-200"><input type="text" v-model="teethData[id].ktw" class="w-full h-full text-center text-[11px] outline-none" /></div>
+                          <div class="h-6 border-b border-slate-200 flex items-center justify-center cursor-pointer select-none text-slate-800" @click="toggleFur(id)">
+                            <svg v-if="teethData[id].fur > 0" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                              <circle cx="12" cy="12" r="9" :fill="teethData[id].fur === 3 ? 'currentColor' : 'none'" />
+                              <path v-if="teethData[id].fur === 2" d="M12 3a9 9 0 0 1 0 18z" fill="currentColor" stroke="none" />
+                            </svg>
+                          </div>
+                          <div class="flex h-6 border-b border-slate-200">
+                            <div v-for="s in [0,1,2]" :key="s" @click="toggleBop(id, 'buccal', s)" class="flex-1 border-r border-slate-100 last:border-r-0 cursor-pointer transition-colors" :class="teethData[id].buccal.bop[s] ? 'bg-red-500' : ''"></div>
+                          </div>
+                          <div class="flex h-6 border-b border-slate-200">
+                            <div v-for="s in [0,1,2]" :key="s" @click="togglePi(id, 'buccal', s)" class="flex-1 border-r border-slate-100 last:border-r-0 cursor-pointer transition-colors" :class="teethData[id].buccal.pi[s] ? 'bg-blue-500' : ''"></div>
+                          </div>
+                          <div class="flex h-6 border-b border-slate-200">
+                            <input v-for="s in [0,1,2]" :key="s" type="text" v-model="teethData[id].buccal.rec[s]" @input="updateCal(id, 'buccal', s)" class="w-0 flex-1 text-center text-[10px] border-r border-slate-100 last:border-r-0 outline-none" />
+                          </div>
+                          <div class="flex h-6 border-b border-slate-200">
+                            <input v-for="s in [0,1,2]" :key="s" type="text" v-model="teethData[id].buccal.pd[s]" @input="updateCal(id, 'buccal', s)" class="w-0 flex-1 text-center text-[10px] border-r border-slate-100 last:border-r-0 outline-none" />
+                          </div>
+                          <div class="flex h-6 border-slate-200 bg-slate-50/30">
+                            <input v-for="s in [0,1,2]" :key="s" type="text" :value="teethData[id].buccal.cal[s] || '0'" class="w-0 flex-1 text-center text-[10px] font-bold text-slate-700 border-r border-slate-100 last:border-r-0 bg-transparent outline-none pointer-events-none" />
+                          </div>
+                        </div>
+                      </div>
+                      <div v-if="gIdx !== 2" class="w-4"></div>
+                    </template>
                   </div>
-                  <div class="absolute top-1/2 left-0 right-0 h-[2px] bg-red-400/30 z-10"></div>
-                  <div class="relative h-full flex px-4 justify-between items-center">
-                    <div v-for="id in upperTeeth" :key="id" class="w-[54px] h-full flex flex-col items-center justify-center group relative">
-                        <Activity class="w-10 h-10 text-emerald-600/10 group-hover:text-emerald-600/30 transition-colors" />
-                    </div>
-                  </div>
                 </div>
-              </div>
 
-              <div class="flex gap-4 mb-4">
-                <div class="w-20 flex flex-col justify-center items-center text-[8px] font-black text-slate-400">
-                  <div class="writing-vertical flex items-center justify-center gap-1 uppercase tracking-widest">PALATAL</div>
-                </div>
-                <div class="flex-1 relative h-32 bg-white border border-slate-200 rounded-xl overflow-hidden">
-                  <div class="absolute inset-0 flex flex-col justify-between py-2">
-                    <div v-for="i in 10" :key="i" class="w-full h-[1px] bg-slate-50"></div>
+                <!-- Missing Tooth / Cut Row -->
+                <div class="flex mb-4">
+                  <div class="w-20"></div>
+                  <div class="flex">
+                    <template v-for="(group, gIdx) in upperArch" :key="gIdx">
+                      <div class="flex">
+                        <div v-for="id in group" :key="id" class="w-12 sm:w-[54px] h-8 flex items-center justify-center">
+                          <button @click="teethData[id].cut = !teethData[id].cut" class="w-10 h-5 text-[8px] font-black uppercase rounded shadow-sm transition-all border border-slate-200" :class="teethData[id].cut ? 'bg-red-500 text-white border-red-600' : 'bg-white text-slate-400 hover:bg-slate-50'">cut</button>
+                        </div>
+                      </div>
+                      <div v-if="gIdx !== 2" class="w-4"></div>
+                    </template>
                   </div>
-                  <div class="absolute top-1/2 left-0 right-0 h-[2px] bg-red-400/30 z-10"></div>
-                  <div class="relative h-full flex px-4 justify-between items-center">
-                    <div v-for="id in upperTeeth" :key="id" class="w-[54px] h-full flex flex-col items-center justify-center group relative">
-                        <Activity class="w-10 h-10 text-emerald-600/10 rotate-180 group-hover:text-emerald-600/30 transition-colors" />
-                    </div>
-                  </div>
                 </div>
-              </div>
 
-              <!-- Upper Grid (Palatal - MIDDLE) -->
-              <div class="flex gap-4 mt-2 mb-16">
-                <div v-for="(group, gIdx) in upperGroups" :key="gIdx" class="flex border border-slate-300 bg-white shadow-sm">
-                  <div class="flex flex-col bg-slate-50 border-r border-slate-300 text-[8px] font-black text-slate-400 uppercase w-20">
-                    <div class="h-6 flex items-center px-2 text-red-400 border-b border-slate-200">CUT</div>
-                    <div class="h-6 flex items-center px-2 border-b border-slate-200">CAL</div>
-                    <div class="h-6 flex items-center px-2 border-b border-slate-200">PD</div>
-                    <div class="h-6 flex items-center px-2 border-b border-slate-200">REC</div>
-                    <div class="h-6 flex items-center px-2 border-b border-slate-200">PI</div>
-                    <div class="h-6 flex items-center px-2 border-b border-slate-200">BoP</div>
-                    <div class="h-6 flex items-center px-2 border-b border-slate-200">Fur</div>
-                    <div class="h-6 flex items-center px-2 border-b border-slate-200">KTW</div>
-                    <div class="h-6 flex items-center px-2 border-b border-slate-200">Mo</div>
-                    <div class="h-6 flex items-center px-2 border-b border-slate-200">Implant</div>
-                    <div class="h-6 flex items-center justify-center bg-slate-100 font-bold text-slate-500">ID</div>
+                <!-- Maxillary Tooth Illustrations -->
+                <div class="flex flex-col gap-4 mb-6">
+                  <!-- Buccal Illustration -->
+                  <div class="flex">
+                    <div class="w-20 flex flex-col items-center justify-center text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] space-y-1 py-4">
+                      <span>B</span><span>U</span><span>C</span><span>C</span><span>A</span><span>L</span>
+                    </div>
+                    <div class="flex-1 flex">
+                      <template v-for="(group, gIdx) in upperArch" :key="gIdx">
+                        <div class="flex h-36 relative clinical-grid-bg">
+                          <div v-for="id in group" :key="id" class="w-12 sm:w-[54px] h-full flex items-center justify-center group relative z-10">
+                            <span class="absolute top-1.5 text-[9px] font-black text-slate-300 select-none group-hover:text-slate-400 transition-colors">{{ id }}</span>
+                            <img :src="getToothImage(id, 'buccal')" :alt="`Tooth ${id}`" class="w-12 h-auto object-contain transition-all duration-300" />
+                          </div>
+                        </div>
+                        <div v-if="gIdx !== 2" class="w-4"></div>
+                      </template>
+                    </div>
                   </div>
-                  <div v-for="id in group" :key="id" class="flex flex-col border-r border-slate-200 last:border-r-0 w-[54px]">
-                    <div class="h-6 border-b border-slate-200 flex items-center justify-center">
-                      <button @click="teethData[id].cut = !teethData[id].cut" class="w-full h-full text-[8px] font-black uppercase transition-all" :class="teethData[id].cut ? 'bg-red-500 text-white' : 'text-slate-300 hover:text-red-400'">cut</button>
-                    </div>
-                    <div class="flex h-6 border-b border-slate-200 bg-slate-50/50">
-                      <div v-for="s in [0,1,2]" :key="s" class="flex-1 text-center text-[10px] font-bold text-slate-600 border-r border-slate-100 last:border-r-0">{{ teethData[id].lingual.cal[s] || '0' }}</div>
-                    </div>
-                    <div class="flex h-6 border-b border-slate-200">
-                      <input v-for="s in [0,1,2]" :key="s" type="text" v-model="teethData[id].lingual.pd[s]" @input="updateCal(id, 'lingual', s)" class="w-0 flex-1 text-center text-[10px] border-r border-slate-100 last:border-r-0 outline-none" />
-                    </div>
-                    <div class="flex h-6 border-b border-slate-200">
-                      <input v-for="s in [0,1,2]" :key="s" type="text" v-model="teethData[id].lingual.rec[s]" @input="updateCal(id, 'lingual', s)" class="w-0 flex-1 text-center text-[10px] border-r border-slate-100 last:border-r-0 outline-none" />
-                    </div>
-                    <div class="flex h-6 border-b border-slate-200">
-                      <div v-for="s in [0,1,2]" :key="s" @click="togglePi(id, 'lingual', s)" class="flex-1 border-r border-slate-100 last:border-r-0 cursor-pointer transition-colors" :class="teethData[id].lingual.pi[s] ? 'bg-blue-500' : ''"></div>
-                    </div>
-                    <div class="flex h-6 border-b border-slate-200">
-                      <div v-for="s in [0,1,2]" :key="s" @click="toggleBop(id, 'lingual', s)" class="flex-1 border-r border-slate-100 last:border-r-0 cursor-pointer transition-colors" :class="teethData[id].lingual.bop[s] ? 'bg-red-500' : ''"></div>
-                    </div>
-                    <div class="h-6 border-b border-slate-200 flex items-center justify-center cursor-pointer select-none text-slate-800" @click="toggleFur(id)">
-                      <svg v-if="teethData[id].fur > 0" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                        <circle cx="12" cy="12" r="9" :fill="teethData[id].fur === 3 ? 'currentColor' : 'none'" />
-                        <path v-if="teethData[id].fur === 2" d="M12 3a9 9 0 0 1 0 18z" fill="currentColor" stroke="none" />
-                      </svg>
-                    </div>
-                    <div class="h-6 border-b border-slate-200"><input type="text" v-model="teethData[id].ktw" class="w-full h-full text-center text-[11px] outline-none" /></div>
-                    <div class="h-6 border-b border-slate-200"><input type="text" v-model="teethData[id].mo" class="w-full h-full text-center text-[11px] outline-none" /></div>
-                    <div class="h-6 border-b border-slate-200 flex items-center justify-center"><input type="checkbox" v-model="teethData[id].implant" class="w-3.5 h-3.5 accent-slate-800" /></div>
-                    <div class="h-6 bg-slate-100 flex items-center justify-center font-black text-slate-800 text-[11px]">{{ id }}</div>
-                  </div>
-                </div>
-              </div>
 
-              <!-- LOWER JAW -->
-              <!-- Lower Grid (Lingual - MIDDLE) -->
-              <div class="flex gap-4 mb-2">
-                <div v-for="(group, gIdx) in lowerGroups" :key="gIdx" class="flex border border-slate-300 bg-white shadow-sm">
-                  <div class="flex flex-col bg-slate-50 border-r border-slate-300 text-[8px] font-black text-slate-400 uppercase w-20">
-                    <div class="h-6 flex items-center px-2 bg-slate-100 font-bold text-slate-500 border-b border-slate-200">ID</div>
-                    <div class="h-6 flex items-center px-2 border-b border-slate-200">Implant</div>
-                    <div class="h-6 flex items-center px-2 border-b border-slate-200">Mo</div>
-                    <div class="h-6 flex items-center px-2 border-b border-slate-200">KTW</div>
-                    <div class="h-6 flex items-center px-2 border-b border-slate-200">Fur</div>
-                    <div class="h-6 flex items-center px-2 border-b border-slate-200">BoP</div>
-                    <div class="h-6 flex items-center px-2 border-b border-slate-200">PI</div>
-                    <div class="h-6 flex items-center px-2 border-b border-slate-200">REC</div>
-                    <div class="h-6 flex items-center px-2 border-b border-slate-200">PD</div>
-                    <div class="h-6 flex items-center px-2 border-b border-slate-200">CAL</div>
-                    <div class="h-6 flex items-center px-2 text-red-400">CUT</div>
-                  </div>
-                  <div v-for="id in group" :key="id" class="flex flex-col border-r border-slate-200 last:border-r-0 w-[54px]">
-                    <div class="h-6 bg-slate-100 flex items-center justify-center font-black text-slate-800 text-[11px] border-b border-slate-200">{{ id }}</div>
-                    <div class="h-6 border-b border-slate-200 flex items-center justify-center"><input type="checkbox" v-model="teethData[id].implant" class="w-3.5 h-3.5 accent-slate-800" /></div>
-                    <div class="h-6 border-b border-slate-200"><input type="text" v-model="teethData[id].mo" class="w-full h-full text-center text-[11px] outline-none" /></div>
-                    <div class="h-6 border-b border-slate-200"><input type="text" v-model="teethData[id].ktw" class="w-full h-full text-center text-[11px] outline-none" /></div>
-                    <div class="h-6 border-b border-slate-200 flex items-center justify-center cursor-pointer select-none text-slate-800" @click="toggleFur(id)">
-                      <svg v-if="teethData[id].fur > 0" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                        <circle cx="12" cy="12" r="9" :fill="teethData[id].fur === 3 ? 'currentColor' : 'none'" />
-                        <path v-if="teethData[id].fur === 2" d="M12 3a9 9 0 0 1 0 18z" fill="currentColor" stroke="none" />
-                      </svg>
+                  <!-- Palatal Illustration -->
+                  <div class="flex">
+                    <div class="w-20 flex flex-col items-center justify-center text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] space-y-1 py-4">
+                      <span>P</span><span>A</span><span>L</span><span>A</span><span>T</span><span>A</span><span>L</span>
                     </div>
-                    <div class="flex h-6 border-b border-slate-200">
-                      <div v-for="s in [0,1,2]" :key="s" @click="toggleBop(id, 'lingual', s)" class="flex-1 border-r border-slate-100 last:border-r-0 cursor-pointer transition-colors" :class="teethData[id].lingual.bop[s] ? 'bg-red-500' : ''"></div>
-                    </div>
-                    <div class="flex h-6 border-b border-slate-200">
-                      <div v-for="s in [0,1,2]" :key="s" @click="togglePi(id, 'lingual', s)" class="flex-1 border-r border-slate-100 last:border-r-0 cursor-pointer transition-colors" :class="teethData[id].lingual.pi[s] ? 'bg-blue-500' : ''"></div>
-                    </div>
-                    <div class="flex h-6 border-b border-slate-200">
-                      <input v-for="s in [0,1,2]" :key="s" type="text" v-model="teethData[id].lingual.rec[s]" @input="updateCal(id, 'lingual', s)" class="w-0 flex-1 text-center text-[10px] border-r border-slate-100 last:border-r-0 outline-none" />
-                    </div>
-                    <div class="flex h-6 border-b border-slate-200">
-                      <input v-for="s in [0,1,2]" :key="s" type="text" v-model="teethData[id].lingual.pd[s]" @input="updateCal(id, 'lingual', s)" class="w-0 flex-1 text-center text-[10px] border-r border-slate-100 last:border-r-0 outline-none" />
-                    </div>
-                    <div class="flex h-6 border-b border-slate-200 bg-slate-50/50">
-                      <div v-for="s in [0,1,2]" :key="s" class="flex-1 text-center text-[10px] font-bold text-slate-600 border-r border-slate-100 last:border-r-0">{{ teethData[id].lingual.cal[s] || '0' }}</div>
-                    </div>
-                    <div class="h-6 flex items-center justify-center">
-                      <button @click="teethData[id].cut = !teethData[id].cut" class="w-full h-full text-[8px] font-black uppercase transition-all" :class="teethData[id].cut ? 'bg-red-500 text-white' : 'text-slate-300 hover:text-red-400'">cut</button>
+                    <div class="flex-1 flex">
+                      <template v-for="(group, gIdx) in upperArch" :key="gIdx">
+                        <div class="flex h-36 relative clinical-grid-bg">
+                          <div v-for="id in group" :key="id" class="w-12 sm:w-[54px] h-full flex items-center justify-center group relative z-10">
+                            <span class="absolute top-1.5 text-[9px] font-black text-slate-300 select-none group-hover:text-slate-400 transition-colors">{{ id }}</span>
+                            <img :src="getToothImage(id, 'lingual')" :alt="`Tooth ${id} Palatal`" class="w-12 h-auto object-contain transition-all duration-300" style="transform: scaleX(-1);" />
+                          </div>
+                        </div>
+                        <div v-if="gIdx !== 2" class="w-4"></div>
+                      </template>
                     </div>
                   </div>
                 </div>
-              </div>
 
-              <!-- Lower Illustrations (LINGUAL & BUCCAL) -->
-              <div class="flex gap-4">
-                <div class="w-20 flex flex-col justify-center items-center text-[8px] font-black text-slate-400">
-                  <div class="writing-vertical flex items-center justify-center gap-1 uppercase tracking-widest">LINGUAL</div>
-                </div>
-                <div class="flex-1 relative h-32 bg-white border border-slate-200 rounded-xl overflow-hidden mb-1">
-                  <div class="absolute inset-0 flex flex-col justify-between py-2">
-                    <div v-for="i in 10" :key="i" class="w-full h-[1px] bg-slate-50"></div>
-                  </div>
-                  <div class="absolute top-1/2 left-0 right-0 h-[2px] bg-red-400/30 z-10"></div>
-                  <div class="relative h-full flex px-4 justify-between items-center">
-                    <div v-for="id in lowerTeeth" :key="id" class="w-[54px] h-full flex flex-col items-center justify-center group relative">
-                        <Activity class="w-10 h-10 text-emerald-600/10 rotate-180 group-hover:text-emerald-600/30 transition-colors" />
+                <!-- Maxillary Palatal Section (Bottom Grid) -->
+                <div class="flex mb-16">
+                  <div class="flex flex-col bg-white border-l border-y border-slate-300 text-[9px] font-bold text-slate-500 uppercase w-20 sticky left-0 z-20">
+                    <div v-for="row in palatalRows" :key="row" class="h-6 flex items-center px-2 border-b border-r border-slate-200 last:border-b-0">
+                      {{ row }}
                     </div>
                   </div>
-                </div>
-              </div>
 
-              <div class="flex gap-4 mb-4">
-                <div class="w-20 flex flex-col justify-center items-center text-[8px] font-black text-slate-400">
-                  <div class="writing-vertical flex items-center justify-center gap-1 uppercase tracking-widest">BUCCAL</div>
-                </div>
-                <div class="flex-1 relative h-32 bg-white border border-slate-200 rounded-xl overflow-hidden">
-                  <div class="absolute inset-0 flex flex-col justify-between py-2">
-                    <div v-for="i in 10" :key="i" class="w-full h-[1px] bg-slate-50"></div>
+                  <div class="flex">
+                    <template v-for="(group, gIdx) in upperArch" :key="gIdx">
+                      <div class="flex border border-slate-300 border-l-0 bg-white first:border-l">
+                        <div v-for="(id, idx) in group" :key="id" class="flex flex-col border-r border-slate-200 last:border-r-0 w-12 sm:w-[54px]" :class="gIdx === 1 && idx === 3 ? 'border-l-2 border-l-slate-400' : ''">
+                          <div class="flex h-6 border-b border-slate-200 bg-slate-50/30">
+                            <input v-for="s in [0,1,2]" :key="s" type="text" :value="teethData[id].lingual.cal[s] || '0'" class="w-0 flex-1 text-center text-[10px] font-bold text-slate-700 border-r border-slate-100 last:border-r-0 bg-transparent outline-none pointer-events-none" />
+                          </div>
+                          <div class="flex h-6 border-b border-slate-200">
+                            <input v-for="s in [0,1,2]" :key="s" type="text" v-model="teethData[id].lingual.pd[s]" @input="updateCal(id, 'lingual', s)" class="w-0 flex-1 text-center text-[10px] border-r border-slate-100 last:border-r-0 outline-none" />
+                          </div>
+                          <div class="flex h-6 border-b border-slate-200">
+                            <input v-for="s in [0,1,2]" :key="s" type="text" v-model="teethData[id].lingual.rec[s]" @input="updateCal(id, 'lingual', s)" class="w-0 flex-1 text-center text-[10px] border-r border-slate-100 last:border-r-0 outline-none" />
+                          </div>
+                          <div class="flex h-6 border-b border-slate-200">
+                            <div v-for="s in [0,1,2]" :key="s" @click="togglePi(id, 'lingual', s)" class="flex-1 border-r border-slate-100 last:border-r-0 cursor-pointer transition-colors" :class="teethData[id].lingual.pi[s] ? 'bg-blue-500' : ''"></div>
+                          </div>
+                          <div class="flex h-6 border-b border-slate-200">
+                            <div v-for="s in [0,1,2]" :key="s" @click="toggleBop(id, 'lingual', s)" class="flex-1 border-r border-slate-100 last:border-r-0 cursor-pointer transition-colors" :class="teethData[id].lingual.bop[s] ? 'bg-red-500' : ''"></div>
+                          </div>
+                          <div class="h-6 border-b border-slate-200 flex items-center justify-center cursor-pointer select-none text-slate-800" @click="toggleFur(id)">
+                            <svg v-if="teethData[id].fur > 0" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                              <circle cx="12" cy="12" r="9" :fill="teethData[id].fur === 3 ? 'currentColor' : 'none'" />
+                              <path v-if="teethData[id].fur === 2" d="M12 3a9 9 0 0 1 0 18z" fill="currentColor" stroke="none" />
+                            </svg>
+                          </div>
+                          <div class="h-6 border-b border-slate-200"><input type="text" v-model="teethData[id].ktw" class="w-full h-full text-center text-[11px] outline-none" /></div>
+                          <div class="h-6 border-b border-slate-200"><input type="text" v-model="teethData[id].mo" class="w-full h-full text-center text-[11px] outline-none" /></div>
+                          <div class="h-6 flex items-center justify-center"><input type="checkbox" v-model="teethData[id].implant" class="w-3.5 h-3.5 accent-slate-800" /></div>
+                        </div>
+                      </div>
+                      <div v-if="gIdx !== 2" class="w-4"></div>
+                    </template>
                   </div>
-                  <div class="absolute top-1/2 left-0 right-0 h-[2px] bg-red-400/30 z-10"></div>
-                  <div class="relative h-full flex px-4 justify-between items-center">
-                    <div v-for="id in lowerTeeth" :key="id" class="w-[54px] h-full flex flex-col items-center justify-center group relative">
-                        <Activity class="w-10 h-10 text-emerald-600/10 group-hover:text-emerald-600/30 transition-colors" />
-                    </div>
-                  </div>
                 </div>
-              </div>
 
-              <!-- Lower Grid (Buccal - BOTTOM) -->
-              <div class="flex gap-4 mt-2">
-                <div v-for="(group, gIdx) in lowerGroups" :key="gIdx" class="flex border border-slate-300 bg-white shadow-sm">
-                  <div class="flex flex-col bg-slate-50 border-r border-slate-300 text-[8px] font-black text-slate-400 uppercase w-20">
-                    <div class="h-6 flex items-center px-2 text-red-400 border-b border-slate-200">CUT</div>
-                    <div class="h-6 flex items-center px-2 border-b border-slate-200">CAL</div>
-                    <div class="h-6 flex items-center px-2 border-b border-slate-200">PD</div>
-                    <div class="h-6 flex items-center px-2 border-b border-slate-200">REC</div>
-                    <div class="h-6 flex items-center px-2 border-b border-slate-200">PI</div>
-                    <div class="h-6 flex items-center px-2 border-b border-slate-200">BoP</div>
-                    <div class="h-6 flex items-center px-2 border-b border-slate-200">Fur</div>
-                    <div class="h-6 flex items-center px-2 border-b border-slate-200">KTW</div>
-                    <div class="h-6 flex items-center px-2 border-b border-slate-200">Mo</div>
-                    <div class="h-6 flex items-center px-2 border-b border-slate-200">Implant</div>
-                    <div class="h-6 flex items-center justify-center bg-slate-100 font-bold text-slate-500">ID</div>
+                <!-- MANDIBULAR ARCH (Lower) -->
+                <!-- Mandibular Lingual Section (Top Grid) -->
+                <div class="flex items-end mb-1">
+                  <div class="flex flex-col bg-white border-l border-t border-slate-300 text-[9px] font-bold text-slate-500 uppercase w-20 sticky left-0 z-20">
+                    <div v-for="row in lingualRows" :key="row" class="h-6 flex items-center px-2 border-b border-r border-slate-300">
+                      {{ row }}
+                    </div>
                   </div>
-                  <div v-for="id in group" :key="id" class="flex flex-col border-r border-slate-200 last:border-r-0 w-[54px]">
-                    <div class="h-6 border-b border-slate-200 flex items-center justify-center">
-                      <button @click="teethData[id].cut = !teethData[id].cut" class="w-full h-full text-[8px] font-black uppercase transition-all" :class="teethData[id].cut ? 'bg-red-500 text-white' : 'text-slate-300 hover:text-red-400'">cut</button>
+
+                  <div class="flex">
+                    <template v-for="(group, gIdx) in lowerArch" :key="gIdx">
+                      <div class="flex border-t border-r border-slate-300 bg-white first:border-l">
+                        <div v-for="(id, idx) in group" :key="id" class="flex flex-col border-r border-slate-200 last:border-r-0 w-12 sm:w-[54px]" :class="gIdx === 1 && idx === 3 ? 'border-l-2 border-l-slate-400' : ''">
+                          <div class="h-6 border-b border-slate-200 flex items-center justify-center"><input type="checkbox" v-model="teethData[id].implant" class="w-3.5 h-3.5 accent-slate-800" /></div>
+                          <div class="h-6 border-b border-slate-200"><input type="text" v-model="teethData[id].mo" class="w-full h-full text-center text-[11px] outline-none" /></div>
+                          <div class="h-6 border-b border-slate-200"><input type="text" v-model="teethData[id].ktw" class="w-full h-full text-center text-[11px] outline-none" /></div>
+                          <div class="h-6 border-b border-slate-200 flex items-center justify-center cursor-pointer select-none text-slate-800" @click="toggleFur(id)">
+                            <svg v-if="teethData[id].fur > 0" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                              <circle cx="12" cy="12" r="9" :fill="teethData[id].fur === 3 ? 'currentColor' : 'none'" />
+                              <path v-if="teethData[id].fur === 2" d="M12 3a9 9 0 0 1 0 18z" fill="currentColor" stroke="none" />
+                            </svg>
+                          </div>
+                          <div class="flex h-6 border-b border-slate-200">
+                            <div v-for="s in [0,1,2]" :key="s" @click="toggleBop(id, 'lingual', s)" class="flex-1 border-r border-slate-100 last:border-r-0 cursor-pointer transition-colors" :class="teethData[id].lingual.bop[s] ? 'bg-red-500' : ''"></div>
+                          </div>
+                          <div class="flex h-6 border-b border-slate-200">
+                            <div v-for="s in [0,1,2]" :key="s" @click="togglePi(id, 'lingual', s)" class="flex-1 border-r border-slate-100 last:border-r-0 cursor-pointer transition-colors" :class="teethData[id].lingual.pi[s] ? 'bg-blue-500' : ''"></div>
+                          </div>
+                          <div class="flex h-6 border-b border-slate-200">
+                            <input v-for="s in [0,1,2]" :key="s" type="text" v-model="teethData[id].lingual.rec[s]" @input="updateCal(id, 'lingual', s)" class="w-0 flex-1 text-center text-[10px] border-r border-slate-100 last:border-r-0 outline-none" />
+                          </div>
+                          <div class="flex h-6 border-b border-slate-200">
+                            <input v-for="s in [0,1,2]" :key="s" type="text" v-model="teethData[id].lingual.pd[s]" @input="updateCal(id, 'lingual', s)" class="w-0 flex-1 text-center text-[10px] border-r border-slate-100 last:border-r-0 outline-none" />
+                          </div>
+                          <div class="flex h-6 border-slate-200 bg-slate-50/30">
+                            <input v-for="s in [0,1,2]" :key="s" type="text" :value="teethData[id].lingual.cal[s] || '0'" class="w-0 flex-1 text-center text-[10px] font-bold text-slate-700 border-r border-slate-100 last:border-r-0 bg-transparent outline-none pointer-events-none" />
+                          </div>
+                        </div>
+                      </div>
+                      <div v-if="gIdx !== 2" class="w-4"></div>
+                    </template>
+                  </div>
+                </div>
+
+                <!-- Mandibular Cut Row -->
+                <div class="flex mt-1 mb-4">
+                  <div class="w-20"></div>
+                  <div class="flex">
+                    <template v-for="(group, gIdx) in lowerArch" :key="gIdx">
+                      <div class="flex">
+                        <div v-for="id in group" :key="id" class="w-12 sm:w-[54px] h-8 flex items-center justify-center">
+                          <button @click="teethData[id].cut = !teethData[id].cut" class="w-10 h-5 text-[8px] font-black uppercase rounded shadow-sm transition-all border border-slate-200" :class="teethData[id].cut ? 'bg-red-500 text-white border-red-600' : 'bg-white text-slate-400 hover:bg-slate-50'">cut</button>
+                        </div>
+                      </div>
+                      <div v-if="gIdx !== 2" class="w-4"></div>
+                    </template>
+                  </div>
+                </div>
+
+                <!-- Mandibular Tooth Illustrations -->
+                <div class="flex flex-col gap-4 mb-6">
+                  <!-- Lingual Illustration -->
+                  <div class="flex">
+                    <div class="w-20 flex flex-col items-center justify-center text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] space-y-1 py-4">
+                      <span>L</span><span>I</span><span>N</span><span>G</span><span>U</span><span>A</span><span>L</span>
                     </div>
-                    <div class="flex h-6 border-b border-slate-200 bg-slate-50/50">
-                      <div v-for="s in [0,1,2]" :key="s" class="flex-1 text-center text-[10px] font-bold text-slate-600 border-r border-slate-100 last:border-r-0">{{ teethData[id].buccal.cal[s] || '0' }}</div>
+                    <div class="flex-1 flex">
+                      <template v-for="(group, gIdx) in lowerArch" :key="gIdx">
+                        <div class="flex h-36 relative clinical-grid-bg-inf">
+                          <div v-for="id in group" :key="id" class="w-12 sm:w-[54px] h-full flex items-center justify-center group relative z-10">
+                            <span class="absolute bottom-1.5 text-[9px] font-black text-slate-300 select-none group-hover:text-slate-400 transition-colors">{{ id }}</span>
+                            <img :src="getToothImage(id, 'lingual')" :alt="`Tooth ${id} Lingual`" class="w-12 h-auto object-contain transition-all duration-300 scale-y-[-1]" />
+                          </div>
+                        </div>
+                        <div v-if="gIdx !== 2" class="w-4"></div>
+                      </template>
                     </div>
-                    <div class="flex h-6 border-b border-slate-200">
-                      <input v-for="s in [0,1,2]" :key="s" type="text" v-model="teethData[id].buccal.pd[s]" @input="updateCal(id, 'buccal', s)" class="w-0 flex-1 text-center text-[10px] border-r border-slate-100 last:border-r-0 outline-none" />
+                  </div>
+
+                  <!-- Buccal Illustration -->
+                  <div class="flex">
+                    <div class="w-20 flex flex-col items-center justify-center text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] space-y-1 py-4">
+                      <span>B</span><span>U</span><span>C</span><span>C</span><span>A</span><span>L</span>
                     </div>
-                    <div class="flex h-6 border-b border-slate-200">
-                      <input v-for="s in [0,1,2]" :key="s" type="text" v-model="teethData[id].buccal.rec[s]" @input="updateCal(id, 'buccal', s)" class="w-0 flex-1 text-center text-[10px] border-r border-slate-100 last:border-r-0 outline-none" />
+                    <div class="flex-1 flex">
+                      <template v-for="(group, gIdx) in lowerArch" :key="gIdx">
+                        <div class="flex h-36 relative clinical-grid-bg-inf">
+                          <div v-for="id in group" :key="id" class="w-12 sm:w-[54px] h-full flex items-center justify-center group relative z-10">
+                            <span class="absolute bottom-1.5 text-[9px] font-black text-slate-300 select-none group-hover:text-slate-400 transition-colors">{{ id }}</span>
+                            <img :src="getToothImage(id, 'buccal')" :alt="`Tooth ${id}`" class="w-12 h-auto object-contain transition-all duration-300 scale-y-[-1]" />
+                          </div>
+                        </div>
+                        <div v-if="gIdx !== 2" class="w-4"></div>
+                      </template>
                     </div>
-                    <div class="flex h-6 border-b border-slate-200">
-                      <div v-for="s in [0,1,2]" :key="s" @click="togglePi(id, 'buccal', s)" class="flex-1 border-r border-slate-100 last:border-r-0 cursor-pointer transition-colors" :class="teethData[id].buccal.pi[s] ? 'bg-blue-500' : ''"></div>
+                  </div>
+                </div>
+
+                <!-- Mandibular Buccal Section (Bottom Grid) -->
+                <div class="flex mb-4">
+                  <div class="flex flex-col bg-white border-l border-y border-slate-300 text-[9px] font-bold text-slate-500 uppercase w-20 sticky left-0 z-20">
+                    <div v-for="row in mandibularBuccalRows" :key="row" class="h-6 flex items-center px-2 border-b border-r border-slate-200 last:border-b-0">
+                      {{ row }}
                     </div>
-                    <div class="flex h-6 border-b border-slate-200">
-                      <div v-for="s in [0,1,2]" :key="s" @click="toggleBop(id, 'buccal', s)" class="flex-1 border-r border-slate-100 last:border-r-0 cursor-pointer transition-colors" :class="teethData[id].buccal.bop[s] ? 'bg-red-500' : ''"></div>
-                    </div>
-                    <div class="h-6 border-b border-slate-200 flex items-center justify-center cursor-pointer select-none text-slate-800" @click="toggleFur(id)">
-                      <svg v-if="teethData[id].fur > 0" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                        <circle cx="12" cy="12" r="9" :fill="teethData[id].fur === 3 ? 'currentColor' : 'none'" />
-                        <path v-if="teethData[id].fur === 2" d="M12 3a9 9 0 0 1 0 18z" fill="currentColor" stroke="none" />
-                      </svg>
-                    </div>
-                    <div class="h-6 border-b border-slate-200"><input type="text" v-model="teethData[id].ktw" class="w-full h-full text-center text-[11px] outline-none" /></div>
-                    <div class="h-6 border-b border-slate-200"><input type="text" v-model="teethData[id].mo" class="w-full h-full text-center text-[11px] outline-none" /></div>
-                    <div class="h-6 border-b border-slate-200 flex items-center justify-center"><input type="checkbox" v-model="teethData[id].implant" class="w-3.5 h-3.5 accent-slate-800" /></div>
-                    <div class="h-6 bg-slate-100 flex items-center justify-center font-black text-slate-800 text-[11px]">{{ id }}</div>
+                  </div>
+
+                  <div class="flex">
+                    <template v-for="(group, gIdx) in lowerArch" :key="gIdx">
+                      <div class="flex border border-slate-300 border-l-0 bg-white first:border-l">
+                        <div v-for="(id, idx) in group" :key="id" class="flex flex-col border-r border-slate-200 last:border-r-0 w-12 sm:w-[54px]" :class="gIdx === 1 && idx === 3 ? 'border-l-2 border-l-slate-400' : ''">
+                          <div class="flex h-6 border-b border-slate-200 bg-slate-50/30">
+                            <input v-for="s in [0,1,2]" :key="s" type="text" :value="teethData[id].buccal.cal[s] || '0'" class="w-0 flex-1 text-center text-[10px] font-bold text-slate-700 border-r border-slate-100 last:border-r-0 bg-transparent outline-none pointer-events-none" />
+                          </div>
+                          <div class="flex h-6 border-b border-slate-200">
+                            <input v-for="s in [0,1,2]" :key="s" type="text" v-model="teethData[id].buccal.pd[s]" @input="updateCal(id, 'buccal', s)" class="w-0 flex-1 text-center text-[10px] border-r border-slate-100 last:border-r-0 outline-none" />
+                          </div>
+                          <div class="flex h-6 border-b border-slate-200">
+                            <input v-for="s in [0,1,2]" :key="s" type="text" v-model="teethData[id].buccal.rec[s]" @input="updateCal(id, 'buccal', s)" class="w-0 flex-1 text-center text-[10px] border-r border-slate-100 last:border-r-0 outline-none" />
+                          </div>
+                          <div class="flex h-6 border-b border-slate-200">
+                            <div v-for="s in [0,1,2]" :key="s" @click="togglePi(id, 'buccal', s)" class="flex-1 border-r border-slate-100 last:border-r-0 cursor-pointer transition-colors" :class="teethData[id].buccal.pi[s] ? 'bg-blue-500' : ''"></div>
+                          </div>
+                          <div class="flex h-6 border-b border-slate-200">
+                            <div v-for="s in [0,1,2]" :key="s" @click="toggleBop(id, 'buccal', s)" class="flex-1 border-r border-slate-100 last:border-r-0 cursor-pointer transition-colors" :class="teethData[id].buccal.bop[s] ? 'bg-red-500' : ''"></div>
+                          </div>
+                          <div class="h-6 border-b border-slate-200 flex items-center justify-center cursor-pointer select-none text-slate-800" @click="toggleFur(id)">
+                            <svg v-if="teethData[id].fur > 0" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                              <circle cx="12" cy="12" r="9" :fill="teethData[id].fur === 3 ? 'currentColor' : 'none'" />
+                              <path v-if="teethData[id].fur === 2" d="M12 3a9 9 0 0 1 0 18z" fill="currentColor" stroke="none" />
+                            </svg>
+                          </div>
+                          <div class="h-6 border-b border-slate-200"><input type="text" v-model="teethData[id].ktw" class="w-full h-full text-center text-[11px] outline-none" /></div>
+                          <div class="h-6 border-b border-slate-200"><input type="text" v-model="teethData[id].mo" class="w-full h-full text-center text-[11px] outline-none" /></div>
+                          <div class="h-6 flex items-center justify-center"><input type="checkbox" v-model="teethData[id].implant" class="w-3.5 h-3.5 accent-slate-800" /></div>
+                        </div>
+                      </div>
+                      <div v-if="gIdx !== 2" class="w-4"></div>
+                    </template>
+                  </div>
+                </div>
+
+                <!-- Lower Tooth ID Footer -->
+                <div class="flex">
+                  <div class="w-20"></div>
+                  <div class="flex">
+                    <template v-for="(group, gIdx) in lowerArch" :key="gIdx">
+                      <div class="flex border-b border-r border-slate-300 bg-white first:border-l">
+                        <div v-for="(id, idx) in group" :key="id" class="w-12 sm:w-[54px] h-7 bg-slate-50 flex items-center justify-center font-black text-slate-800 text-[11px] border-r border-slate-200 last:border-r-0" :class="gIdx === 1 && idx === 3 ? 'border-l-2 border-l-slate-400' : ''">
+                          {{ id }}
+                        </div>
+                      </div>
+                      <div v-if="gIdx !== 2" class="w-4"></div>
+                    </template>
                   </div>
                 </div>
               </div>
@@ -565,5 +628,17 @@ input[type=number] {
 .writing-vertical {
   writing-mode: vertical-rl;
   transform: rotate(180deg);
+}
+
+.clinical-grid-bg {
+  background-image: url('/images/teeth/fondo-grafico.png');
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+}
+
+.clinical-grid-bg-inf {
+  background-image: url('/images/teeth/fondo-grafico-inf.png');
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
 }
 </style>
