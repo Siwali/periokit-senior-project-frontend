@@ -1,17 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useAuthStore } from '../stores/auth'
-import { 
-  Activity, 
-  FileText, 
-  Image as ImageIcon, 
-  Download, 
-  Stethoscope, 
-  Plus, 
-  Save,
-  X,
-  Info
-} from 'lucide-vue-next'
+import { Activity, FileText, Image as ImageIcon, Download, Stethoscope, Plus, Save, X, Info} from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
 import Navbar from '../components/layout/Navbar.vue'
 
@@ -40,13 +30,29 @@ const lowerTeeth = [48, 47, 46, 45, 44, 43, 42, 41, 31, 32, 33, 34, 35, 36, 37, 
 
 const teethData = ref<Record<string, any>>({})
 
+// Furcation configuration helper
+const getFurcationSites = (id: number) => {
+  const idNum = Number(id);
+  // Maxillary Molars: Buccal 1, Palatal 2
+  if ([18, 17, 16, 26, 27, 28].includes(idNum)) return { buccal: 1, lingual: 2 };
+  // Maxillary 1st Premolars: Palatal 2
+  if ([14, 24].includes(idNum)) return { buccal: 0, lingual: 2 };
+  // Mandibular Molars: Buccal 1, Lingual 1
+  if ([48, 47, 46, 38, 37, 36].includes(idNum)) return { buccal: 1, lingual: 1 };
+  return { buccal: 0, lingual: 0 };
+}
+
 // Initialize all 32 teeth
 ;[...upperTeeth, ...lowerTeeth].forEach(id => {
+  const furConfig = getFurcationSites(id);
   teethData.value[id] = {
     implant: false,
     mo: '',
     ktw: '',
-    fur: 0, // 0: none, 1: grade I, 2: grade II, 3: grade III
+    fur: {
+      buccal: new Array(furConfig.buccal).fill(0),
+      lingual: new Array(furConfig.lingual).fill(0)
+    },
     cut: false,
     prognosisKC: '',
     prognosisMN: '',
@@ -81,8 +87,9 @@ const updateCal = (id: string | number, surface: 'buccal' | 'lingual', site: num
   teethData.value[id][surface].cal[site] = (pd + rec).toString()
 }
 
-const toggleFur = (id: string | number) => {
-  teethData.value[id].fur = (teethData.value[id].fur + 1) % 4
+const toggleFur = (id: string | number, surface: 'buccal' | 'lingual', index: number) => {
+  const current = teethData.value[id].fur[surface][index];
+  teethData.value[id].fur[surface][index] = (current + 1) % 4;
 }
 
 const getFurSymbol = (grade: number) => {
@@ -272,11 +279,15 @@ const getToothImage = (id: number, surface: 'buccal' | 'lingual') => {
                           <div class="h-6 border-b border-slate-200 flex items-center justify-center"><input type="checkbox" v-model="teethData[id].implant" class="w-3.5 h-3.5 accent-slate-800" /></div>
                           <div class="h-6 border-b border-slate-200"><input type="text" v-model="teethData[id].mo" class="w-full h-full text-center text-[11px] outline-none" /></div>
                           <div class="h-6 border-b border-slate-200"><input type="text" v-model="teethData[id].ktw" class="w-full h-full text-center text-[11px] outline-none" /></div>
-                          <div class="h-6 border-b border-slate-200 flex items-center justify-center cursor-pointer select-none text-slate-800" @click="toggleFur(id)">
-                            <svg v-if="teethData[id].fur > 0" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                              <circle cx="12" cy="12" r="9" :fill="teethData[id].fur === 3 ? 'currentColor' : 'none'" />
-                              <path v-if="teethData[id].fur === 2" d="M12 3a9 9 0 0 1 0 18z" fill="currentColor" stroke="none" />
-                            </svg>
+                          <div class="h-6 border-b border-slate-200 flex items-center justify-center gap-1 cursor-pointer select-none text-slate-800">
+                            <div v-for="(grade, fIdx) in teethData[id].fur.buccal" :key="fIdx" @click="toggleFur(id, 'buccal', fIdx)" class="flex items-center justify-center">
+                              <svg v-if="grade > 0" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                <circle cx="12" cy="12" r="9" />
+                                <path v-if="grade >= 2" d="M12 3a9 9 0 0 0 0 18z" :fill="grade === 2 ? 'currentColor' : 'none'" stroke="none" />
+                                <circle v-if="grade === 3" cx="12" cy="12" r="9" fill="currentColor" />
+                              </svg>
+                              <div v-else class="w-3 h-3 border border-slate-200 rounded-full"></div>
+                            </div>
                           </div>
                           <div class="flex h-6 border-b border-slate-200">
                             <div v-for="s in [0,1,2]" :key="s" @click="toggleBop(id, 'buccal', s)" class="flex-1 border-r border-slate-100 last:border-r-0 cursor-pointer transition-colors" :class="teethData[id].buccal.bop[s] ? 'bg-red-500' : ''"></div>
@@ -307,7 +318,7 @@ const getToothImage = (id: number, surface: 'buccal' | 'lingual') => {
                     <template v-for="(group, gIdx) in upperArch" :key="gIdx">
                       <div class="flex">
                         <div v-for="id in group" :key="id" class="w-12 sm:w-[54px] h-8 flex items-center justify-center">
-                          <button @click="teethData[id].cut = !teethData[id].cut" class="w-10 h-5 text-[8px] font-black uppercase rounded shadow-sm transition-all border border-slate-200" :class="teethData[id].cut ? 'bg-red-500 text-white border-red-600' : 'bg-white text-slate-400 hover:bg-slate-50'">cut</button>
+                          <button @click="teethData[id].cut = !teethData[id].cut" class="w-full h-6 text-[9px] font-black uppercase transition-all border border-slate-200" :class="teethData[id].cut ? 'bg-red-500 text-white border-red-600' : 'bg-slate-100 text-slate-400 hover:bg-slate-200'">cut</button>
                         </div>
                       </div>
                       <div v-if="gIdx !== 2" class="w-4"></div>
@@ -328,6 +339,17 @@ const getToothImage = (id: number, surface: 'buccal' | 'lingual') => {
                           <div v-for="id in group" :key="id" class="w-12 sm:w-[54px] h-full flex items-center justify-center group relative z-10">
                             <span class="absolute top-1.5 text-[9px] font-black text-slate-300 select-none group-hover:text-slate-400 transition-colors">{{ id }}</span>
                             <img :src="getToothImage(id, 'buccal')" :alt="`Tooth ${id}`" class="w-12 h-auto object-contain transition-all duration-300 scale-x-[-1]" />
+                            <!-- Furcation Dots -->
+                            <div v-for="(grade, fIdx) in teethData[id].fur.buccal" :key="fIdx" 
+                              class="absolute top-[40%] z-20 pointer-events-none -translate-x-1/2"
+                              :style="{ left: teethData[id].fur.buccal.length > 1 ? (fIdx === 0 ? '35%' : '65%') : '50%' }"
+                            >
+                              <svg v-if="grade > 0" class="w-2.5 h-2.5 text-black" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                                <circle cx="12" cy="12" r="9" />
+                                <path v-if="grade >= 2" d="M12 3a9 9 0 0 0 0 18z" :fill="grade === 2 ? 'currentColor' : 'none'" stroke="none" />
+                                <circle v-if="grade === 3" cx="12" cy="12" r="9" fill="currentColor" />
+                              </svg>
+                            </div>
                           </div>
                         </div>
                         <div v-if="gIdx !== 2" class="w-4"></div>
@@ -346,6 +368,17 @@ const getToothImage = (id: number, surface: 'buccal' | 'lingual') => {
                           <div v-for="id in group" :key="id" class="w-12 sm:w-[54px] h-full flex items-center justify-center group relative z-10">
                             <span class="absolute top-1.5 text-[9px] font-black text-slate-300 select-none group-hover:text-slate-400 transition-colors">{{ id }}</span>
                             <img :src="getToothImage(id, 'lingual')" :alt="`Tooth ${id} Palatal`" class="w-12 h-auto object-contain transition-all duration-300" style="transform: scaleX(-1);" />
+                            <!-- Furcation Dots -->
+                            <div v-for="(grade, fIdx) in teethData[id].fur.lingual" :key="fIdx" 
+                              class="absolute top-[40%] z-20 pointer-events-none -translate-x-1/2"
+                              :style="{ left: teethData[id].fur.lingual.length > 1 ? (fIdx === 0 ? '35%' : '65%') : '50%' }"
+                            >
+                              <svg v-if="grade > 0" class="w-2.5 h-2.5 text-black" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                                <circle cx="12" cy="12" r="9" />
+                                <path v-if="grade >= 2" d="M12 3a9 9 0 0 0 0 18z" :fill="grade === 2 ? 'currentColor' : 'none'" stroke="none" />
+                                <circle v-if="grade === 3" cx="12" cy="12" r="9" fill="currentColor" />
+                              </svg>
+                            </div>
                           </div>
                         </div>
                         <div v-if="gIdx !== 2" class="w-4"></div>
@@ -381,11 +414,15 @@ const getToothImage = (id: number, surface: 'buccal' | 'lingual') => {
                           <div class="flex h-6 border-b border-slate-200">
                             <div v-for="s in [0,1,2]" :key="s" @click="toggleBop(id, 'lingual', s)" class="flex-1 border-r border-slate-100 last:border-r-0 cursor-pointer transition-colors" :class="teethData[id].lingual.bop[s] ? 'bg-red-500' : ''"></div>
                           </div>
-                          <div class="h-6 border-b border-slate-200 flex items-center justify-center cursor-pointer select-none text-slate-800" @click="toggleFur(id)">
-                            <svg v-if="teethData[id].fur > 0" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                              <circle cx="12" cy="12" r="9" :fill="teethData[id].fur === 3 ? 'currentColor' : 'none'" />
-                              <path v-if="teethData[id].fur === 2" d="M12 3a9 9 0 0 1 0 18z" fill="currentColor" stroke="none" />
-                            </svg>
+                          <div class="h-6 border-b border-slate-200 flex items-center justify-center gap-1 cursor-pointer select-none text-slate-800">
+                            <div v-for="(grade, fIdx) in teethData[id].fur.lingual" :key="fIdx" @click="toggleFur(id, 'lingual', fIdx)" class="flex items-center justify-center">
+                              <svg v-if="grade > 0" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                <circle cx="12" cy="12" r="9" />
+                                <path v-if="grade >= 2" d="M12 3a9 9 0 0 0 0 18z" :fill="grade === 2 ? 'currentColor' : 'none'" stroke="none" />
+                                <circle v-if="grade === 3" cx="12" cy="12" r="9" fill="currentColor" />
+                              </svg>
+                              <div v-else class="w-3 h-3 border border-slate-200 rounded-full"></div>
+                            </div>
                           </div>
                           <div class="h-6 border-b border-slate-200"><input type="text" v-model="teethData[id].ktw" class="w-full h-full text-center text-[11px] outline-none" /></div>
                           <div class="h-6 border-b border-slate-200"><input type="text" v-model="teethData[id].mo" class="w-full h-full text-center text-[11px] outline-none" /></div>
@@ -413,11 +450,15 @@ const getToothImage = (id: number, surface: 'buccal' | 'lingual') => {
                           <div class="h-6 border-b border-slate-200 flex items-center justify-center"><input type="checkbox" v-model="teethData[id].implant" class="w-3.5 h-3.5 accent-slate-800" /></div>
                           <div class="h-6 border-b border-slate-200"><input type="text" v-model="teethData[id].mo" class="w-full h-full text-center text-[11px] outline-none" /></div>
                           <div class="h-6 border-b border-slate-200"><input type="text" v-model="teethData[id].ktw" class="w-full h-full text-center text-[11px] outline-none" /></div>
-                          <div class="h-6 border-b border-slate-200 flex items-center justify-center cursor-pointer select-none text-slate-800" @click="toggleFur(id)">
-                            <svg v-if="teethData[id].fur > 0" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                              <circle cx="12" cy="12" r="9" :fill="teethData[id].fur === 3 ? 'currentColor' : 'none'" />
-                              <path v-if="teethData[id].fur === 2" d="M12 3a9 9 0 0 1 0 18z" fill="currentColor" stroke="none" />
-                            </svg>
+                          <div class="h-6 border-b border-slate-200 flex items-center justify-center gap-1 cursor-pointer select-none text-slate-800">
+                            <div v-for="(grade, fIdx) in teethData[id].fur.lingual" :key="fIdx" @click="toggleFur(id, 'lingual', fIdx)" class="flex items-center justify-center">
+                              <svg v-if="grade > 0" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                <circle cx="12" cy="12" r="9" />
+                                <path v-if="grade >= 2" d="M12 3a9 9 0 0 0 0 18z" :fill="grade === 2 ? 'currentColor' : 'none'" stroke="none" />
+                                <circle v-if="grade === 3" cx="12" cy="12" r="9" fill="currentColor" />
+                              </svg>
+                              <div v-else class="w-3 h-3 border border-slate-200 rounded-full"></div>
+                            </div>
                           </div>
                           <div class="flex h-6 border-b border-slate-200">
                             <div v-for="s in [0,1,2]" :key="s" @click="toggleBop(id, 'lingual', s)" class="flex-1 border-r border-slate-100 last:border-r-0 cursor-pointer transition-colors" :class="teethData[id].lingual.bop[s] ? 'bg-red-500' : ''"></div>
@@ -448,7 +489,7 @@ const getToothImage = (id: number, surface: 'buccal' | 'lingual') => {
                     <template v-for="(group, gIdx) in lowerArch" :key="gIdx">
                       <div class="flex">
                         <div v-for="id in group" :key="id" class="w-12 sm:w-[54px] h-8 flex items-center justify-center">
-                          <button @click="teethData[id].cut = !teethData[id].cut" class="w-10 h-5 text-[8px] font-black uppercase rounded shadow-sm transition-all border border-slate-200" :class="teethData[id].cut ? 'bg-red-500 text-white border-red-600' : 'bg-white text-slate-400 hover:bg-slate-50'">cut</button>
+                          <button @click="teethData[id].cut = !teethData[id].cut" class="w-full h-6 text-[9px] font-black uppercase transition-all border border-slate-200" :class="teethData[id].cut ? 'bg-red-500 text-white border-red-600' : 'bg-slate-100 text-slate-400 hover:bg-slate-200'">cut</button>
                         </div>
                       </div>
                       <div v-if="gIdx !== 2" class="w-4"></div>
@@ -469,6 +510,17 @@ const getToothImage = (id: number, surface: 'buccal' | 'lingual') => {
                           <div v-for="id in group" :key="id" class="w-12 sm:w-[54px] h-full flex items-center justify-center group relative z-10">
                             <span class="absolute bottom-1.5 text-[9px] font-black text-slate-300 select-none group-hover:text-slate-400 transition-colors">{{ id }}</span>
                             <img :src="getToothImage(id, 'lingual')" :alt="`Tooth ${id} Lingual`" class="w-12 h-auto object-contain transition-all duration-300 scale-y-[-1] scale-x-[-1]" />
+                            <!-- Furcation Dots -->
+                            <div v-for="(grade, fIdx) in teethData[id].fur.lingual" :key="fIdx" 
+                              class="absolute top-[40%] z-20 pointer-events-none -translate-x-1/2"
+                              :style="{ left: teethData[id].fur.lingual.length > 1 ? (fIdx === 0 ? '35%' : '65%') : '50%' }"
+                            >
+                              <svg v-if="grade > 0" class="w-2.5 h-2.5 text-black" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                                <circle cx="12" cy="12" r="9" />
+                                <path v-if="grade >= 2" d="M12 3a9 9 0 0 0 0 18z" :fill="grade === 2 ? 'currentColor' : 'none'" stroke="none" />
+                                <circle v-if="grade === 3" cx="12" cy="12" r="9" fill="currentColor" />
+                              </svg>
+                            </div>
                           </div>
                         </div>
                         <div v-if="gIdx !== 2" class="w-4"></div>
@@ -487,6 +539,17 @@ const getToothImage = (id: number, surface: 'buccal' | 'lingual') => {
                           <div v-for="id in group" :key="id" class="w-12 sm:w-[54px] h-full flex items-center justify-center group relative z-10">
                             <span class="absolute bottom-1.5 text-[9px] font-black text-slate-300 select-none group-hover:text-slate-400 transition-colors">{{ id }}</span>
                             <img :src="getToothImage(id, 'buccal')" :alt="`Tooth ${id}`" class="w-12 h-auto object-contain transition-all duration-300 scale-y-[-1] scale-x-[-1]" />
+                            <!-- Furcation Dots -->
+                            <div v-for="(grade, fIdx) in teethData[id].fur.buccal" :key="fIdx" 
+                              class="absolute top-[40%] z-20 pointer-events-none -translate-x-1/2"
+                              :style="{ left: teethData[id].fur.buccal.length > 1 ? (fIdx === 0 ? '35%' : '65%') : '50%' }"
+                            >
+                              <svg v-if="grade > 0" class="w-2.5 h-2.5 text-black" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                                <circle cx="12" cy="12" r="9" />
+                                <path v-if="grade >= 2" d="M12 3a9 9 0 0 0 0 18z" :fill="grade === 2 ? 'currentColor' : 'none'" stroke="none" />
+                                <circle v-if="grade === 3" cx="12" cy="12" r="9" fill="currentColor" />
+                              </svg>
+                            </div>
                           </div>
                         </div>
                         <div v-if="gIdx !== 2" class="w-4"></div>
@@ -501,6 +564,7 @@ const getToothImage = (id: number, surface: 'buccal' | 'lingual') => {
                     <div v-for="row in mandibularBuccalRows" :key="row" class="h-6 flex items-center px-2 border-b border-r border-slate-200 last:border-b-0">
                       {{ row }}
                     </div>
+                    <div class="h-7 border-t border-r border-slate-300 bg-slate-50"></div>
                   </div>
 
                   <div class="flex">
@@ -522,15 +586,20 @@ const getToothImage = (id: number, surface: 'buccal' | 'lingual') => {
                           <div class="flex h-6 border-b border-slate-200">
                             <div v-for="s in [0,1,2]" :key="s" @click="toggleBop(id, 'buccal', s)" class="flex-1 border-r border-slate-100 last:border-r-0 cursor-pointer transition-colors" :class="teethData[id].buccal.bop[s] ? 'bg-red-500' : ''"></div>
                           </div>
-                          <div class="h-6 border-b border-slate-200 flex items-center justify-center cursor-pointer select-none text-slate-800" @click="toggleFur(id)">
-                            <svg v-if="teethData[id].fur > 0" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                              <circle cx="12" cy="12" r="9" :fill="teethData[id].fur === 3 ? 'currentColor' : 'none'" />
-                              <path v-if="teethData[id].fur === 2" d="M12 3a9 9 0 0 1 0 18z" fill="currentColor" stroke="none" />
-                            </svg>
+                          <div class="h-6 border-b border-slate-200 flex items-center justify-center gap-1 cursor-pointer select-none text-slate-800">
+                            <div v-for="(grade, fIdx) in teethData[id].fur.buccal" :key="fIdx" @click="toggleFur(id, 'buccal', fIdx)" class="flex items-center justify-center">
+                              <svg v-if="grade > 0" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                <circle cx="12" cy="12" r="9" />
+                                <path v-if="grade >= 2" d="M12 3a9 9 0 0 0 0 18z" :fill="grade === 2 ? 'currentColor' : 'none'" stroke="none" />
+                                <circle v-if="grade === 3" cx="12" cy="12" r="9" fill="currentColor" />
+                              </svg>
+                              <div v-else class="w-3 h-3 border border-slate-200 rounded-full"></div>
+                            </div>
                           </div>
                           <div class="h-6 border-b border-slate-200"><input type="text" v-model="teethData[id].ktw" class="w-full h-full text-center text-[11px] outline-none" /></div>
                           <div class="h-6 border-b border-slate-200"><input type="text" v-model="teethData[id].mo" class="w-full h-full text-center text-[11px] outline-none" /></div>
                           <div class="h-6 flex items-center justify-center"><input type="checkbox" v-model="teethData[id].implant" class="w-3.5 h-3.5 accent-slate-800" /></div>
+                          <div class="h-7 bg-slate-50 flex items-center justify-center font-black text-slate-800 text-[11px] border-t border-slate-300">{{ id }}</div>
                         </div>
                       </div>
                       <div v-if="gIdx !== 2" class="w-4"></div>
@@ -538,20 +607,6 @@ const getToothImage = (id: number, surface: 'buccal' | 'lingual') => {
                   </div>
                 </div>
 
-                <!-- Lower Tooth ID Footer -->
-                <div class="flex">
-                  <div class="w-20"></div>
-                  <div class="flex">
-                    <template v-for="(group, gIdx) in lowerArch" :key="gIdx">
-                      <div class="flex border-b border-r border-slate-300 bg-white first:border-l">
-                        <div v-for="(id, idx) in group" :key="id" class="w-12 sm:w-[54px] h-7 bg-slate-50 flex items-center justify-center font-black text-slate-800 text-[11px] border-r border-slate-200 last:border-r-0" :class="gIdx === 1 && idx === 3 ? 'border-l-2 border-l-slate-400' : ''">
-                          {{ id }}
-                        </div>
-                      </div>
-                      <div v-if="gIdx !== 2" class="w-4"></div>
-                    </template>
-                  </div>
-                </div>
               </div>
             </div>
           </section>
@@ -589,19 +644,19 @@ const getToothImage = (id: number, surface: 'buccal' | 'lingual') => {
                 <div class="w-6 flex justify-center">
                   <svg class="w-4 h-4 text-slate-800" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="9" /></svg>
                 </div>
-                <span class="text-[10px] font-bold text-slate-500">: Grade I</span>
+                <span class="text-[10px] font-bold text-slate-500">: Grade I (Empty)</span>
               </div>
               <div class="flex items-center gap-3">
                 <div class="w-6 flex justify-center">
-                  <svg class="w-4 h-4 text-slate-800" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="9" /><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor" stroke="none" /></svg>
+                  <svg class="w-4 h-4 text-slate-800" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="9" /><path d="M12 3a9 9 0 0 0 0 18z" fill="currentColor" stroke="none" /></svg>
                 </div>
-                <span class="text-[10px] font-bold text-slate-500">: Grade II</span>
+                <span class="text-[10px] font-bold text-slate-500">: Grade II (Half)</span>
               </div>
               <div class="flex items-center gap-3">
                 <div class="w-6 flex justify-center">
                   <svg class="w-4 h-4 text-slate-800" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="9" fill="currentColor" /></svg>
                 </div>
-                <span class="text-[10px] font-bold text-slate-500">: Grade III</span>
+                <span class="text-[10px] font-bold text-slate-500">: Grade III (Full)</span>
               </div>
             </div>
           </div>
