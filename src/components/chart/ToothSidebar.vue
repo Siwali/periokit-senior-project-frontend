@@ -2,7 +2,17 @@
 import { X } from 'lucide-vue-next'
 import { computed, ref, watch } from 'vue'
 
-const showPrognosisInfo = ref(false)
+import { 
+  calculatePrognosisKC, 
+  calculatePrognosisMN, 
+  getSafePDValues, 
+  getSafeCALValues,
+  calculateToothBopPercentage,
+  calculateToothPiPercentage
+} from '../../utils/calculations'
+
+
+const prognosisModalType = ref<'MN' | 'KC' | null>(null)
 const isEditingNote = ref(false)
 const noteInput = ref('')
 
@@ -35,25 +45,58 @@ const cancelEditing = () => {
   noteInput.value = ''
 }
 
-// Using computed properties for Analysis Summary data
-
-const analysisData = computed(() => {
-  if (!props.toothData) return null
-  const isImplant = props.toothData.implant
-  return {
-    prognosisKC: isImplant ? (props.toothData.prognosisKC || "Favorable") : (props.toothData.prognosisKC || "N/A"),
-    prognosisMN: isImplant ? (props.toothData.prognosisMN || "Good") : (props.toothData.prognosisMN || "N/A"),
-    buccalKTW: props.toothData.ktw || "0",
-    palatalKTW: props.toothData.ktw || "0", // Uses same KTW state unless decoupled later
-    mobility: isImplant ? "Fixed" : (props.toothData.mo || "0"),
-    furcation: isImplant ? null : (props.toothData.fur?.buccal?.[0] || 0)
-  }
-})
-
-const getFurLabel = (grade: number) => {
+const getFurLabel = (grade?: number) => {
+  if (grade === undefined) return '-'
   const labels = ['-', 'Grade I', 'Grade II', 'Grade III']
   return labels[grade] || '-'
 }
+
+const getPrognosisColorMN = (val?: string) => {
+  if (!val || val === 'N/A') return 'text-slate-400 bg-slate-50'
+  if (val.includes('Good')) return 'text-green-600 bg-green-50'
+  if (val === 'Fair') return 'text-blue-600 bg-blue-50'
+  if (val === 'Poor') return 'text-amber-600 bg-amber-50'
+  if (val === 'Questionable') return 'text-orange-600 bg-orange-50'
+  if (val === 'Hopeless') return 'text-red-600 bg-red-50'
+  return 'text-slate-600 bg-slate-50'
+}
+
+const getPrognosisColorKC = (val?: string) => {
+  if (!val || val === 'N/A') return 'text-slate-400 bg-slate-50'
+  if (val === 'Favorable') return 'text-green-600 bg-green-50'
+  if (val === 'Questionable') return 'text-amber-600 bg-amber-50'
+  if (val === 'Unfavorable') return 'text-red-600 bg-red-50'
+  if (val === 'Hopeless') return 'text-slate-900 bg-slate-100'
+  return 'text-slate-600 bg-slate-50'
+}
+
+const analysisData = computed(() => {
+  if (!props.toothData) return null
+  
+  const allFur = [
+    ...(props.toothData.fur?.buccal || []), 
+    ...(props.toothData.fur?.lingual || [])
+  ].map(v => parseInt(v) || 0)
+  
+  const maxFur = allFur.length > 0 ? Math.max(0, ...allFur) : 0
+
+  return {
+    prognosisKC: calculatePrognosisKC(props.toothData),
+    prognosisMN: calculatePrognosisMN(props.toothData),
+    buccalKTW: props.toothData.ktw || "0",
+    palatalKTW: props.toothData.ktw || "0",
+    mobility: props.toothData.mo || "0",
+    furcation: maxFur,
+    buccalPD: getSafePDValues(props.toothData.buccal?.pd),
+    palatalPD: getSafePDValues(props.toothData.lingual?.pd),
+    buccalCAL: getSafeCALValues(props.toothData.buccal?.cal),
+    palatalCAL: getSafeCALValues(props.toothData.lingual?.cal),
+    bopPercentage: calculateToothBopPercentage(props.toothData),
+    piPercentage: calculateToothPiPercentage(props.toothData)
+  }
+})
+
+
 </script>
 
 <template>
@@ -63,7 +106,7 @@ const getFurLabel = (grade: number) => {
       <div>
         <div class="flex items-center gap-3">
           <h2 class="text-3xl font-black text-slate-800 tracking-tight">#{{ toothId }}</h2>
-          <span v-if="toothData.cut" class="px-2 py-1 bg-red-50 text-red-500 rounded border border-red-100 text-[9px] font-black uppercase tracking-wider">Missing</span>
+          <span v-if="toothData.cut" class="px-2 py-1 bg-red-50 text-red-500 rounded border border-red-100 text-[9px] font-black uppercase tracking-wider">Extracted</span>
           <span v-if="toothData.implant" class="px-2 py-1 bg-slate-100 text-slate-500 rounded border border-slate-200 text-[9px] font-black uppercase tracking-wider">Implant</span>
         </div>
         <p class="text-xs font-bold text-slate-400 uppercase tracking-widest mt-0.5">Tooth Details</p>
@@ -83,9 +126,9 @@ const getFurLabel = (grade: number) => {
           <!-- Buccal Card -->
           <div class="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm text-center group hover:border-[#0052ff]/20 transition-all">
             <div class="text-2xl font-black mb-1 flex items-center justify-center gap-0.5">
-              <span v-for="(val, i) in toothData.buccal.pd" :key="i" 
+              <span v-for="(val, i) in analysisData?.buccalPD" :key="i" 
                 :class="parseInt(val) > 4 ? 'text-red-500' : 'text-[#0052ff]'">
-                {{ val || '0' }}{{ Number(i) < 2 ? '-' : '' }}
+                {{ val }}{{ Number(i) < 2 ? '-' : '' }}
               </span>
             </div>
             <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Buccal (mm)</p>
@@ -93,14 +136,15 @@ const getFurLabel = (grade: number) => {
           <!-- Palatal Card -->
           <div class="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm text-center group hover:border-[#0052ff]/20 transition-all">
             <div class="text-2xl font-black mb-1 flex items-center justify-center gap-0.5">
-              <span v-for="(val, i) in toothData.lingual.pd" :key="i" 
+              <span v-for="(val, i) in analysisData?.palatalPD" :key="i" 
                 :class="parseInt(val) > 4 ? 'text-red-500' : 'text-[#0052ff]'">
-                {{ val || '0' }}{{ Number(i) < 2 ? '-' : '' }}
+                {{ val }}{{ Number(i) < 2 ? '-' : '' }}
               </span>
             </div>
             <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Palatal (mm)</p>
           </div>
         </div>
+
       </section>
 
       <!-- CAL Section -->
@@ -110,9 +154,9 @@ const getFurLabel = (grade: number) => {
           <!-- Buccal Card -->
           <div class="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm text-center group hover:border-[#0052ff]/20 transition-all">
             <div class="text-2xl font-black mb-1 flex items-center justify-center gap-0.5">
-              <span v-for="(val, i) in toothData.buccal.cal" :key="i" 
+              <span v-for="(val, i) in analysisData?.buccalCAL" :key="i" 
                 :class="parseInt(val) > 4 ? 'text-red-500' : 'text-[#0052ff]'">
-                {{ val || '0' }}{{ Number(i) < 2 ? '-' : '' }}
+                {{ val }}{{ Number(i) < 2 ? '-' : '' }}
               </span>
             </div>
             <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Buccal (mm)</p>
@@ -120,60 +164,102 @@ const getFurLabel = (grade: number) => {
           <!-- Palatal Card -->
           <div class="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm text-center group hover:border-[#0052ff]/20 transition-all">
             <div class="text-2xl font-black mb-1 flex items-center justify-center gap-0.5">
-              <span v-for="(val, i) in toothData.lingual.cal" :key="i" 
+              <span v-for="(val, i) in analysisData?.palatalCAL" :key="i" 
                 :class="parseInt(val) > 4 ? 'text-red-500' : 'text-[#0052ff]'">
-                {{ val || '0' }}{{ Number(i) < 2 ? '-' : '' }}
+                {{ val }}{{ Number(i) < 2 ? '-' : '' }}
               </span>
             </div>
             <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Palatal (mm)</p>
           </div>
         </div>
+
       </section>
 
-      <!-- Visual Indicators Section -->
+      <!-- Visual Indicators Section (Standard 6-Site Hexagonal Diagrams) -->
       <section class="grid grid-cols-2 gap-4" :class="{ 'opacity-40 grayscale pointer-events-none': toothData.cut }">
         <!-- BoP Diagram -->
-        <div class="bg-slate-50/50 border border-slate-100 rounded-2xl p-5 flex flex-col items-center">
-          <div class="relative w-16 h-16 mb-4">
-            <!-- Simplified Surface Map Diagram -->
-            <svg viewBox="0 0 100 100" class="w-full h-full transform -rotate-45">
-              <path d="M50 0 L100 50 L50 100 L0 50 Z" fill="none" stroke="#e2e8f0" stroke-width="2" />
-              <!-- Top (Buccal Mid) -->
-              <path v-if="toothData.buccal.bop[1]" d="M50 0 L75 25 L50 50 L25 25 Z" fill="#ef4444" />
-              <!-- Bottom (Lingual Mid) -->
-              <path v-if="toothData.lingual.bop[1]" d="M50 50 L75 75 L50 100 L25 75 Z" fill="#ef4444" />
-              <!-- Left (Distal) -->
-              <path v-if="toothData.buccal.bop[0]" d="M0 50 L25 25 L50 50 L25 75 Z" fill="#ef4444" />
-              <!-- Right (Mesial) -->
-              <path v-if="toothData.buccal.bop[2]" d="M50 50 L75 25 L100 50 L75 75 Z" fill="#ef4444" />
-              <!-- Lines -->
-              <line x1="50" y1="0" x2="50" y2="100" stroke="#e2e8f0" stroke-width="1" />
-              <line x1="0" y1="50" x2="100" y2="50" stroke="#e2e8f0" stroke-width="1" />
+        <div class="relative bg-slate-50/50 border border-slate-100 rounded-2xl p-5 flex flex-col items-center group/bop">
+          <!-- Percentage Badge -->
+          <div 
+            v-if="analysisData?.bopPercentage !== '0%'" 
+            class="absolute top-2.5 right-2.5 px-2 py-0.5 bg-red-50 text-red-500 text-[9px] font-black rounded-lg border border-red-100 shadow-sm animate-in fade-in zoom-in duration-300"
+          >
+            {{ analysisData?.bopPercentage }}
+          </div>
+
+          
+          <div class="relative w-20 h-20 mb-2">
+            <svg viewBox="0 0 100 100" class="w-full h-full transform rotate-30">
+              <!-- Outer Hexagon Frame -->
+              <polygon points="50,0 93.3,25 93.3,75 50,100 6.7,75 6.7,25" fill="white" stroke="#e2e8f0" stroke-width="2" />
+              
+              <!-- Buccal Sites (Top) -->
+              <!-- Top-Left (Distal/Mesial) -->
+              <path v-if="toothData.buccal.bop[0]" d="M50 50 L6.7 25 L50 0 Z" fill="#ef4444" />
+              <!-- Top-Mid (Mid) -->
+              <path v-if="toothData.buccal.bop[1]" d="M50 50 L50 0 L93.3 25 Z" fill="#ef4444" />
+              <!-- Top-Right (Mesial/Distal) -->
+              <path v-if="toothData.buccal.bop[2]" d="M50 50 L93.3 25 L93.3 75 Z" fill="#ef4444" />
+              
+              <!-- Lingual Sites (Bottom) -->
+              <!-- Bottom-Left -->
+              <path v-if="toothData.lingual.bop[0]" d="M50 50 L6.7 25 L6.7 75 Z" fill="#ef4444" />
+              <!-- Bottom-Mid -->
+              <path v-if="toothData.lingual.bop[1]" d="M50 50 L6.7 75 L50 100 Z" fill="#ef4444" />
+              <!-- Bottom-Right -->
+              <path v-if="toothData.lingual.bop[2]" d="M50 50 L50 100 L93.3 75 Z" fill="#ef4444" />
+              
+              <!-- Divider Lines -->
+              <line x1="50" y1="50" x2="50" y2="0" stroke="#e2e8f0" stroke-width="1" />
+              <line x1="50" y1="50" x2="93.3" y2="25" stroke="#e2e8f0" stroke-width="1" />
+              <line x1="50" y1="50" x2="93.3" y2="75" stroke="#e2e8f0" stroke-width="1" />
+              <line x1="50" y1="50" x2="50" y2="100" stroke="#e2e8f0" stroke-width="1" />
+              <line x1="50" y1="50" x2="6.7" y2="75" stroke="#e2e8f0" stroke-width="1" />
+              <line x1="50" y1="50" x2="6.7" y2="25" stroke="#e2e8f0" stroke-width="1" />
             </svg>
           </div>
-          <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest">BoP</p>
+          <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest">BOP (6 Sites)</p>
         </div>
 
+
         <!-- Plaque Diagram -->
-        <div class="bg-slate-50/50 border border-slate-100 rounded-2xl p-5 flex flex-col items-center">
-          <div class="relative w-16 h-16 mb-4">
-            <svg viewBox="0 0 100 100" class="w-full h-full transform -rotate-45">
-              <path d="M50 0 L100 50 L50 100 L0 50 Z" fill="none" stroke="#e2e8f0" stroke-width="2" />
-              <!-- Top (Buccal Mid) -->
-              <path v-if="toothData.buccal.pi[1]" d="M50 0 L75 25 L50 50 L25 25 Z" fill="#3b82f6" />
-              <!-- Bottom (Lingual Mid) -->
-              <path v-if="toothData.lingual.pi[1]" d="M50 50 L75 75 L50 100 L25 75 Z" fill="#3b82f6" />
-              <!-- Left (Distal) -->
-              <path v-if="toothData.buccal.pi[0]" d="M0 50 L25 25 L50 50 L25 75 Z" fill="#3b82f6" />
-              <!-- Right (Mesial) -->
-              <path v-if="toothData.buccal.pi[2]" d="M50 50 L75 25 L100 50 L75 75 Z" fill="#3b82f6" />
-              <!-- Lines -->
-              <line x1="50" y1="0" x2="50" y2="100" stroke="#e2e8f0" stroke-width="1" />
-              <line x1="0" y1="50" x2="100" y2="50" stroke="#e2e8f0" stroke-width="1" />
+        <div class="relative bg-slate-50/50 border border-slate-100 rounded-2xl p-5 flex flex-col items-center group/pi">
+          <!-- Percentage Badge -->
+          <div 
+            v-if="analysisData?.piPercentage !== '0%'" 
+            class="absolute top-2.5 right-2.5 px-2 py-0.5 bg-blue-50 text-blue-500 text-[9px] font-black rounded-lg border border-blue-100 shadow-sm animate-in fade-in zoom-in duration-300"
+          >
+            {{ analysisData?.piPercentage }}
+          </div>
+
+
+          <div class="relative w-20 h-20 mb-2">
+            <svg viewBox="0 0 100 100" class="w-full h-full transform rotate-30">
+              <!-- Outer Hexagon Frame -->
+              <polygon points="50,0 93.3,25 93.3,75 50,100 6.7,75 6.7,25" fill="white" stroke="#e2e8f0" stroke-width="2" />
+              
+              <!-- Buccal Sites (Top) -->
+              <path v-if="toothData.buccal.pi[0]" d="M50 50 L6.7 25 L50 0 Z" fill="#3b82f6" />
+              <path v-if="toothData.buccal.pi[1]" d="M50 50 L50 0 L93.3 25 Z" fill="#3b82f6" />
+              <path v-if="toothData.buccal.pi[2]" d="M50 50 L93.3 25 L93.3 75 Z" fill="#3b82f6" />
+              
+              <!-- Lingual Sites (Bottom) -->
+              <path v-if="toothData.lingual.pi[0]" d="M50 50 L6.7 25 L6.7 75 Z" fill="#3b82f6" />
+              <path v-if="toothData.lingual.pi[1]" d="M50 50 L6.7 75 L50 100 Z" fill="#3b82f6" />
+              <path v-if="toothData.lingual.pi[2]" d="M50 50 L50 100 L93.3 75 Z" fill="#3b82f6" />
+              
+              <!-- Divider Lines -->
+              <line x1="50" y1="50" x2="50" y2="0" stroke="#e2e8f0" stroke-width="1" />
+              <line x1="50" y1="50" x2="93.3" y2="25" stroke="#e2e8f0" stroke-width="1" />
+              <line x1="50" y1="50" x2="93.3" y2="75" stroke="#e2e8f0" stroke-width="1" />
+              <line x1="50" y1="50" x2="50" y2="100" stroke="#e2e8f0" stroke-width="1" />
+              <line x1="50" y1="50" x2="6.7" y2="75" stroke="#e2e8f0" stroke-width="1" />
+              <line x1="50" y1="50" x2="6.7" y2="25" stroke="#e2e8f0" stroke-width="1" />
             </svg>
           </div>
-          <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Plaque</p>
+          <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest">PI (6 Sites)</p>
         </div>
+
       </section>
 
       <!-- Analysis Summary -->
@@ -184,7 +270,7 @@ const getFurLabel = (grade: number) => {
         <div class="space-y-5">
           <!-- Prognosis K&C Row -->
           <div 
-            @click="showPrognosisInfo = true" 
+            @click="prognosisModalType = 'KC'" 
             class="flex justify-between gap-4 cursor-pointer group"
           >
             <div class="flex items-center gap-1.5">
@@ -193,14 +279,17 @@ const getFurLabel = (grade: number) => {
               </span>
               <svg class="text-slate-200 group-hover:text-[#0052ff] transition-colors" xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
             </div>
-            <span class="text-[11px] font-bold text-[#3b82f6] text-right max-w-[180px] leading-relaxed">
+            <span 
+              class="text-[10px] font-black px-2.5 py-1 rounded-lg transition-all"
+              :class="getPrognosisColorKC(analysisData?.prognosisKC)"
+            >
               {{ analysisData?.prognosisKC || 'N/A' }}
             </span>
           </div>
 
           <!-- Prognosis M&N Row -->
           <div 
-            @click="showPrognosisInfo = true" 
+            @click="prognosisModalType = 'MN'" 
             class="flex justify-between gap-4 cursor-pointer group"
           >
             <div class="flex items-center gap-1.5">
@@ -209,21 +298,24 @@ const getFurLabel = (grade: number) => {
               </span>
               <svg class="text-slate-200 group-hover:text-[#0052ff] transition-colors" xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
             </div>
-            <span class="text-[11px] font-bold text-[#3b82f6] text-right max-w-[180px] leading-relaxed">
+            <span 
+              class="text-[10px] font-black px-2.5 py-1 rounded-lg transition-all"
+              :class="getPrognosisColorMN(analysisData?.prognosisMN)"
+            >
               {{ analysisData?.prognosisMN || 'N/A' }}
             </span>
           </div>
           <div class="flex justify-between items-center pt-2">
-            <span class="text-[11px] font-bold text-slate-400">Buccal-KTW</span>
+            <span class="text-[11px] font-bold text-slate-400">Buccal-Keratinized</span>
             <span class="text-[11px] font-black text-slate-700">{{ analysisData?.buccalKTW }} mm</span>
           </div>
           <div class="flex justify-between items-center">
-            <span class="text-[11px] font-bold text-slate-400">Palatal-KTW</span>
+            <span class="text-[11px] font-bold text-slate-400">Palatal-Keratinized</span>
             <span class="text-[11px] font-black text-slate-700">{{ analysisData?.palatalKTW }} mm</span>
           </div>
           <div class="flex justify-between items-center">
             <span class="text-[11px] font-bold text-slate-400">Mobility</span>
-            <span class="text-[11px] font-black text-slate-700">{{ analysisData?.mobility === 'Fixed' ? 'Fixed (0)' : 'Grade ' + analysisData?.mobility }}</span>
+            <span class="text-[11px] font-black text-slate-700">{{ toothData.implant ? 'Fixed (0)' : 'Grade ' + (analysisData?.mobility || '0') }}</span>
           </div>
           <div v-if="!toothData.implant" class="flex justify-between items-center">
             <span class="text-[11px] font-bold text-slate-400">Furcation</span>
@@ -294,24 +386,26 @@ const getFurLabel = (grade: number) => {
       leave-from-class="opacity-100"
       leave-to-class="opacity-0"
     >
-      <div v-if="showPrognosisInfo" class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+      <div v-if="prognosisModalType" class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm" @click="prognosisModalType = null">
         <div 
           class="bg-white w-full max-w-2xl max-h-[85vh] overflow-y-auto rounded-[32px] shadow-2xl"
           @click.stop
         >
           <div class="sticky top-0 bg-white/80 backdrop-blur-md px-8 py-6 border-b border-slate-50 flex items-center justify-between z-10">
-            <h2 class="text-lg font-black text-slate-800 tracking-tight">Prognosis Classification Systems</h2>
-            <button @click="showPrognosisInfo = false" class="w-10 h-10 flex items-center justify-center rounded-full bg-slate-50 text-slate-400 hover:text-slate-600 transition-all">
+            <h2 class="text-lg font-black text-slate-800 tracking-tight">
+              {{ prognosisModalType === 'MN' ? 'McGuire and Nunn (M&N)' : 'Kwok and Caton (K&C)' }}
+            </h2>
+            <button @click="prognosisModalType = null" class="w-10 h-10 flex items-center justify-center rounded-full bg-slate-50 text-slate-400 hover:text-slate-600 transition-all">
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
           </div>
 
           <div class="p-8 space-y-10">
             <!-- Table 1: McGuire and Nunn -->
-            <div>
+            <div v-if="prognosisModalType === 'MN'">
               <div class="flex items-center gap-3 mb-5">
-                <span class="bg-red-500 text-white text-[10px] font-black px-2 py-1 rounded-md uppercase tracking-wider">Table 1</span>
-                <h3 class="text-sm font-black text-slate-800 uppercase tracking-wide">McGuire and Nunn (M&N)</h3>
+                <span class="bg-red-500 text-white text-[10px] font-black px-2 py-1 rounded-md uppercase tracking-wider">Classification</span>
+                <h3 class="text-sm font-black text-slate-800 uppercase tracking-wide">Prognosis Criteria</h3>
               </div>
               <div class="overflow-hidden border border-slate-100 rounded-2xl shadow-sm">
                 <table class="w-full text-left border-collapse">
@@ -348,10 +442,10 @@ const getFurLabel = (grade: number) => {
             </div>
 
             <!-- Table 2: Kwok and Caton -->
-            <div>
+            <div v-if="prognosisModalType === 'KC'">
               <div class="flex items-center gap-3 mb-5">
-                <span class="bg-blue-500 text-white text-[10px] font-black px-2 py-1 rounded-md uppercase tracking-wider">Table 2</span>
-                <h3 class="text-sm font-black text-slate-800 uppercase tracking-wide">Kwok and Caton (K&C)</h3>
+                <span class="bg-blue-500 text-white text-[10px] font-black px-2 py-1 rounded-md uppercase tracking-wider">Classification</span>
+                <h3 class="text-sm font-black text-slate-800 uppercase tracking-wide">Prognosis Criteria</h3>
               </div>
               <div class="overflow-hidden border border-slate-100 rounded-2xl shadow-sm">
                 <table class="w-full text-left border-collapse">

@@ -4,6 +4,8 @@ import { useAuthStore } from '../stores/auth'
 import { FileText, Image as ImageIcon, Download, Stethoscope, Plus, Save, X } from 'lucide-vue-next'
 import Navbar from '../components/layout/Navbar.vue'
 import ToothSidebar from '../components/chart/ToothSidebar.vue'
+import { calculateCALValue } from '../utils/calculations'
+
 
 const authStore = useAuthStore()
 const user = authStore.user
@@ -13,9 +15,13 @@ const activeSubNav = ref('chart')
 
 // Tooth Selection State
 const selectedToothId = ref<number | string | null>(null)
+const isSidebarOpen = ref(false)
 
-const selectTooth = (id: number | string) => {
+const selectTooth = (id: number | string, triggerSidebar = false) => {
   selectedToothId.value = id
+  if (triggerSidebar) {
+    isSidebarOpen.value = true
+  }
 }
 
 const selectedToothData = computed(() => {
@@ -97,11 +103,13 @@ const togglePi = (id: string | number, surface: 'buccal' | 'lingual', site: numb
 }
 
 const updateCal = (id: string | number, surface: 'buccal' | 'lingual', site: number) => {
+
   if (teethData.value[id].cut) return
-  const pd = parseInt(teethData.value[id][surface].pd[site]) || 0
-  const rec = parseInt(teethData.value[id][surface].rec[site]) || 0
-  teethData.value[id][surface].cal[site] = (pd + rec).toString()
+  const pd = teethData.value[id][surface].pd[site]
+  const rec = teethData.value[id][surface].rec[site]
+  teethData.value[id][surface].cal[site] = calculateCALValue(pd, rec).toString()
 }
+
 
 const toggleFur = (id: string | number, surface: 'buccal' | 'lingual', index: number | string) => {
   if (teethData.value[id].cut || teethData.value[id].implant) return
@@ -130,8 +138,8 @@ const lowerArch = [
 ]
 
 
-const buccalRows = ['Implant', 'Mo', 'KTW', 'Fur', 'BoP', 'PI', 'REC', 'PD', 'CAL']
-const palatalRows = ['CAL', 'PD', 'REC', 'PI', 'BoP', 'Fur', 'KTW', 'Mo', 'Implant']
+const buccalRows = ['Implant', 'Mobility', 'Keratinized', 'Furcation', 'BOP', 'PI', 'Recession', 'PD', 'CAL']
+const palatalRows = ['CAL', 'PD', 'Recession', 'PI', 'BOP', 'Furcation', 'Keratinized', 'Mobility', 'Implant']
 
 const getToothImage = (id: number | string, surface: 'buccal' | 'lingual') => {
   const data = teethData.value[id]
@@ -303,43 +311,42 @@ const handleUpdateNote = ({ id, note }: { id: string | number, note: string }) =
                       <div class="flex border-t border-r border-slate-300 bg-white first:border-l">
                         <div 
                           v-for="(id, idx) in group" :key="id" 
-                          @click="selectTooth(id)"
                           class="flex flex-col border-r border-slate-200 last:border-r-0 w-12 sm:w-[54px] transition-all duration-200 cursor-pointer" 
                           :class="[
                             gIdx === 1 && idx === 3 ? 'border-l-2 border-l-slate-400' : '',
-                            selectedToothId === id ? 'bg-blue-50/50 ring-2 ring-[#0052ff] ring-inset z-10' : ''
+                            selectedToothId === id && isSidebarOpen ? 'bg-blue-50/50 ring-2 ring-[#0052ff] ring-inset z-10' : ''
                           ]"
                         >
                           <!-- Tooth ID Header -->
                           <div 
-                            @click="selectTooth(id)"
+                            @click.stop="selectTooth(id, true)"
                             class="h-7 flex items-center justify-center font-black text-[11px] border-b border-slate-300 cursor-pointer transition-all duration-200"
-                            :class="selectedToothId === id ? 'bg-[#0052ff] text-white' : 'bg-slate-50 text-slate-800 hover:bg-[#0052ff] hover:text-white'"
+                            :class="selectedToothId === id && isSidebarOpen ? 'bg-[#0052ff] text-white' : 'bg-slate-50 text-slate-800 hover:bg-[#0052ff] hover:text-white'"
                           >
                             {{ id }}
                           </div>
                           
                           <!-- Measurement Rows -->
-                          <div class="h-6 border-b border-slate-200 flex items-center justify-center"><input type="checkbox" v-model="teethData[id].implant" @focus="selectTooth(id)" :disabled="teethData[id].cut" class="w-3.5 h-3.5 accent-slate-800 disabled:opacity-30" /></div>
-                          <div class="h-6 border-b border-slate-200"><input type="text" v-model="teethData[id].mo" @focus="selectTooth(id)" :disabled="teethData[id].cut || teethData[id].implant" :placeholder="teethData[id].implant ? '0' : ''" class="w-full h-full text-center text-[11px] outline-none disabled:bg-slate-100/50" /></div>
-                          <div class="h-6 border-b border-slate-200"><input type="text" v-model="teethData[id].ktw" @focus="selectTooth(id)" :disabled="teethData[id].cut" class="w-full h-full text-center text-[11px] outline-none disabled:bg-slate-100/50" /></div>
+                          <div class="h-6 border-b border-slate-200 flex items-center justify-center"><input type="checkbox" v-model="teethData[id].implant" :disabled="teethData[id].cut" class="w-3.5 h-3.5 accent-slate-800 disabled:opacity-30" /></div>
+                          <div class="h-6 border-b border-slate-200"><input type="text" v-model="teethData[id].mo" :disabled="teethData[id].cut || teethData[id].implant" :placeholder="teethData[id].implant ? '0' : ''" class="w-full h-full text-center text-[11px] outline-none disabled:bg-slate-100/50" /></div>
+                          <div class="h-6 border-b border-slate-200"><input type="text" v-model="teethData[id].ktw" :disabled="teethData[id].cut" class="w-full h-full text-center text-[11px] outline-none disabled:bg-slate-100/50" /></div>
                           <div class="h-6 border-b border-slate-200 flex items-center justify-center gap-1 cursor-pointer select-none text-slate-800" :class="{ 'pointer-events-none opacity-30': teethData[id].cut || teethData[id].implant }">
-                            <div v-for="(grade, fIdx) in teethData[id].fur.buccal" :key="fIdx" @click="toggleFur(id, 'buccal', fIdx); selectTooth(id)" class="flex items-center justify-center w-4 h-4 cursor-pointer">
+                            <div v-for="(grade, fIdx) in teethData[id].fur.buccal" :key="fIdx" @click="toggleFur(id, 'buccal', fIdx)" class="flex items-center justify-center w-4 h-4 cursor-pointer">
                               <img v-if="grade > 0" :src="getFurImage(grade)" class="w-3.5 h-3.5 object-contain" />
                               <div v-else class="w-3 h-3 border border-slate-200 rounded-full bg-white/50"></div>
                             </div>
                           </div>
                           <div class="flex h-6 border-b border-slate-200" :class="{ 'pointer-events-none opacity-50': teethData[id].cut }">
-                            <div v-for="s in [0,1,2]" :key="s" @click="toggleBop(id, 'buccal', s); selectTooth(id)" class="flex-1 border-r border-slate-100 last:border-r-0 cursor-pointer transition-colors" :class="teethData[id].buccal.bop[s] ? 'bg-red-500' : ''"></div>
+                            <div v-for="s in [0,1,2]" :key="s" @click="toggleBop(id, 'buccal', s)" class="flex-1 border-r border-slate-100 last:border-r-0 cursor-pointer transition-colors" :class="teethData[id].buccal.bop[s] ? 'bg-red-500' : ''"></div>
                           </div>
                           <div class="flex h-6 border-b border-slate-200" :class="{ 'pointer-events-none opacity-50': teethData[id].cut }">
-                            <div v-for="s in [0,1,2]" :key="s" @click="togglePi(id, 'buccal', s); selectTooth(id)" class="flex-1 border-r border-slate-100 last:border-r-0 cursor-pointer transition-colors" :class="teethData[id].buccal.pi[s] ? 'bg-blue-500' : ''"></div>
+                            <div v-for="s in [0,1,2]" :key="s" @click="togglePi(id, 'buccal', s)" class="flex-1 border-r border-slate-100 last:border-r-0 cursor-pointer transition-colors" :class="teethData[id].buccal.pi[s] ? 'bg-blue-500' : ''"></div>
                           </div>
                           <div class="flex h-6 border-b border-slate-200">
-                            <input v-for="s in [0,1,2]" :key="s" type="text" v-model="teethData[id].buccal.rec[s]" @input="updateCal(id, 'buccal', s)" @focus="selectTooth(id)" :disabled="teethData[id].cut" class="w-0 flex-1 text-center text-[10px] border-r border-slate-100 last:border-r-0 outline-none disabled:bg-slate-100/50" />
+                            <input v-for="s in [0,1,2]" :key="s" type="text" v-model="teethData[id].buccal.rec[s]" @input="updateCal(id, 'buccal', s)" :disabled="teethData[id].cut" class="w-0 flex-1 text-center text-[10px] border-r border-slate-100 last:border-r-0 outline-none disabled:bg-slate-100/50" />
                           </div>
                           <div class="flex h-6 border-b border-slate-200">
-                            <input v-for="s in [0,1,2]" :key="s" type="text" v-model="teethData[id].buccal.pd[s]" @input="updateCal(id, 'buccal', s)" @focus="selectTooth(id)" :disabled="teethData[id].cut" class="w-0 flex-1 text-center text-[10px] border-r border-slate-100 last:border-r-0 outline-none disabled:bg-slate-100/50" />
+                            <input v-for="s in [0,1,2]" :key="s" type="text" v-model="teethData[id].buccal.pd[s]" @input="updateCal(id, 'buccal', s)" :disabled="teethData[id].cut" class="w-0 flex-1 text-center text-[10px] border-r border-slate-100 last:border-r-0 outline-none disabled:bg-slate-100/50" />
                           </div>
                           <div class="flex h-6 border-slate-200 bg-slate-50/30">
                             <input v-for="s in [0,1,2]" :key="s" type="text" :value="teethData[id].buccal.cal[s] || '0'" class="w-0 flex-1 text-center text-[10px] font-bold text-slate-700 border-r border-slate-100 last:border-r-0 bg-transparent outline-none pointer-events-none" />
@@ -358,7 +365,7 @@ const handleUpdateNote = ({ id, note }: { id: string | number, note: string }) =
                     <template v-for="(group, gIdx) in upperArch" :key="gIdx">
                       <div class="flex">
                         <div v-for="id in group" :key="id" class="w-12 sm:w-[54px] h-8 flex items-center justify-center">
-                          <button @click="teethData[id].cut = !teethData[id].cut" class="w-full h-6 text-[9px] font-black uppercase transition-all duration-200 border border-slate-200" :class="teethData[id].cut ? 'bg-red-500 text-white border-red-600' : 'bg-slate-100 text-slate-400 hover:bg-slate-200'">cut</button>
+                          <button @click="teethData[id].cut = !teethData[id].cut" class="w-full h-6 text-[9px] font-black uppercase transition-all duration-200 border border-slate-200" :class="teethData[id].cut ? 'bg-red-500 text-white border-red-600' : 'bg-slate-100 text-slate-400 hover:bg-slate-200'">ext.</button>
                         </div>
                       </div>
                       <div v-if="gIdx !== 2" class="w-4"></div>
@@ -378,12 +385,13 @@ const handleUpdateNote = ({ id, note }: { id: string | number, note: string }) =
                         <div class="flex h-36 relative clinical-grid-bg">
                           <div 
                             v-for="id in group" :key="id"
-                            @click="selectTooth(id)"
                             class="w-12 sm:w-[54px] h-full flex items-center justify-center group relative z-10 cursor-pointer transition-all duration-200 rounded-xl"
-                            :class="selectedToothId === id ? 'bg-blue-50 ring-2 ring-[#0052ff] ring-inset' : 'hover:bg-slate-50'"
+                            :class="[
+                              selectedToothId === id && isSidebarOpen ? 'bg-blue-50 ring-2 ring-[#0052ff] ring-inset' : 'hover:bg-slate-50'
+                            ]"
                           >
-                            <img :src="getToothImage(id, 'buccal')" :alt="`Tooth ${id}`" class="w-12 h-auto object-contain transition-all duration-300 scale-x-[-1]" :class="selectedToothId === id ? 'scale-110' : ''" />
-                            <span class="absolute top-1.5 text-[9px] font-black text-slate-300 select-none group-hover:text-slate-400 transition-colors z-10" :class="selectedToothId === id ? 'text-[#0052ff]' : ''">{{ id }}</span>
+                            <img :src="getToothImage(id, 'buccal')" :alt="`Tooth ${id}`" class="w-12 h-auto object-contain transition-all duration-300 scale-x-[-1]" :class="selectedToothId === id && isSidebarOpen ? 'scale-110' : ''" />
+                            <span class="absolute top-1.5 text-[9px] font-black text-slate-300 select-none group-hover:text-slate-400 transition-colors z-10" :class="selectedToothId === id && isSidebarOpen ? 'text-[#0052ff]' : ''">{{ id }}</span>
                             <!-- Furcation Dots -->
                             <div v-for="(grade, fIdx) in teethData[id].fur.buccal" :key="fIdx" 
                               class="absolute top-[40%] z-20 pointer-events-none -translate-x-1/2"
@@ -408,12 +416,13 @@ const handleUpdateNote = ({ id, note }: { id: string | number, note: string }) =
                         <div class="flex h-36 relative clinical-grid-bg">
                           <div 
                             v-for="id in group" :key="id"
-                            @click="selectTooth(id)"
                             class="w-12 sm:w-[54px] h-full flex items-center justify-center group relative z-10 cursor-pointer transition-all duration-200 rounded-xl"
-                            :class="selectedToothId === id ? 'bg-blue-50 ring-2 ring-[#0052ff] ring-inset' : 'hover:bg-slate-50'"
+                            :class="[
+                              selectedToothId === id && isSidebarOpen ? 'bg-blue-50 ring-2 ring-[#0052ff] ring-inset' : 'hover:bg-slate-50'
+                            ]"
                           >
-                            <img :src="getToothImage(id, 'lingual')" :alt="`Tooth ${id} Palatal`" class="w-12 h-auto object-contain transition-all duration-300" style="transform: scaleX(-1);" :class="selectedToothId === id ? 'scale-110' : ''" />
-                            <span class="absolute top-1.5 text-[9px] font-black text-slate-300 select-none group-hover:text-slate-400 transition-colors z-10" :class="selectedToothId === id ? 'text-[#0052ff]' : ''">{{ id }}</span>
+                            <img :src="getToothImage(id, 'lingual')" :alt="`Tooth ${id} Palatal`" class="w-12 h-auto object-contain transition-all duration-300" style="transform: scaleX(-1);" :class="selectedToothId === id && isSidebarOpen ? 'scale-110' : ''" />
+                            <span class="absolute top-1.5 text-[9px] font-black text-slate-300 select-none group-hover:text-slate-400 transition-colors z-10" :class="selectedToothId === id && isSidebarOpen ? 'text-[#0052ff]' : ''">{{ id }}</span>
                             <!-- Furcation Dots -->
                             <div v-for="(grade, fIdx) in teethData[id].fur.lingual" :key="fIdx" 
                               class="absolute top-[40%] z-20 pointer-events-none -translate-x-1/2"
@@ -442,37 +451,36 @@ const handleUpdateNote = ({ id, note }: { id: string | number, note: string }) =
                       <div class="flex border border-slate-300 border-l-0 bg-white first:border-l">
                         <div 
                           v-for="(id, idx) in group" :key="id" 
-                          @click="selectTooth(id)"
                           class="flex flex-col border-r border-slate-200 last:border-r-0 w-12 sm:w-[54px] transition-all duration-200 cursor-pointer" 
                           :class="[
                             gIdx === 1 && idx === 3 ? 'border-l-2 border-l-slate-400' : '',
-                            selectedToothId === id ? 'bg-blue-50/50 ring-2 ring-[#0052ff] ring-inset z-10' : ''
+                            selectedToothId === id && isSidebarOpen ? 'bg-blue-50/50 ring-2 ring-[#0052ff] ring-inset z-10' : ''
                           ]"
                         >
                           <div class="flex h-6 border-b border-slate-200 bg-slate-50/30">
                             <input v-for="s in [0,1,2]" :key="s" type="text" :value="teethData[id].lingual.cal[s] || '0'" class="w-0 flex-1 text-center text-[10px] font-bold text-slate-700 border-r border-slate-100 last:border-r-0 bg-transparent outline-none pointer-events-none" />
                           </div>
                           <div class="flex h-6 border-b border-slate-200">
-                            <input v-for="s in [0,1,2]" :key="s" type="text" v-model="teethData[id].lingual.pd[s]" @input="updateCal(id, 'lingual', s)" @focus="selectTooth(id)" :disabled="teethData[id].cut" class="w-0 flex-1 text-center text-[10px] border-r border-slate-100 last:border-r-0 outline-none disabled:bg-slate-100/50" />
+                            <input v-for="s in [0,1,2]" :key="s" type="text" v-model="teethData[id].lingual.pd[s]" @input="updateCal(id, 'lingual', s)" :disabled="teethData[id].cut" class="w-0 flex-1 text-center text-[10px] border-r border-slate-100 last:border-r-0 outline-none disabled:bg-slate-100/50" />
                           </div>
                           <div class="flex h-6 border-b border-slate-200">
-                            <input v-for="s in [0,1,2]" :key="s" type="text" v-model="teethData[id].lingual.rec[s]" @input="updateCal(id, 'lingual', s)" @focus="selectTooth(id)" :disabled="teethData[id].cut" class="w-0 flex-1 text-center text-[10px] border-r border-slate-100 last:border-r-0 outline-none disabled:bg-slate-100/50" />
+                            <input v-for="s in [0,1,2]" :key="s" type="text" v-model="teethData[id].lingual.rec[s]" @input="updateCal(id, 'lingual', s)" :disabled="teethData[id].cut" class="w-0 flex-1 text-center text-[10px] border-r border-slate-100 last:border-r-0 outline-none disabled:bg-slate-100/50" />
                           </div>
                           <div class="flex h-6 border-b border-slate-200" :class="{ 'pointer-events-none opacity-50': teethData[id].cut }">
-                            <div v-for="s in [0,1,2]" :key="s" @click="togglePi(id, 'lingual', s); selectTooth(id)" class="flex-1 border-r border-slate-100 last:border-r-0 cursor-pointer transition-colors" :class="teethData[id].lingual.pi[s] ? 'bg-blue-500' : ''"></div>
+                            <div v-for="s in [0,1,2]" :key="s" @click="togglePi(id, 'lingual', s)" class="flex-1 border-r border-slate-100 last:border-r-0 cursor-pointer transition-colors" :class="teethData[id].lingual.pi[s] ? 'bg-blue-500' : ''"></div>
                           </div>
                           <div class="flex h-6 border-b border-slate-200" :class="{ 'pointer-events-none opacity-50': teethData[id].cut }">
-                            <div v-for="s in [0,1,2]" :key="s" @click="toggleBop(id, 'lingual', s); selectTooth(id)" class="flex-1 border-r border-slate-100 last:border-r-0 cursor-pointer transition-colors" :class="teethData[id].lingual.bop[s] ? 'bg-red-500' : ''"></div>
+                            <div v-for="s in [0,1,2]" :key="s" @click="toggleBop(id, 'lingual', s)" class="flex-1 border-r border-slate-100 last:border-r-0 cursor-pointer transition-colors" :class="teethData[id].lingual.bop[s] ? 'bg-red-500' : ''"></div>
                           </div>
                           <div class="h-6 border-b border-slate-200 flex items-center justify-center gap-1 cursor-pointer select-none text-slate-800" :class="{ 'pointer-events-none opacity-30': teethData[id].cut || teethData[id].implant }">
-                            <div v-for="(grade, fIdx) in teethData[id].fur.lingual" :key="fIdx" @click="toggleFur(id, 'lingual', fIdx); selectTooth(id)" class="flex items-center justify-center w-4 h-4 cursor-pointer">
+                            <div v-for="(grade, fIdx) in teethData[id].fur.lingual" :key="fIdx" @click="toggleFur(id, 'lingual', fIdx)" class="flex items-center justify-center w-4 h-4 cursor-pointer">
                               <img v-if="grade > 0" :src="getFurImage(grade)" class="w-3.5 h-3.5 object-contain" />
                               <div v-else class="w-3 h-3 border border-slate-200 rounded-full bg-white/50"></div>
                             </div>
                           </div>
-                          <div class="h-6 border-b border-slate-200"><input type="text" v-model="teethData[id].ktw" @focus="selectTooth(id)" :disabled="teethData[id].cut" class="w-full h-full text-center text-[11px] outline-none disabled:bg-slate-100/50" /></div>
-                          <div class="h-6 border-b border-slate-200"><input type="text" v-model="teethData[id].mo" @focus="selectTooth(id)" :disabled="teethData[id].cut || teethData[id].implant" :placeholder="teethData[id].implant ? '0' : ''" class="w-full h-full text-center text-[11px] outline-none disabled:bg-slate-100/50" /></div>
-                          <div class="h-6 flex items-center justify-center"><input type="checkbox" v-model="teethData[id].implant" @focus="selectTooth(id)" :disabled="teethData[id].cut" class="w-3.5 h-3.5 accent-slate-800 disabled:opacity-30" /></div>
+                          <div class="h-6 border-b border-slate-200"><input type="text" v-model="teethData[id].ktw" :disabled="teethData[id].cut" class="w-full h-full text-center text-[11px] outline-none disabled:bg-slate-100/50" /></div>
+                          <div class="h-6 border-b border-slate-200"><input type="text" v-model="teethData[id].mo" :disabled="teethData[id].cut || teethData[id].implant" :placeholder="teethData[id].implant ? '0' : ''" class="w-full h-full text-center text-[11px] outline-none disabled:bg-slate-100/50" /></div>
+                          <div class="h-6 flex items-center justify-center"><input type="checkbox" v-model="teethData[id].implant" :disabled="teethData[id].cut" class="w-3.5 h-3.5 accent-slate-800 disabled:opacity-30" /></div>
                         </div>
                       </div>
                       <div v-if="gIdx !== 2" class="w-4"></div>
@@ -494,33 +502,32 @@ const handleUpdateNote = ({ id, note }: { id: string | number, note: string }) =
                       <div class="flex border-t border-r border-slate-300 bg-white first:border-l">
                         <div 
                           v-for="(id, idx) in group" :key="id" 
-                          @click="selectTooth(id)"
                           class="flex flex-col border-r border-slate-200 last:border-r-0 w-12 sm:w-[54px] transition-all duration-200 cursor-pointer" 
                           :class="[
                             gIdx === 1 && idx === 3 ? 'border-l-2 border-l-slate-400' : '',
-                            selectedToothId === id ? 'bg-blue-50/50 ring-2 ring-[#0052ff] ring-inset z-10' : ''
+                            selectedToothId === id && isSidebarOpen ? 'bg-blue-50/50 ring-2 ring-[#0052ff] ring-inset z-10' : ''
                           ]"
                         >
-                          <div class="h-6 border-b border-slate-200 flex items-center justify-center"><input type="checkbox" v-model="teethData[id].implant" @focus="selectTooth(id)" :disabled="teethData[id].cut" class="w-3.5 h-3.5 accent-slate-800 disabled:opacity-30" /></div>
-                          <div class="h-6 border-b border-slate-200"><input type="text" v-model="teethData[id].mo" @focus="selectTooth(id)" :disabled="teethData[id].cut || teethData[id].implant" :placeholder="teethData[id].implant ? '0' : ''" class="w-full h-full text-center text-[11px] outline-none disabled:bg-slate-100/50" /></div>
-                          <div class="h-6 border-b border-slate-200"><input type="text" v-model="teethData[id].ktw" @focus="selectTooth(id)" :disabled="teethData[id].cut" class="w-full h-full text-center text-[11px] outline-none disabled:bg-slate-100/50" /></div>
+                          <div class="h-6 border-b border-slate-200 flex items-center justify-center"><input type="checkbox" v-model="teethData[id].implant" :disabled="teethData[id].cut" class="w-3.5 h-3.5 accent-slate-800 disabled:opacity-30" /></div>
+                          <div class="h-6 border-b border-slate-200"><input type="text" v-model="teethData[id].mo" :disabled="teethData[id].cut || teethData[id].implant" :placeholder="teethData[id].implant ? '0' : ''" class="w-full h-full text-center text-[11px] outline-none disabled:bg-slate-100/50" /></div>
+                          <div class="h-6 border-b border-slate-200"><input type="text" v-model="teethData[id].ktw" :disabled="teethData[id].cut" class="w-full h-full text-center text-[11px] outline-none disabled:bg-slate-100/50" /></div>
                           <div class="h-6 border-b border-slate-200 flex items-center justify-center gap-1 cursor-pointer select-none text-slate-800" :class="{ 'pointer-events-none opacity-30': teethData[id].cut || teethData[id].implant }">
-                            <div v-for="(grade, fIdx) in teethData[id].fur.lingual" :key="fIdx" @click="toggleFur(id, 'lingual', fIdx); selectTooth(id)" class="flex items-center justify-center w-4 h-4 cursor-pointer">
+                            <div v-for="(grade, fIdx) in teethData[id].fur.lingual" :key="fIdx" @click="toggleFur(id, 'lingual', fIdx)" class="flex items-center justify-center w-4 h-4 cursor-pointer">
                               <img v-if="grade > 0" :src="getFurImage(grade)" class="w-3.5 h-3.5 object-contain" />
                               <div v-else class="w-3 h-3 border border-slate-200 rounded-full bg-white/50"></div>
                             </div>
                           </div>
                           <div class="flex h-6 border-b border-slate-200" :class="{ 'pointer-events-none opacity-50': teethData[id].cut }">
-                            <div v-for="s in [0,1,2]" :key="s" @click="toggleBop(id, 'lingual', s); selectTooth(id)" class="flex-1 border-r border-slate-100 last:border-r-0 cursor-pointer transition-colors" :class="teethData[id].lingual.bop[s] ? 'bg-red-500' : ''"></div>
+                            <div v-for="s in [0,1,2]" :key="s" @click="toggleBop(id, 'lingual', s)" class="flex-1 border-r border-slate-100 last:border-r-0 cursor-pointer transition-colors" :class="teethData[id].lingual.bop[s] ? 'bg-red-500' : ''"></div>
                           </div>
                           <div class="flex h-6 border-b border-slate-200" :class="{ 'pointer-events-none opacity-50': teethData[id].cut }">
-                            <div v-for="s in [0,1,2]" :key="s" @click="togglePi(id, 'lingual', s); selectTooth(id)" class="flex-1 border-r border-slate-100 last:border-r-0 cursor-pointer transition-colors" :class="teethData[id].lingual.pi[s] ? 'bg-blue-500' : ''"></div>
+                            <div v-for="s in [0,1,2]" :key="s" @click="togglePi(id, 'lingual', s)" class="flex-1 border-r border-slate-100 last:border-r-0 cursor-pointer transition-colors" :class="teethData[id].lingual.pi[s] ? 'bg-blue-500' : ''"></div>
                           </div>
                           <div class="flex h-6 border-b border-slate-200">
-                            <input v-for="s in [0,1,2]" :key="s" type="text" v-model="teethData[id].lingual.rec[s]" @input="updateCal(id, 'lingual', s)" @focus="selectTooth(id)" :disabled="teethData[id].cut" class="w-0 flex-1 text-center text-[10px] border-r border-slate-100 last:border-r-0 outline-none disabled:bg-slate-100/50" />
+                            <input v-for="s in [0,1,2]" :key="s" type="text" v-model="teethData[id].lingual.rec[s]" @input="updateCal(id, 'lingual', s)" :disabled="teethData[id].cut" class="w-0 flex-1 text-center text-[10px] border-r border-slate-100 last:border-r-0 outline-none disabled:bg-slate-100/50" />
                           </div>
                           <div class="flex h-6 border-b border-slate-200">
-                            <input v-for="s in [0,1,2]" :key="s" type="text" v-model="teethData[id].lingual.pd[s]" @input="updateCal(id, 'lingual', s)" @focus="selectTooth(id)" :disabled="teethData[id].cut" class="w-0 flex-1 text-center text-[10px] border-r border-slate-100 last:border-r-0 outline-none disabled:bg-slate-100/50" />
+                            <input v-for="s in [0,1,2]" :key="s" type="text" v-model="teethData[id].lingual.pd[s]" @input="updateCal(id, 'lingual', s)" :disabled="teethData[id].cut" class="w-0 flex-1 text-center text-[10px] border-r border-slate-100 last:border-r-0 outline-none disabled:bg-slate-100/50" />
                           </div>
                           <div class="flex h-6 border-slate-200 bg-slate-50/30">
                             <input v-for="s in [0,1,2]" :key="s" type="text" :value="teethData[id].lingual.cal[s] || '0'" class="w-0 flex-1 text-center text-[10px] font-bold text-slate-700 border-r border-slate-100 last:border-r-0 bg-transparent outline-none pointer-events-none" />
@@ -539,7 +546,7 @@ const handleUpdateNote = ({ id, note }: { id: string | number, note: string }) =
                     <template v-for="(group, gIdx) in lowerArch" :key="gIdx">
                       <div class="flex">
                         <div v-for="id in group" :key="id" class="w-12 sm:w-[54px] h-8 flex items-center justify-center">
-                          <button @click="teethData[id].cut = !teethData[id].cut" class="w-full h-6 text-[9px] font-black uppercase transition-all duration-200 border border-slate-200" :class="teethData[id].cut ? 'bg-red-500 text-white border-red-600' : 'bg-slate-100 text-slate-400 hover:bg-slate-200'">cut</button>
+                          <button @click="teethData[id].cut = !teethData[id].cut" class="w-full h-6 text-[9px] font-black uppercase transition-all duration-200 border border-slate-200" :class="teethData[id].cut ? 'bg-red-500 text-white border-red-600' : 'bg-slate-100 text-slate-400 hover:bg-slate-200'">ext.</button>
                         </div>
                       </div>
                       <div v-if="gIdx !== 2" class="w-4"></div>
@@ -559,12 +566,13 @@ const handleUpdateNote = ({ id, note }: { id: string | number, note: string }) =
                         <div class="flex h-36 relative clinical-grid-bg-inf">
                           <div 
                             v-for="id in group" :key="id"
-                            @click="selectTooth(id)"
                             class="w-12 sm:w-[54px] h-full flex items-center justify-center group relative z-10 cursor-pointer transition-all duration-200 rounded-xl"
-                            :class="selectedToothId === id ? 'bg-blue-50 ring-2 ring-[#0052ff] ring-inset' : 'hover:bg-slate-50'"
+                            :class="[
+                              selectedToothId === id && isSidebarOpen ? 'bg-blue-50 ring-2 ring-[#0052ff] ring-inset' : 'hover:bg-slate-50'
+                            ]"
                           >
-                            <img :src="getToothImage(id, 'lingual')" :alt="`Tooth ${id} Lingual`" class="w-12 h-auto object-contain transition-all duration-300 scale-y-[-1] scale-x-[-1]" :class="selectedToothId === id ? 'scale-110' : ''" />
-                            <span class="absolute bottom-1.5 text-[9px] font-black text-slate-300 select-none group-hover:text-slate-400 transition-colors z-10" :class="selectedToothId === id ? 'text-[#0052ff]' : ''">{{ id }}</span>
+                            <img :src="getToothImage(id, 'lingual')" :alt="`Tooth ${id} Lingual`" class="w-12 h-auto object-contain transition-all duration-300 scale-y-[-1] scale-x-[-1]" :class="selectedToothId === id && isSidebarOpen ? 'scale-110' : ''" />
+                            <span class="absolute bottom-1.5 text-[9px] font-black text-slate-300 select-none group-hover:text-slate-400 transition-colors z-10" :class="selectedToothId === id && isSidebarOpen ? 'text-[#0052ff]' : ''">{{ id }}</span>
                             <!-- Furcation Dots -->
                             <div v-for="(grade, fIdx) in teethData[id].fur.lingual" :key="fIdx" 
                               class="absolute top-[40%] z-20 pointer-events-none -translate-x-1/2"
@@ -589,12 +597,13 @@ const handleUpdateNote = ({ id, note }: { id: string | number, note: string }) =
                         <div class="flex h-36 relative clinical-grid-bg-inf">
                           <div 
                             v-for="id in group" :key="id"
-                            @click="selectTooth(id)"
                             class="w-12 sm:w-[54px] h-full flex items-center justify-center group relative z-10 cursor-pointer transition-all duration-200 rounded-xl"
-                            :class="selectedToothId === id ? 'bg-blue-50 ring-2 ring-[#0052ff] ring-inset' : 'hover:bg-slate-50'"
+                            :class="[
+                              selectedToothId === id && isSidebarOpen ? 'bg-blue-50 ring-2 ring-[#0052ff] ring-inset' : 'hover:bg-slate-50'
+                            ]"
                           >
-                            <img :src="getToothImage(id, 'buccal')" :alt="`Tooth ${id}`" class="w-12 h-auto object-contain transition-all duration-300 scale-y-[-1] scale-x-[-1]" :class="selectedToothId === id ? 'scale-110' : ''" />
-                            <span class="absolute bottom-1.5 text-[9px] font-black text-slate-300 select-none group-hover:text-slate-400 transition-colors z-10" :class="selectedToothId === id ? 'text-[#0052ff]' : ''">{{ id }}</span>
+                            <img :src="getToothImage(id, 'buccal')" :alt="`Tooth ${id}`" class="w-12 h-auto object-contain transition-all duration-300 scale-y-[-1] scale-x-[-1]" :class="selectedToothId === id && isSidebarOpen ? 'scale-110' : ''" />
+                            <span class="absolute bottom-1.5 text-[9px] font-black text-slate-300 select-none group-hover:text-slate-400 transition-colors z-10" :class="selectedToothId === id && isSidebarOpen ? 'text-[#0052ff]' : ''">{{ id }}</span>
                             <!-- Furcation Dots -->
                             <div v-for="(grade, fIdx) in teethData[id].fur.buccal" :key="fIdx" 
                               class="absolute top-[40%] z-20 pointer-events-none -translate-x-1/2"
@@ -624,41 +633,40 @@ const handleUpdateNote = ({ id, note }: { id: string | number, note: string }) =
                       <div class="flex border border-slate-300 border-l-0 bg-white first:border-l">
                         <div 
                           v-for="(id, idx) in group" :key="id" 
-                          @click="selectTooth(id)"
                           class="flex flex-col border-r border-slate-200 last:border-r-0 w-12 sm:w-[54px] transition-all duration-200 cursor-pointer" 
                           :class="[
                             gIdx === 1 && idx === 3 ? 'border-l-2 border-l-slate-400' : '',
-                            selectedToothId === id ? 'bg-blue-50/50 ring-2 ring-[#0052ff] ring-inset z-10' : ''
+                            selectedToothId === id && isSidebarOpen ? 'bg-blue-50/50 ring-2 ring-[#0052ff] ring-inset z-10' : ''
                           ]"
                         >
                           <div class="flex h-6 border-b border-slate-200 bg-slate-50/30">
                             <input v-for="s in [0,1,2]" :key="s" type="text" :value="teethData[id].buccal.cal[s] || '0'" class="w-0 flex-1 text-center text-[10px] font-bold text-slate-700 border-r border-slate-100 last:border-r-0 bg-transparent outline-none pointer-events-none" />
                           </div>
                           <div class="flex h-6 border-b border-slate-200">
-                            <input v-for="s in [0,1,2]" :key="s" type="text" v-model="teethData[id].buccal.pd[s]" @input="updateCal(id, 'buccal', s)" @focus="selectTooth(id)" :disabled="teethData[id].cut" class="w-0 flex-1 text-center text-[10px] border-r border-slate-100 last:border-r-0 outline-none disabled:bg-slate-100/50" />
+                            <input v-for="s in [0,1,2]" :key="s" type="text" v-model="teethData[id].buccal.pd[s]" @input="updateCal(id, 'buccal', s)" :disabled="teethData[id].cut" class="w-0 flex-1 text-center text-[10px] border-r border-slate-100 last:border-r-0 outline-none disabled:bg-slate-100/50" />
                           </div>
                           <div class="flex h-6 border-b border-slate-200">
-                            <input v-for="s in [0,1,2]" :key="s" type="text" v-model="teethData[id].buccal.rec[s]" @input="updateCal(id, 'buccal', s)" @focus="selectTooth(id)" :disabled="teethData[id].cut" class="w-0 flex-1 text-center text-[10px] border-r border-slate-100 last:border-r-0 outline-none disabled:bg-slate-100/50" />
+                            <input v-for="s in [0,1,2]" :key="s" type="text" v-model="teethData[id].buccal.rec[s]" @input="updateCal(id, 'buccal', s)" :disabled="teethData[id].cut" class="w-0 flex-1 text-center text-[10px] border-r border-slate-100 last:border-r-0 outline-none disabled:bg-slate-100/50" />
                           </div>
                           <div class="flex h-6 border-b border-slate-200" :class="{ 'pointer-events-none opacity-50': teethData[id].cut }">
-                            <div v-for="s in [0,1,2]" :key="s" @click="togglePi(id, 'buccal', s); selectTooth(id)" class="flex-1 border-r border-slate-100 last:border-r-0 cursor-pointer transition-colors" :class="teethData[id].buccal.pi[s] ? 'bg-blue-500' : ''"></div>
+                            <div v-for="s in [0,1,2]" :key="s" @click="togglePi(id, 'buccal', s)" class="flex-1 border-r border-slate-100 last:border-r-0 cursor-pointer transition-colors" :class="teethData[id].buccal.pi[s] ? 'bg-blue-500' : ''"></div>
                           </div>
                           <div class="flex h-6 border-b border-slate-200" :class="{ 'pointer-events-none opacity-50': teethData[id].cut }">
-                            <div v-for="s in [0,1,2]" :key="s" @click="toggleBop(id, 'buccal', s); selectTooth(id)" class="flex-1 border-r border-slate-100 last:border-r-0 cursor-pointer transition-colors" :class="teethData[id].buccal.bop[s] ? 'bg-red-500' : ''"></div>
+                            <div v-for="s in [0,1,2]" :key="s" @click="toggleBop(id, 'buccal', s)" class="flex-1 border-r border-slate-100 last:border-r-0 cursor-pointer transition-colors" :class="teethData[id].buccal.bop[s] ? 'bg-red-500' : ''"></div>
                           </div>
                           <div class="h-6 border-b border-slate-200 flex items-center justify-center gap-1 cursor-pointer select-none text-slate-800" :class="{ 'pointer-events-none opacity-30': teethData[id].cut || teethData[id].implant }">
-                            <div v-for="(grade, fIdx) in teethData[id].fur.buccal" :key="fIdx" @click="toggleFur(id, 'buccal', fIdx); selectTooth(id)" class="flex items-center justify-center w-4 h-4 cursor-pointer">
+                            <div v-for="(grade, fIdx) in teethData[id].fur.buccal" :key="fIdx" @click="toggleFur(id, 'buccal', fIdx)" class="flex items-center justify-center w-4 h-4 cursor-pointer">
                               <img v-if="grade > 0" :src="getFurImage(grade)" class="w-3.5 h-3.5 object-contain" />
                               <div v-else class="w-3 h-3 border border-slate-200 rounded-full bg-white/50"></div>
                             </div>
                           </div>
-                          <div class="h-6 border-b border-slate-200"><input type="text" v-model="teethData[id].ktw" @focus="selectTooth(id)" :disabled="teethData[id].cut" class="w-full h-full text-center text-[11px] outline-none disabled:bg-slate-100/50" /></div>
-                          <div class="h-6 border-b border-slate-200"><input type="text" v-model="teethData[id].mo" @focus="selectTooth(id)" :disabled="teethData[id].cut || teethData[id].implant" :placeholder="teethData[id].implant ? '0' : ''" class="w-full h-full text-center text-[11px] outline-none disabled:bg-slate-100/50" /></div>
-                          <div class="h-6 flex items-center justify-center"><input type="checkbox" v-model="teethData[id].implant" @focus="selectTooth(id)" :disabled="teethData[id].cut" class="w-3.5 h-3.5 accent-slate-800 disabled:opacity-30" /></div>
+                          <div class="h-6 border-b border-slate-200"><input type="text" v-model="teethData[id].ktw" :disabled="teethData[id].cut" class="w-full h-full text-center text-[11px] outline-none disabled:bg-slate-100/50" /></div>
+                          <div class="h-6 border-b border-slate-200"><input type="text" v-model="teethData[id].mo" :disabled="teethData[id].cut || teethData[id].implant" :placeholder="teethData[id].implant ? '0' : ''" class="w-full h-full text-center text-[11px] outline-none disabled:bg-slate-100/50" /></div>
+                          <div class="h-6 flex items-center justify-center"><input type="checkbox" v-model="teethData[id].implant" :disabled="teethData[id].cut" class="w-3.5 h-3.5 accent-slate-800 disabled:opacity-30" /></div>
                           <div 
-                            @click="selectTooth(id)"
+                            @click.stop="selectTooth(id, true)"
                             class="h-7 flex items-center justify-center font-black text-[11px] border-t border-slate-300 cursor-pointer transition-all duration-200"
-                            :class="selectedToothId === id ? 'bg-[#0052ff] text-white' : 'bg-slate-50 text-slate-800 hover:bg-[#0052ff] hover:text-white'"
+                            :class="selectedToothId === id && isSidebarOpen ? 'bg-[#0052ff] text-white' : 'bg-slate-50 text-slate-800 hover:bg-[#0052ff] hover:text-white'"
                           >
                             {{ id }}
                           </div>
@@ -683,11 +691,11 @@ const handleUpdateNote = ({ id, note }: { id: string | number, note: string }) =
           leave-from-class="translate-x-0 opacity-100"
           leave-to-class="translate-x-full opacity-0"
         >
-          <aside v-if="selectedToothId" class="w-80 sticky top-32 h-[calc(100vh-160px)] flex-shrink-0">
+          <aside v-if="selectedToothId && isSidebarOpen" class="w-80 sticky top-32 h-[calc(100vh-160px)] flex-shrink-0">
             <ToothSidebar 
               :toothId="selectedToothId" 
               :toothData="selectedToothData" 
-              @close="selectedToothId = null"
+              @close="isSidebarOpen = false"
               @update-note="handleUpdateNote"
             />
           </aside>
