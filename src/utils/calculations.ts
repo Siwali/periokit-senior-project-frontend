@@ -7,7 +7,10 @@
  * Calculates Clinical Attachment Level (CAL)
  * CAL = Probing Depth (PD) + Recession (REC)
  */
-export const calculateCALValue = (pd: string | number, rec: string | number): number => {
+export const calculateCALValue = (
+  pd: string | number,
+  rec: string | number,
+): number => {
   const p = parseInt(String(pd)) || 0;
   const r = parseInt(String(rec)) || 0;
   return p + r;
@@ -19,20 +22,22 @@ export const calculateCALValue = (pd: string | number, rec: string | number): nu
 export const calculatePrognosisMN = (data: any): string => {
   if (!data || data.cut) return "N/A";
   if (data.implant) return "Good (Fixed)";
-  
+
   // Get all CAL values
   const buccalCAL = data.buccal?.cal || [];
   const lingualCAL = data.lingual?.cal || [];
-  const allCAL = [...buccalCAL, ...lingualCAL].map(v => parseInt(String(v)) || 0);
+  const allCAL = [...buccalCAL, ...lingualCAL].map(
+    (v) => parseInt(String(v)) || 0,
+  );
   const maxCAL = allCAL.length > 0 ? Math.max(...allCAL) : 0;
-  
+
   // Get all Furcation values
   const allFur = [
     ...(data.fur?.buccal || []),
-    ...(data.fur?.lingual || [])
-  ].map(v => parseInt(String(v)) || 0);
+    ...(data.fur?.lingual || []),
+  ].map((v) => parseInt(String(v)) || 0);
   const maxFur = allFur.length > 0 ? Math.max(0, ...allFur) : 0;
-  
+
   // Get Mobility
   const mobility = parseInt(String(data.mo)) || 0;
 
@@ -41,7 +46,7 @@ export const calculatePrognosisMN = (data: any): string => {
   if (maxCAL > 6 || maxFur >= 2 || mobility >= 2) return "Questionable";
   if (maxCAL > 5 || maxFur === 2) return "Poor";
   if (maxCAL >= 4 || maxFur === 1) return "Fair";
-  
+
   return "Good";
 };
 
@@ -51,9 +56,9 @@ export const calculatePrognosisMN = (data: any): string => {
 export const calculatePrognosisKC = (data: any): string => {
   if (!data || data.cut) return "N/A";
   if (data.implant) return "Favorable"; // Implants are generally considered favorable if stable
-  
+
   const mn = calculatePrognosisMN(data);
-  
+
   switch (mn) {
     case "Good":
     case "Fair":
@@ -84,7 +89,9 @@ export const calculateToothBopPercentage = (data: any): string => {
   if (!data || data.cut) return "0%";
   const buccalBop = data.buccal?.bop || [];
   const lingualBop = data.lingual?.bop || [];
-  const activeCount = [...buccalBop, ...lingualBop].filter(v => v === true).length;
+  const activeCount = [...buccalBop, ...lingualBop].filter(
+    (v) => v === true,
+  ).length;
   return calculatePercentage(activeCount, 6);
 };
 
@@ -95,7 +102,9 @@ export const calculateToothPiPercentage = (data: any): string => {
   if (!data || data.cut) return "0%";
   const buccalPi = data.buccal?.pi || [];
   const lingualPi = data.lingual?.pi || [];
-  const activeCount = [...buccalPi, ...lingualPi].filter(v => v === true).length;
+  const activeCount = [...buccalPi, ...lingualPi].filter(
+    (v) => v === true,
+  ).length;
   return calculatePercentage(activeCount, 6);
 };
 
@@ -103,15 +112,18 @@ export const calculateToothPiPercentage = (data: any): string => {
  * Safely parses PD values for display
  */
 export const getSafePDValues = (pdArray: any[]): string[] => {
-
-  if (!Array.isArray(pdArray)) return ['0', '0', '0'];
-  return pdArray.map(v => (v !== null && v !== undefined && v !== '') ? String(v) : '0');
+  if (!Array.isArray(pdArray)) return ["0", "0", "0"];
+  return pdArray.map((v) =>
+    v !== null && v !== undefined && v !== "" ? String(v) : "0",
+  );
 };
 
 /**
  * Safely parses CAL values for display
  */
 export const getSafeCALValues = (calArray: any[]): string[] => {
-  if (!Array.isArray(calArray)) return ['0', '0', '0'];
-  return calArray.map(v => (v !== null && v !== undefined && v !== '') ? String(v) : '0');
+  if (!Array.isArray(calArray)) return ["0", "0", "0"];
+  return calArray.map((v) =>
+    v !== null && v !== undefined && v !== "" ? String(v) : "0",
+  );
 };

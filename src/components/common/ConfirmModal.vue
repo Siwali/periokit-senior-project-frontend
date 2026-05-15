@@ -1,49 +1,56 @@
 <script setup lang="ts">
-import { LogOut, AlertCircle, X } from 'lucide-vue-next'
+import { LogOut, AlertCircle, X } from "lucide-vue-next";
 
 defineProps<{
-  show: boolean
-  title: string
-  message: string
-  confirmText?: string
-  cancelText?: string
-  type?: 'danger' | 'info' | 'warning'
-}>()
+  show: boolean;
+  title: string;
+  message: string;
+  confirmText?: string;
+  cancelText?: string;
+  type?: "danger" | "info" | "warning";
+}>();
 
-const emit = defineEmits(['confirm', 'cancel'])
+const emit = defineEmits(["confirm", "cancel"]);
 </script>
 
 <template>
   <Transition name="fade">
-    <div v-if="show" class="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+    <div
+      v-if="show"
+      class="fixed inset-0 z-[9999] flex items-center justify-center p-4"
+    >
       <!-- Backdrop -->
-      <div 
+      <div
         class="absolute inset-0 bg-black/40 backdrop-blur-sm"
         @click="emit('cancel')"
       ></div>
 
       <!-- Modal Content -->
       <Transition name="scale">
-        <div 
+        <div
           v-if="show"
           class="relative bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden"
         >
           <!-- Header/Icon Section -->
-          <div 
+          <div
             :class="[
               'h-32 flex items-center justify-center relative',
-              type === 'danger' ? 'bg-red-50' : 'bg-blue-50'
+              type === 'danger' ? 'bg-red-50' : 'bg-blue-50',
             ]"
           >
-            <div 
+            <div
               class="w-20 h-20 rounded-full flex items-center justify-center shadow-sm"
-              :class="type === 'danger' ? 'bg-red-500 text-white' : 'bg-[#0052ff] text-white'"
+              :class="
+                type === 'danger'
+                  ? 'bg-red-500 text-white'
+                  : 'bg-[#0052ff] text-white'
+              "
             >
               <LogOut v-if="type === 'danger'" class="w-10 h-10" />
               <AlertCircle v-else class="w-10 h-10" />
             </div>
-            
-            <button 
+
+            <button
               @click="emit('cancel')"
               class="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-600 transition-colors rounded-full hover:bg-black/5"
             >
@@ -56,7 +63,9 @@ const emit = defineEmits(['confirm', 'cancel'])
             <h3 class="text-2xl font-bold text-gray-900 mb-2">
               {{ title }}
             </h3>
-            <p class="text-gray-500 font-medium leading-relaxed whitespace-pre-line">
+            <p
+              class="text-gray-500 font-medium leading-relaxed whitespace-pre-line"
+            >
               {{ message }}
             </p>
           </div>
@@ -67,18 +76,18 @@ const emit = defineEmits(['confirm', 'cancel'])
               @click="emit('cancel')"
               class="flex-1 px-6 py-3.5 rounded-xl font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 transition-all active:scale-95"
             >
-              {{ cancelText || 'Cancel' }}
+              {{ cancelText || "Cancel" }}
             </button>
             <button
               @click="emit('confirm')"
               :class="[
                 'flex-1 px-6 py-3.5 rounded-xl font-bold text-white shadow-lg transition-all active:scale-95',
-                type === 'danger' 
-                  ? 'bg-red-500 hover:bg-red-600 shadow-red-200' 
-                  : 'bg-[#0052ff] hover:bg-[#0042cc] shadow-blue-200'
+                type === 'danger'
+                  ? 'bg-red-500 hover:bg-red-600 shadow-red-200'
+                  : 'bg-[#0052ff] hover:bg-[#0042cc] shadow-blue-200',
               ]"
             >
-              {{ confirmText || 'Confirm' }}
+              {{ confirmText || "Confirm" }}
             </button>
           </div>
         </div>
@@ -86,5 +95,3 @@ const emit = defineEmits(['confirm', 'cancel'])
     </div>
   </Transition>
 </template>
-
-

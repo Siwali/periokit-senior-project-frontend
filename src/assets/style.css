@@ -1,12 +1,12 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
 @import "tailwindcss";
 
 /* Global Styles */
 :root {
-  font-family: 'Inter', sans-serif;
+  font-family: "Inter", sans-serif;
 }
 
-button, 
+button,
 [role="button"],
 a,
 input[type="submit"],
@@ -19,7 +19,7 @@ label {
 }
 
 .font-sans {
-  font-family: 'Inter', sans-serif;
+  font-family: "Inter", sans-serif;
 }
 
 input::placeholder {
@@ -28,8 +28,12 @@ input::placeholder {
 
 /* Notification Toast Styles */
 @keyframes progress {
-  from { width: 100%; }
-  to { width: 0%; }
+  from {
+    width: 100%;
+  }
+  to {
+    width: 0%;
+  }
 }
 
 .notification-enter-active,
@@ -52,23 +56,45 @@ input::placeholder {
 }
 
 /* Confirm Modal Styles */
-.fade-enter-active, .fade-leave-active {
+.fade-enter-active,
+.fade-leave-active {
   transition: opacity 0.3s ease;
 }
-.fade-enter-from, .fade-leave-to {
+.fade-enter-from,
+.fade-leave-to {
   opacity: 0;
 }
 
-.scale-enter-active, .scale-leave-active {
+/* Sidebar Focus Transition */
+.sidebar-focus-enter-active {
+  transition:
+    transform 0.5s cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 0.5s ease-out;
+}
+.sidebar-focus-leave-active {
+  transition:
+    transform 0.4s cubic-bezier(0.7, 0, 0.84, 0),
+    opacity 0.3s ease-in;
+}
+.sidebar-focus-enter-from,
+.sidebar-focus-leave-to {
+  transform: translateX(100%);
+  opacity: 0;
+}
+
+.scale-enter-active,
+.scale-leave-active {
   transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
-.scale-enter-from, .scale-leave-to {
+.scale-enter-from,
+.scale-leave-to {
   opacity: 0;
   transform: scale(0.9) translateY(20px);
 }
 
 /* Periodontal Chart Styles */
-button, input {
+button,
+input {
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 input::-webkit-outer-spin-button,
@@ -77,8 +103,9 @@ input::-webkit-inner-spin-button {
   appearance: none;
   margin: 0;
 }
-input[type=number] {
+input[type="number"] {
   -moz-appearance: textfield;
+  appearance: textfield;
 }
 
 .writing-vertical {
@@ -87,13 +114,13 @@ input[type=number] {
 }
 
 .clinical-grid-bg {
-  background-image: url('/images/teeth/fondo-grafico.png');
+  background-image: url("/images/teeth/fondo-grafico.png");
   background-size: 100% 100%;
   background-repeat: no-repeat;
 }
 
 .clinical-grid-bg-inf {
-  background-image: url('/images/teeth/fondo-grafico-inf.png');
+  background-image: url("/images/teeth/fondo-grafico-inf.png");
   background-size: 100% 100%;
   background-repeat: no-repeat;
 }
