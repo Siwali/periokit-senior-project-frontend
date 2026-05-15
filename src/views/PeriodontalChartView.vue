@@ -81,7 +81,8 @@ const getFurcationSites = (id: number) => {
       rec: ['', '', ''],
       pd: ['', '', ''],
       cal: ['', '', '']
-    }
+    },
+    note: ''
   }
 })
 
@@ -143,6 +144,12 @@ const getToothImage = (id: number | string, surface: 'buccal' | 'lingual') => {
   else if (data.implant) state = 'tornillo-'
   
   return `/images/teeth/periodontograma-dientes-${arch}-${state}${id}${suffix}.png`
+}
+
+const handleUpdateNote = ({ id, note }: { id: string | number, note: string }) => {
+  if (teethData.value[id]) {
+    teethData.value[id].note = note
+  }
 }
 
 
@@ -677,6 +684,7 @@ const getToothImage = (id: number | string, surface: 'buccal' | 'lingual') => {
               :toothId="selectedToothId" 
               :toothData="selectedToothData" 
               @close="selectedToothId = null"
+              @update-note="handleUpdateNote"
             />
           </aside>
         </Transition>

@@ -1,15 +1,39 @@
 <script setup lang="ts">
 import { X, Activity } from 'lucide-vue-next'
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 const showPrognosisInfo = ref(false)
+const isEditingNote = ref(false)
+const noteInput = ref('')
 
 const props = defineProps<{
   toothId: number | string | null
   toothData: any
 }>()
 
-const emit = defineEmits(['close'])
+const emit = defineEmits(['close', 'update-note'])
+
+// Reset editing state when switching teeth
+watch(() => props.toothId, () => {
+  isEditingNote.value = false
+  noteInput.value = ''
+})
+
+// Initialize note input when tooth changes or editing starts
+const startEditing = () => {
+  noteInput.value = props.toothData.note || ''
+  isEditingNote.value = true
+}
+
+const saveNote = () => {
+  emit('update-note', { id: props.toothId, note: noteInput.value })
+  isEditingNote.value = false
+}
+
+const cancelEditing = () => {
+  isEditingNote.value = false
+  noteInput.value = ''
+}
 
 // Using computed properties for Analysis Summary data
 
@@ -208,18 +232,52 @@ const getFurLabel = (grade: number) => {
       </section>
 
       <!-- Note / Remark -->
-      <section v-if="toothData.note" class="bg-yellow-50/50 border border-yellow-100 rounded-3xl p-6 shadow-sm">
-        <h3 class="text-[11px] font-black text-yellow-600 uppercase tracking-[0.15em] mb-3">Note</h3>
-        <p class="text-xs font-bold text-slate-600 leading-relaxed">{{ toothData.note }}</p>
+      <section v-if="toothData.note && !isEditingNote" class="bg-yellow-50/50 border border-yellow-100 rounded-3xl p-6 shadow-sm group relative">
+        <div class="flex justify-between items-start mb-3">
+          <h3 class="text-[11px] font-black text-yellow-600 uppercase tracking-[0.15em]">Note</h3>
+          <button @click="startEditing" class="opacity-0 group-hover:opacity-100 p-1 hover:bg-yellow-100 rounded text-yellow-600 transition-all">
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
+          </button>
+        </div>
+        <p class="text-xs font-bold text-slate-600 leading-relaxed whitespace-pre-wrap">{{ toothData.note }}</p>
+      </section>
+
+      <!-- Edit Note Form -->
+      <section v-if="isEditingNote" class="bg-white border border-[#0052ff]/20 rounded-3xl p-6 shadow-xl ring-4 ring-[#0052ff]/5">
+        <h3 class="text-[11px] font-black text-[#0052ff] uppercase tracking-[0.15em] mb-4">Clinical Note</h3>
+        <textarea 
+          v-model="noteInput"
+          placeholder="Enter clinical observations, findings, or remarks for this tooth..."
+          class="w-full min-h-[120px] p-4 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-bold text-slate-700 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-[#0052ff]/10 focus:border-[#0052ff]/30 transition-all resize-none mb-4"
+          autofocus
+        ></textarea>
+        <div class="flex gap-3">
+          <button 
+            @click="saveNote"
+            class="flex-1 py-3 bg-[#0052ff] hover:bg-[#0041cc] text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 shadow-lg shadow-blue-200"
+          >
+            Save Note
+          </button>
+          <button 
+            @click="cancelEditing"
+            class="px-6 py-3 bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95"
+          >
+            Cancel
+          </button>
+        </div>
       </section>
 
     </div>
 
     <!-- Footer Action -->
-    <div class="p-6 bg-white border-t border-slate-50">
-      <button class="w-full py-4 bg-slate-50 hover:bg-blue-50 border border-slate-100 hover:border-blue-200 rounded-2xl text-[11px] font-black text-slate-400 hover:text-blue-600 uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-2">
+    <div class="p-6 bg-white border-t border-slate-50 mt-auto">
+      <button 
+        v-if="!isEditingNote"
+        @click="startEditing"
+        class="w-full py-4 bg-slate-50 hover:bg-blue-50 border border-slate-100 hover:border-blue-200 rounded-2xl text-[11px] font-black text-slate-400 hover:text-blue-600 uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-2"
+      >
         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-        Add Clinical Note
+        {{ toothData.note ? 'Edit Clinical Note' : 'Add Clinical Note' }}
       </button>
     </div>
   </div>
