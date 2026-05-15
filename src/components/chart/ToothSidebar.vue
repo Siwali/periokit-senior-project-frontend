@@ -100,79 +100,75 @@ const analysisData = computed(() => {
 </script>
 
 <template>
-  <div v-if="toothId && toothData" class="bg-white rounded-3xl border border-slate-200 shadow-2xl overflow-hidden flex flex-col h-full">
+  <div v-if="toothId && toothData" class="bg-white/95 backdrop-blur-xl rounded-l-[40px] border-l border-white/50 shadow-[-20px_0_50px_-15px_rgba(0,0,0,0.15)] overflow-hidden flex flex-col h-full ring-1 ring-black/[0.02]">
     <!-- Header -->
-    <div class="p-6 border-b border-slate-100 flex items-center justify-between bg-white sticky top-0 z-10">
+    <div class="p-5 border-b border-slate-100 flex items-center justify-between bg-white sticky top-0 z-10">
       <div>
-        <div class="flex items-center gap-3">
-          <h2 class="text-3xl font-black text-slate-800 tracking-tight">#{{ toothId }}</h2>
-          <span v-if="toothData.cut" class="px-2 py-1 bg-red-50 text-red-500 rounded border border-red-100 text-[9px] font-black uppercase tracking-wider">Extracted</span>
-          <span v-if="toothData.implant" class="px-2 py-1 bg-slate-100 text-slate-500 rounded border border-slate-200 text-[9px] font-black uppercase tracking-wider">Implant</span>
+        <div class="flex items-center gap-2.5">
+          <h2 class="text-2xl font-black text-slate-800 tracking-tight">#{{ toothId }}</h2>
+          <span v-if="toothData.cut" class="px-1.5 py-0.5 bg-red-50 text-red-500 rounded border border-red-100 text-[8px] font-black uppercase tracking-wider">Extracted</span>
+          <span v-if="toothData.implant" class="px-1.5 py-0.5 bg-slate-100 text-slate-500 rounded border border-slate-200 text-[8px] font-black uppercase tracking-wider">Implant</span>
         </div>
-        <p class="text-xs font-bold text-slate-400 uppercase tracking-widest mt-0.5">Tooth Details</p>
+        <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Tooth Details</p>
       </div>
-      <button @click="emit('close')" class="p-2 hover:bg-slate-50 rounded-full transition-all text-slate-400 hover:text-slate-600 border border-transparent hover:border-slate-100">
-        <X class="w-5 h-5" />
+      <button @click="emit('close')" class="p-1.5 hover:bg-slate-50 rounded-full transition-all text-slate-300 hover:text-slate-600 border border-transparent hover:border-slate-100">
+        <X class="w-4 h-4" />
       </button>
     </div>
 
     <!-- Content -->
     <div class="flex-1 overflow-y-auto p-6 space-y-8 scrollbar-hide">
       
-      <!-- PD Section -->
       <section :class="{ 'opacity-40 grayscale pointer-events-none': toothData.cut }">
-        <h3 class="text-[11px] font-black text-slate-400 uppercase tracking-[0.15em] mb-4">PD</h3>
-        <div class="grid grid-cols-2 gap-4">
+        <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] mb-3">PD</h3>
+        <div class="grid grid-cols-2 gap-3">
           <!-- Buccal Card -->
-          <div class="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm text-center group hover:border-[#0052ff]/20 transition-all">
-            <div class="text-2xl font-black mb-1 flex items-center justify-center gap-0.5">
+          <div class="bg-white border border-slate-100 rounded-xl p-3 shadow-sm text-center group hover:border-[#0052ff]/20 transition-all">
+            <div class="text-xl font-black mb-0.5 flex items-center justify-center gap-0.5">
               <span v-for="(val, i) in analysisData?.buccalPD" :key="i" 
                 :class="parseInt(val) > 4 ? 'text-red-500' : 'text-[#0052ff]'">
                 {{ val }}{{ Number(i) < 2 ? '-' : '' }}
               </span>
             </div>
-            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Buccal (mm)</p>
+            <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Buccal (mm)</p>
           </div>
           <!-- Palatal Card -->
-          <div class="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm text-center group hover:border-[#0052ff]/20 transition-all">
-            <div class="text-2xl font-black mb-1 flex items-center justify-center gap-0.5">
+          <div class="bg-white border border-slate-100 rounded-xl p-3 shadow-sm text-center group hover:border-[#0052ff]/20 transition-all">
+            <div class="text-xl font-black mb-0.5 flex items-center justify-center gap-0.5">
               <span v-for="(val, i) in analysisData?.palatalPD" :key="i" 
                 :class="parseInt(val) > 4 ? 'text-red-500' : 'text-[#0052ff]'">
                 {{ val }}{{ Number(i) < 2 ? '-' : '' }}
               </span>
             </div>
-            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Palatal (mm)</p>
+            <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Palatal (mm)</p>
           </div>
         </div>
-
       </section>
 
-      <!-- CAL Section -->
       <section :class="{ 'opacity-40 grayscale pointer-events-none': toothData.cut }">
-        <h3 class="text-[11px] font-black text-slate-400 uppercase tracking-[0.15em] mb-4">CAL</h3>
-        <div class="grid grid-cols-2 gap-4">
+        <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] mb-3">CAL</h3>
+        <div class="grid grid-cols-2 gap-3">
           <!-- Buccal Card -->
-          <div class="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm text-center group hover:border-[#0052ff]/20 transition-all">
-            <div class="text-2xl font-black mb-1 flex items-center justify-center gap-0.5">
+          <div class="bg-white border border-slate-100 rounded-xl p-3 shadow-sm text-center group hover:border-[#0052ff]/20 transition-all">
+            <div class="text-xl font-black mb-0.5 flex items-center justify-center gap-0.5">
               <span v-for="(val, i) in analysisData?.buccalCAL" :key="i" 
                 :class="parseInt(val) > 4 ? 'text-red-500' : 'text-[#0052ff]'">
                 {{ val }}{{ Number(i) < 2 ? '-' : '' }}
               </span>
             </div>
-            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Buccal (mm)</p>
+            <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Buccal (mm)</p>
           </div>
           <!-- Palatal Card -->
-          <div class="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm text-center group hover:border-[#0052ff]/20 transition-all">
-            <div class="text-2xl font-black mb-1 flex items-center justify-center gap-0.5">
+          <div class="bg-white border border-slate-100 rounded-xl p-3 shadow-sm text-center group hover:border-[#0052ff]/20 transition-all">
+            <div class="text-xl font-black mb-0.5 flex items-center justify-center gap-0.5">
               <span v-for="(val, i) in analysisData?.palatalCAL" :key="i" 
                 :class="parseInt(val) > 4 ? 'text-red-500' : 'text-[#0052ff]'">
                 {{ val }}{{ Number(i) < 2 ? '-' : '' }}
               </span>
             </div>
-            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Palatal (mm)</p>
+            <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Palatal (mm)</p>
           </div>
         </div>
-
       </section>
 
       <!-- Visual Indicators Section (Standard 6-Site Hexagonal Diagrams) -->
@@ -263,63 +259,41 @@ const analysisData = computed(() => {
       </section>
 
       <!-- Analysis Summary -->
-      <section class="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm" :class="{ 'opacity-40 grayscale pointer-events-none': toothData.cut }">
-        <h3 class="text-[13px] font-black text-slate-800 mb-6">
-          Analysis Summary
-        </h3>
-        <div class="space-y-5">
+      <section class="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm" :class="{ 'opacity-40 grayscale pointer-events-none': toothData.cut }">
+        <h3 class="text-[11px] font-black text-slate-800 mb-4">Analysis Summary</h3>
+        <div class="space-y-3.5">
           <!-- Prognosis K&C Row -->
-          <div 
-            @click="prognosisModalType = 'KC'" 
-            class="flex justify-between gap-4 cursor-pointer group"
-          >
-            <div class="flex items-center gap-1.5">
-              <span class="text-[11px] font-bold text-slate-400 border-b border-dotted border-slate-300 group-hover:text-[#0052ff] group-hover:border-[#0052ff] transition-all">
-                Prognosis K&C
-              </span>
-              <svg class="text-slate-200 group-hover:text-[#0052ff] transition-colors" xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+          <div @click="prognosisModalType = 'KC'" class="flex justify-between gap-3 cursor-pointer group">
+            <div class="flex items-center gap-1">
+              <span class="text-[10px] font-bold text-slate-400 border-b border-dotted border-slate-300 group-hover:text-[#0052ff] group-hover:border-[#0052ff] transition-all">Prognosis K&C</span>
+              <svg class="text-slate-200 group-hover:text-[#0052ff] transition-colors" xmlns="http://www.w3.org/2000/svg" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
             </div>
-            <span 
-              class="text-[10px] font-black px-2.5 py-1 rounded-lg transition-all"
-              :class="getPrognosisColorKC(analysisData?.prognosisKC)"
-            >
-              {{ analysisData?.prognosisKC || 'N/A' }}
-            </span>
+            <span class="text-[9px] font-black px-2 py-0.5 rounded-md" :class="getPrognosisColorKC(analysisData?.prognosisKC)">{{ analysisData?.prognosisKC || 'N/A' }}</span>
           </div>
 
           <!-- Prognosis M&N Row -->
-          <div 
-            @click="prognosisModalType = 'MN'" 
-            class="flex justify-between gap-4 cursor-pointer group"
-          >
-            <div class="flex items-center gap-1.5">
-              <span class="text-[11px] font-bold text-slate-400 border-b border-dotted border-slate-300 group-hover:text-[#0052ff] group-hover:border-[#0052ff] transition-all">
-                Prognosis M&N
-              </span>
-              <svg class="text-slate-200 group-hover:text-[#0052ff] transition-colors" xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+          <div @click="prognosisModalType = 'MN'" class="flex justify-between gap-3 cursor-pointer group">
+            <div class="flex items-center gap-1">
+              <span class="text-[10px] font-bold text-slate-400 border-b border-dotted border-slate-300 group-hover:text-[#0052ff] group-hover:border-[#0052ff] transition-all">Prognosis M&N</span>
+              <svg class="text-slate-200 group-hover:text-[#0052ff] transition-colors" xmlns="http://www.w3.org/2000/svg" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
             </div>
-            <span 
-              class="text-[10px] font-black px-2.5 py-1 rounded-lg transition-all"
-              :class="getPrognosisColorMN(analysisData?.prognosisMN)"
-            >
-              {{ analysisData?.prognosisMN || 'N/A' }}
-            </span>
+            <span class="text-[9px] font-black px-2 py-0.5 rounded-md" :class="getPrognosisColorMN(analysisData?.prognosisMN)">{{ analysisData?.prognosisMN || 'N/A' }}</span>
           </div>
-          <div class="flex justify-between items-center pt-2">
-            <span class="text-[11px] font-bold text-slate-400">Buccal-Keratinized</span>
-            <span class="text-[11px] font-black text-slate-700">{{ analysisData?.buccalKTW }} mm</span>
+          <div class="flex justify-between items-center pt-1">
+            <span class="text-[10px] font-bold text-slate-400">Buccal-Keratinized</span>
+            <span class="text-[10px] font-black text-slate-700">{{ analysisData?.buccalKTW }} mm</span>
           </div>
           <div class="flex justify-between items-center">
-            <span class="text-[11px] font-bold text-slate-400">Palatal-Keratinized</span>
-            <span class="text-[11px] font-black text-slate-700">{{ analysisData?.palatalKTW }} mm</span>
+            <span class="text-[10px] font-bold text-slate-400">Palatal-Keratinized</span>
+            <span class="text-[10px] font-black text-slate-700">{{ analysisData?.palatalKTW }} mm</span>
           </div>
           <div class="flex justify-between items-center">
-            <span class="text-[11px] font-bold text-slate-400">Mobility</span>
-            <span class="text-[11px] font-black text-slate-700">{{ toothData.implant ? 'Fixed (0)' : 'Grade ' + (analysisData?.mobility || '0') }}</span>
+            <span class="text-[10px] font-bold text-slate-400">Mobility</span>
+            <span class="text-[10px] font-black text-slate-700">{{ toothData.implant ? 'Fixed (0)' : 'Grade ' + (analysisData?.mobility || '0') }}</span>
           </div>
           <div v-if="!toothData.implant" class="flex justify-between items-center">
-            <span class="text-[11px] font-bold text-slate-400">Furcation</span>
-            <span class="text-[11px] font-black text-slate-700">{{ getFurLabel(analysisData?.furcation) }}</span>
+            <span class="text-[10px] font-bold text-slate-400">Furcation</span>
+            <span class="text-[10px] font-black text-slate-700">{{ getFurLabel(analysisData?.furcation) }}</span>
           </div>
         </div>
       </section>
@@ -363,13 +337,13 @@ const analysisData = computed(() => {
     </div>
 
     <!-- Footer Action -->
-    <div class="p-6 bg-white border-t border-slate-50 mt-auto">
+    <div class="p-5 bg-white border-t border-slate-50 mt-auto">
       <button 
         v-if="!isEditingNote"
         @click="startEditing"
-        class="w-full py-4 bg-slate-50 hover:bg-blue-50 border border-slate-100 hover:border-blue-200 rounded-2xl text-[11px] font-black text-slate-400 hover:text-blue-600 uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-2"
+        class="w-full py-3 bg-slate-50 hover:bg-blue-50 border border-slate-100 hover:border-blue-200 rounded-xl text-[10px] font-black text-slate-400 hover:text-blue-600 uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-2"
       >
-        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
         {{ toothData.note ? 'Edit Clinical Note' : 'Add Clinical Note' }}
       </button>
     </div>

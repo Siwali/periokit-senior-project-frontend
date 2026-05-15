@@ -4,6 +4,7 @@ import { useAuthStore } from '../stores/auth'
 import { FileText, Image as ImageIcon, Download, Stethoscope, Plus, Save, X } from 'lucide-vue-next'
 import Navbar from '../components/layout/Navbar.vue'
 import ToothSidebar from '../components/chart/ToothSidebar.vue'
+import ClinicalInputCell from '../components/chart/ClinicalInputCell.vue'
 import { calculateCALValue } from '../utils/calculations'
 
 
@@ -103,11 +104,24 @@ const togglePi = (id: string | number, surface: 'buccal' | 'lingual', site: numb
 }
 
 const updateCal = (id: string | number, surface: 'buccal' | 'lingual', site: number) => {
-
   if (teethData.value[id].cut) return
   const pd = teethData.value[id][surface].pd[site]
   const rec = teethData.value[id][surface].rec[site]
   teethData.value[id][surface].cal[site] = calculateCALValue(pd, rec).toString()
+}
+
+const updateClinicalData = (id: string | number, surface: 'buccal' | 'lingual', field: string, site: number, value: any) => {
+  if (teethData.value[id].cut) return
+  
+  // Cast to correct type if necessary
+  if (field === 'bop' || field === 'pi') {
+    teethData.value[id][surface][field][site] = !!value
+  } else {
+    teethData.value[id][surface][field][site] = value
+    if (field === 'pd' || field === 'rec') {
+      updateCal(id, surface, site)
+    }
+  }
 }
 
 
@@ -206,7 +220,7 @@ const handleUpdateNote = ({ id, note }: { id: string | number, note: string }) =
     </div>
 
     <!-- Main Content -->
-    <main class="max-w-[1600px] mx-auto p-6 lg:p-8">
+    <main class="max-w-[1800px] mx-auto p-6 lg:p-8 overflow-visible">
       <!-- Top Toolbar -->
       <div class="flex items-center justify-between mb-6">
         <button class="bg-white px-4 py-2 rounded-lg border border-slate-200 text-xs font-bold text-slate-600 flex items-center gap-2 shadow-sm hover:bg-slate-50 transition-colors">
@@ -228,8 +242,12 @@ const handleUpdateNote = ({ id, note }: { id: string | number, note: string }) =
 
 
       <!-- Chart Content Area - Centered and shifts when sidebar opens -->
-      <div class="flex justify-center items-start gap-6 transition-all duration-500">
-        <div class="w-fit flex-shrink-0 flex flex-col gap-0 transition-all duration-500">
+      <!-- Main Content Container with dynamic padding for sidebar space -->
+      <div 
+        class="flex justify-center items-start transition-all duration-500 ease-in-out"
+        :style="{ paddingRight: (selectedToothId && isSidebarOpen) ? '340px' : '0' }"
+      >
+        <div class="w-full max-w-fit flex-shrink-0 flex flex-col gap-0 transition-all duration-500">
           <!-- Tab View - Now inside the same container -->
           <div class="flex items-center gap-0 relative z-10">
             <div class="bg-white px-6 py-2.5 rounded-t-xl border-t border-l border-r border-slate-200 text-[11px] font-black text-[#0052ff] flex items-center gap-3 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] -mb-[1px]">
@@ -293,11 +311,10 @@ const handleUpdateNote = ({ id, note }: { id: string | number, note: string }) =
             </div>
           </section>
 
-          <!-- Chart Grid Card -->
-          <section class="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden">
-            <div class="p-8 bg-[#f8fafc] overflow-x-auto">
+          <section class="bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden">
+            <div class="p-8 bg-[#f8fafc] overflow-x-auto flex flex-col items-center">
               <!-- MAXILLARY ARCH (Upper) -->
-              <div class="min-w-max">
+              <div class="w-fit">
                 <!-- Maxillary Buccal Section (Top Grid) -->
                 <div class="flex items-end mb-1">
                   <!-- Labels -->
@@ -339,20 +356,49 @@ const handleUpdateNote = ({ id, note }: { id: string | number, note: string }) =
                               <div v-else class="w-3 h-3 border border-slate-200 rounded-full bg-white/50"></div>
                             </div>
                           </div>
-                          <div class="flex h-6 border-b border-slate-200" :class="{ 'pointer-events-none opacity-50': teethData[id].cut }">
-                            <div v-for="s in [0,1,2]" :key="s" @click="toggleBop(id, 'buccal', s)" class="flex-1 border-r border-slate-100 last:border-r-0 cursor-pointer transition-colors" :class="teethData[id].buccal.bop[s] ? 'bg-red-500' : ''"></div>
-                          </div>
-                          <div class="flex h-6 border-b border-slate-200" :class="{ 'pointer-events-none opacity-50': teethData[id].cut }">
-                            <div v-for="s in [0,1,2]" :key="s" @click="togglePi(id, 'buccal', s)" class="flex-1 border-r border-slate-100 last:border-r-0 cursor-pointer transition-colors" :class="teethData[id].buccal.pi[s] ? 'bg-blue-500' : ''"></div>
+                          <div class="flex h-6 border-b border-slate-200">
+                            <ClinicalInputCell 
+                              v-for="s in [0,1,2]" :key="s"
+                              :toothNumber="id" :sitePosition="s" fieldName="bop"
+                              inputType="toggle" :value="teethData[id].buccal.bop[s]"
+                              :disabled="teethData[id].cut"
+                              @change="(val) => updateClinicalData(id, 'buccal', 'bop', s, val)"
+                            />
                           </div>
                           <div class="flex h-6 border-b border-slate-200">
-                            <input v-for="s in [0,1,2]" :key="s" type="text" v-model="teethData[id].buccal.rec[s]" @input="updateCal(id, 'buccal', s)" :disabled="teethData[id].cut" class="w-0 flex-1 text-center text-[10px] border-r border-slate-100 last:border-r-0 outline-none disabled:bg-slate-100/50" />
+                            <ClinicalInputCell 
+                              v-for="s in [0,1,2]" :key="s"
+                              :toothNumber="id" :sitePosition="s" fieldName="pi"
+                              inputType="toggle" :value="teethData[id].buccal.pi[s]"
+                              :disabled="teethData[id].cut"
+                              @change="(val) => updateClinicalData(id, 'buccal', 'pi', s, val)"
+                            />
                           </div>
                           <div class="flex h-6 border-b border-slate-200">
-                            <input v-for="s in [0,1,2]" :key="s" type="text" v-model="teethData[id].buccal.pd[s]" @input="updateCal(id, 'buccal', s)" :disabled="teethData[id].cut" class="w-0 flex-1 text-center text-[10px] border-r border-slate-100 last:border-r-0 outline-none disabled:bg-slate-100/50" />
+                            <ClinicalInputCell 
+                              v-for="s in [0,1,2]" :key="s"
+                              :toothNumber="id" :sitePosition="s" fieldName="rec"
+                              inputType="numeric" :value="teethData[id].buccal.rec[s]"
+                              :disabled="teethData[id].cut"
+                              @change="(val) => updateClinicalData(id, 'buccal', 'rec', s, val)"
+                            />
                           </div>
-                          <div class="flex h-6 border-slate-200 bg-slate-50/30">
-                            <input v-for="s in [0,1,2]" :key="s" type="text" :value="teethData[id].buccal.cal[s] || '0'" class="w-0 flex-1 text-center text-[10px] font-bold text-slate-700 border-r border-slate-100 last:border-r-0 bg-transparent outline-none pointer-events-none" />
+                          <div class="flex h-6 border-b border-slate-200">
+                            <ClinicalInputCell 
+                              v-for="s in [0,1,2]" :key="s"
+                              :toothNumber="id" :sitePosition="s" fieldName="pd"
+                              inputType="numeric" :value="teethData[id].buccal.pd[s]"
+                              :disabled="teethData[id].cut"
+                              @change="(val) => updateClinicalData(id, 'buccal', 'pd', s, val)"
+                            />
+                          </div>
+                          <div class="flex h-6 border-slate-200">
+                            <ClinicalInputCell 
+                              v-for="s in [0,1,2]" :key="s"
+                              :toothNumber="id" :sitePosition="s" fieldName="cal"
+                              inputType="numeric" :value="teethData[id].buccal.cal[s] || '0'"
+                              readonly
+                            />
                           </div>
                         </div>
                       </div>
@@ -377,13 +423,13 @@ const handleUpdateNote = ({ id, note }: { id: string | number, note: string }) =
                 </div>
 
                 <!-- Maxillary Tooth Illustrations -->
-                <div class="flex flex-col gap-10 mb-6">
+                <div class="flex flex-col gap-10 mb-6 w-full items-center">
                   <!-- Buccal Illustration -->
-                  <div class="flex">
-                    <div class="w-20 flex flex-col items-center justify-center text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] space-y-1 py-4">
+                  <div class="flex w-full justify-center">
+                    <div class="w-20 flex flex-col items-center justify-center text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] space-y-1 py-4 shrink-0">
                       <span>B</span><span>U</span><span>C</span><span>C</span><span>A</span><span>L</span>
                     </div>
-                    <div class="flex-1 flex">
+                    <div class="flex">
                       <template v-for="(group, gIdx) in upperArch" :key="gIdx">
                         <div class="flex h-36 relative clinical-grid-bg">
                           <div 
@@ -410,11 +456,11 @@ const handleUpdateNote = ({ id, note }: { id: string | number, note: string }) =
                   </div>
 
                   <!-- Palatal Illustration -->
-                  <div class="flex">
-                    <div class="w-20 flex flex-col items-center justify-center text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] space-y-1 py-4">
+                  <div class="flex w-full justify-center">
+                    <div class="w-20 flex flex-col items-center justify-center text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] space-y-1 py-4 shrink-0">
                       <span>P</span><span>A</span><span>L</span><span>A</span><span>T</span><span>A</span><span>L</span>
                     </div>
-                    <div class="flex-1 flex">
+                    <div class="flex">
                       <template v-for="(group, gIdx) in upperArch" :key="gIdx">
                         <div class="flex h-36 relative clinical-grid-bg">
                           <div 
@@ -460,20 +506,49 @@ const handleUpdateNote = ({ id, note }: { id: string | number, note: string }) =
                             selectedToothId === id && isSidebarOpen ? 'bg-blue-50/50 ring-2 ring-[#0052ff] ring-inset z-10' : ''
                           ]"
                         >
-                          <div class="flex h-6 border-b border-slate-200 bg-slate-50/30">
-                            <input v-for="s in [0,1,2]" :key="s" type="text" :value="teethData[id].lingual.cal[s] || '0'" class="w-0 flex-1 text-center text-[10px] font-bold text-slate-700 border-r border-slate-100 last:border-r-0 bg-transparent outline-none pointer-events-none" />
+                          <div class="flex h-6 border-b border-slate-200">
+                            <ClinicalInputCell 
+                              v-for="s in [0,1,2]" :key="s"
+                              :toothNumber="id" :sitePosition="s" fieldName="cal"
+                              inputType="numeric" :value="teethData[id].lingual.cal[s] || '0'"
+                              readonly
+                            />
                           </div>
                           <div class="flex h-6 border-b border-slate-200">
-                            <input v-for="s in [0,1,2]" :key="s" type="text" v-model="teethData[id].lingual.pd[s]" @input="updateCal(id, 'lingual', s)" :disabled="teethData[id].cut" class="w-0 flex-1 text-center text-[10px] border-r border-slate-100 last:border-r-0 outline-none disabled:bg-slate-100/50" />
+                            <ClinicalInputCell 
+                              v-for="s in [0,1,2]" :key="s"
+                              :toothNumber="id" :sitePosition="s" fieldName="pd"
+                              inputType="numeric" :value="teethData[id].lingual.pd[s]"
+                              :disabled="teethData[id].cut"
+                              @change="(val) => updateClinicalData(id, 'lingual', 'pd', s, val)"
+                            />
                           </div>
                           <div class="flex h-6 border-b border-slate-200">
-                            <input v-for="s in [0,1,2]" :key="s" type="text" v-model="teethData[id].lingual.rec[s]" @input="updateCal(id, 'lingual', s)" :disabled="teethData[id].cut" class="w-0 flex-1 text-center text-[10px] border-r border-slate-100 last:border-r-0 outline-none disabled:bg-slate-100/50" />
+                            <ClinicalInputCell 
+                              v-for="s in [0,1,2]" :key="s"
+                              :toothNumber="id" :sitePosition="s" fieldName="rec"
+                              inputType="numeric" :value="teethData[id].lingual.rec[s]"
+                              :disabled="teethData[id].cut"
+                              @change="(val) => updateClinicalData(id, 'lingual', 'rec', s, val)"
+                            />
                           </div>
-                          <div class="flex h-6 border-b border-slate-200" :class="{ 'pointer-events-none opacity-50': teethData[id].cut }">
-                            <div v-for="s in [0,1,2]" :key="s" @click="togglePi(id, 'lingual', s)" class="flex-1 border-r border-slate-100 last:border-r-0 cursor-pointer transition-colors" :class="teethData[id].lingual.pi[s] ? 'bg-blue-500' : ''"></div>
+                          <div class="flex h-6 border-b border-slate-200">
+                            <ClinicalInputCell 
+                              v-for="s in [0,1,2]" :key="s"
+                              :toothNumber="id" :sitePosition="s" fieldName="pi"
+                              inputType="toggle" :value="teethData[id].lingual.pi[s]"
+                              :disabled="teethData[id].cut"
+                              @change="(val) => updateClinicalData(id, 'lingual', 'pi', s, val)"
+                            />
                           </div>
-                          <div class="flex h-6 border-b border-slate-200" :class="{ 'pointer-events-none opacity-50': teethData[id].cut }">
-                            <div v-for="s in [0,1,2]" :key="s" @click="toggleBop(id, 'lingual', s)" class="flex-1 border-r border-slate-100 last:border-r-0 cursor-pointer transition-colors" :class="teethData[id].lingual.bop[s] ? 'bg-red-500' : ''"></div>
+                          <div class="flex h-6 border-b border-slate-200">
+                            <ClinicalInputCell 
+                              v-for="s in [0,1,2]" :key="s"
+                              :toothNumber="id" :sitePosition="s" fieldName="bop"
+                              inputType="toggle" :value="teethData[id].lingual.bop[s]"
+                              :disabled="teethData[id].cut"
+                              @change="(val) => updateClinicalData(id, 'lingual', 'bop', s, val)"
+                            />
                           </div>
                           <div class="h-6 border-b border-slate-200 flex items-center justify-center gap-1 cursor-pointer select-none text-slate-800" :class="{ 'pointer-events-none opacity-30': teethData[id].cut || teethData[id].implant }">
                             <div v-for="(grade, fIdx) in teethData[id].fur.lingual" :key="fIdx" @click="toggleFur(id, 'lingual', fIdx)" class="flex items-center justify-center w-4 h-4 cursor-pointer">
@@ -520,20 +595,49 @@ const handleUpdateNote = ({ id, note }: { id: string | number, note: string }) =
                               <div v-else class="w-3 h-3 border border-slate-200 rounded-full bg-white/50"></div>
                             </div>
                           </div>
-                          <div class="flex h-6 border-b border-slate-200" :class="{ 'pointer-events-none opacity-50': teethData[id].cut }">
-                            <div v-for="s in [0,1,2]" :key="s" @click="toggleBop(id, 'lingual', s)" class="flex-1 border-r border-slate-100 last:border-r-0 cursor-pointer transition-colors" :class="teethData[id].lingual.bop[s] ? 'bg-red-500' : ''"></div>
-                          </div>
-                          <div class="flex h-6 border-b border-slate-200" :class="{ 'pointer-events-none opacity-50': teethData[id].cut }">
-                            <div v-for="s in [0,1,2]" :key="s" @click="togglePi(id, 'lingual', s)" class="flex-1 border-r border-slate-100 last:border-r-0 cursor-pointer transition-colors" :class="teethData[id].lingual.pi[s] ? 'bg-blue-500' : ''"></div>
+                          <div class="flex h-6 border-b border-slate-200">
+                            <ClinicalInputCell 
+                              v-for="s in [0,1,2]" :key="s"
+                              :toothNumber="id" :sitePosition="s" fieldName="bop"
+                              inputType="toggle" :value="teethData[id].lingual.bop[s]"
+                              :disabled="teethData[id].cut"
+                              @change="(val) => updateClinicalData(id, 'lingual', 'bop', s, val)"
+                            />
                           </div>
                           <div class="flex h-6 border-b border-slate-200">
-                            <input v-for="s in [0,1,2]" :key="s" type="text" v-model="teethData[id].lingual.rec[s]" @input="updateCal(id, 'lingual', s)" :disabled="teethData[id].cut" class="w-0 flex-1 text-center text-[10px] border-r border-slate-100 last:border-r-0 outline-none disabled:bg-slate-100/50" />
+                            <ClinicalInputCell 
+                              v-for="s in [0,1,2]" :key="s"
+                              :toothNumber="id" :sitePosition="s" fieldName="pi"
+                              inputType="toggle" :value="teethData[id].lingual.pi[s]"
+                              :disabled="teethData[id].cut"
+                              @change="(val) => updateClinicalData(id, 'lingual', 'pi', s, val)"
+                            />
                           </div>
                           <div class="flex h-6 border-b border-slate-200">
-                            <input v-for="s in [0,1,2]" :key="s" type="text" v-model="teethData[id].lingual.pd[s]" @input="updateCal(id, 'lingual', s)" :disabled="teethData[id].cut" class="w-0 flex-1 text-center text-[10px] border-r border-slate-100 last:border-r-0 outline-none disabled:bg-slate-100/50" />
+                            <ClinicalInputCell 
+                              v-for="s in [0,1,2]" :key="s"
+                              :toothNumber="id" :sitePosition="s" fieldName="rec"
+                              inputType="numeric" :value="teethData[id].lingual.rec[s]"
+                              :disabled="teethData[id].cut"
+                              @change="(val) => updateClinicalData(id, 'lingual', 'rec', s, val)"
+                            />
                           </div>
-                          <div class="flex h-6 border-slate-200 bg-slate-50/30">
-                            <input v-for="s in [0,1,2]" :key="s" type="text" :value="teethData[id].lingual.cal[s] || '0'" class="w-0 flex-1 text-center text-[10px] font-bold text-slate-700 border-r border-slate-100 last:border-r-0 bg-transparent outline-none pointer-events-none" />
+                          <div class="flex h-6 border-b border-slate-200">
+                            <ClinicalInputCell 
+                              v-for="s in [0,1,2]" :key="s"
+                              :toothNumber="id" :sitePosition="s" fieldName="pd"
+                              inputType="numeric" :value="teethData[id].lingual.pd[s]"
+                              :disabled="teethData[id].cut"
+                              @change="(val) => updateClinicalData(id, 'lingual', 'pd', s, val)"
+                            />
+                          </div>
+                          <div class="flex h-6 border-slate-200">
+                            <ClinicalInputCell 
+                              v-for="s in [0,1,2]" :key="s"
+                              :toothNumber="id" :sitePosition="s" fieldName="cal"
+                              inputType="numeric" :value="teethData[id].lingual.cal[s] || '0'"
+                              readonly
+                            />
                           </div>
                         </div>
                       </div>
@@ -558,13 +662,13 @@ const handleUpdateNote = ({ id, note }: { id: string | number, note: string }) =
                 </div>
 
                 <!-- Mandibular Tooth Illustrations -->
-                <div class="flex flex-col gap-10 mb-6">
+                <div class="flex flex-col gap-10 mb-6 w-full items-center">
                   <!-- Lingual Illustration -->
-                  <div class="flex">
-                    <div class="w-20 flex flex-col items-center justify-center text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] space-y-1 py-4">
+                  <div class="flex w-full justify-center">
+                    <div class="w-20 flex flex-col items-center justify-center text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] space-y-1 py-4 shrink-0">
                       <span>L</span><span>I</span><span>N</span><span>G</span><span>U</span><span>A</span><span>L</span>
                     </div>
-                    <div class="flex-1 flex">
+                    <div class="flex">
                       <template v-for="(group, gIdx) in lowerArch" :key="gIdx">
                         <div class="flex h-36 relative clinical-grid-bg-inf">
                           <div 
@@ -591,11 +695,11 @@ const handleUpdateNote = ({ id, note }: { id: string | number, note: string }) =
                   </div>
 
                   <!-- Buccal Illustration -->
-                  <div class="flex">
-                    <div class="w-20 flex flex-col items-center justify-center text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] space-y-1 py-4">
+                  <div class="flex w-full justify-center">
+                    <div class="w-20 flex flex-col items-center justify-center text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] space-y-1 py-4 shrink-0">
                       <span>B</span><span>U</span><span>C</span><span>C</span><span>A</span><span>L</span>
                     </div>
-                    <div class="flex-1 flex">
+                    <div class="flex">
                       <template v-for="(group, gIdx) in lowerArch" :key="gIdx">
                         <div class="flex h-36 relative clinical-grid-bg-inf">
                           <div 
@@ -642,20 +746,49 @@ const handleUpdateNote = ({ id, note }: { id: string | number, note: string }) =
                             selectedToothId === id && isSidebarOpen ? 'bg-blue-50/50 ring-2 ring-[#0052ff] ring-inset z-10' : ''
                           ]"
                         >
-                          <div class="flex h-6 border-b border-slate-200 bg-slate-50/30">
-                            <input v-for="s in [0,1,2]" :key="s" type="text" :value="teethData[id].buccal.cal[s] || '0'" class="w-0 flex-1 text-center text-[10px] font-bold text-slate-700 border-r border-slate-100 last:border-r-0 bg-transparent outline-none pointer-events-none" />
+                          <div class="flex h-6 border-b border-slate-200">
+                            <ClinicalInputCell 
+                              v-for="s in [0,1,2]" :key="s"
+                              :toothNumber="id" :sitePosition="s" fieldName="cal"
+                              inputType="numeric" :value="teethData[id].buccal.cal[s] || '0'"
+                              readonly
+                            />
                           </div>
                           <div class="flex h-6 border-b border-slate-200">
-                            <input v-for="s in [0,1,2]" :key="s" type="text" v-model="teethData[id].buccal.pd[s]" @input="updateCal(id, 'buccal', s)" :disabled="teethData[id].cut" class="w-0 flex-1 text-center text-[10px] border-r border-slate-100 last:border-r-0 outline-none disabled:bg-slate-100/50" />
+                            <ClinicalInputCell 
+                              v-for="s in [0,1,2]" :key="s"
+                              :toothNumber="id" :sitePosition="s" fieldName="pd"
+                              inputType="numeric" :value="teethData[id].buccal.pd[s]"
+                              :disabled="teethData[id].cut"
+                              @change="(val) => updateClinicalData(id, 'buccal', 'pd', s, val)"
+                            />
                           </div>
                           <div class="flex h-6 border-b border-slate-200">
-                            <input v-for="s in [0,1,2]" :key="s" type="text" v-model="teethData[id].buccal.rec[s]" @input="updateCal(id, 'buccal', s)" :disabled="teethData[id].cut" class="w-0 flex-1 text-center text-[10px] border-r border-slate-100 last:border-r-0 outline-none disabled:bg-slate-100/50" />
+                            <ClinicalInputCell 
+                              v-for="s in [0,1,2]" :key="s"
+                              :toothNumber="id" :sitePosition="s" fieldName="rec"
+                              inputType="numeric" :value="teethData[id].buccal.rec[s]"
+                              :disabled="teethData[id].cut"
+                              @change="(val) => updateClinicalData(id, 'buccal', 'rec', s, val)"
+                            />
                           </div>
-                          <div class="flex h-6 border-b border-slate-200" :class="{ 'pointer-events-none opacity-50': teethData[id].cut }">
-                            <div v-for="s in [0,1,2]" :key="s" @click="togglePi(id, 'buccal', s)" class="flex-1 border-r border-slate-100 last:border-r-0 cursor-pointer transition-colors" :class="teethData[id].buccal.pi[s] ? 'bg-blue-500' : ''"></div>
+                          <div class="flex h-6 border-b border-slate-200">
+                            <ClinicalInputCell 
+                              v-for="s in [0,1,2]" :key="s"
+                              :toothNumber="id" :sitePosition="s" fieldName="pi"
+                              inputType="toggle" :value="teethData[id].buccal.pi[s]"
+                              :disabled="teethData[id].cut"
+                              @change="(val) => updateClinicalData(id, 'buccal', 'pi', s, val)"
+                            />
                           </div>
-                          <div class="flex h-6 border-b border-slate-200" :class="{ 'pointer-events-none opacity-50': teethData[id].cut }">
-                            <div v-for="s in [0,1,2]" :key="s" @click="toggleBop(id, 'buccal', s)" class="flex-1 border-r border-slate-100 last:border-r-0 cursor-pointer transition-colors" :class="teethData[id].buccal.bop[s] ? 'bg-red-500' : ''"></div>
+                          <div class="flex h-6 border-b border-slate-200">
+                            <ClinicalInputCell 
+                              v-for="s in [0,1,2]" :key="s"
+                              :toothNumber="id" :sitePosition="s" fieldName="bop"
+                              inputType="toggle" :value="teethData[id].buccal.bop[s]"
+                              :disabled="teethData[id].cut"
+                              @change="(val) => updateClinicalData(id, 'buccal', 'bop', s, val)"
+                            />
                           </div>
                           <div class="h-6 border-b border-slate-200 flex items-center justify-center gap-1 cursor-pointer select-none text-slate-800" :class="{ 'pointer-events-none opacity-30': teethData[id].cut || teethData[id].implant }">
                             <div v-for="(grade, fIdx) in teethData[id].fur.buccal" :key="fIdx" @click="toggleFur(id, 'buccal', fIdx)" class="flex items-center justify-center w-4 h-4 cursor-pointer">
@@ -685,24 +818,29 @@ const handleUpdateNote = ({ id, note }: { id: string | number, note: string }) =
           </section>
         </div>
 
-        <!-- Sidebar Tooth Detail - Only appears when selected -->
-        <Transition
-          enter-active-class="transition ease-out duration-300"
-          enter-from-class="translate-x-full opacity-0"
-          enter-to-class="translate-x-0 opacity-100"
-          leave-active-class="transition ease-in duration-200"
-          leave-from-class="translate-x-0 opacity-100"
-          leave-to-class="translate-x-full opacity-0"
-        >
-          <aside v-if="selectedToothId && isSidebarOpen" class="w-80 sticky top-32 h-[calc(100vh-160px)] flex-shrink-0">
-            <ToothSidebar 
-              :toothId="selectedToothId" 
-              :toothData="selectedToothData" 
-              @close="isSidebarOpen = false"
-              @update-note="handleUpdateNote"
-            />
-          </aside>
-        </Transition>
+        <!-- Sidebar Tooth Detail - Full Focus Premium Overlay -->
+        <Teleport to="body">
+          <Transition
+            enter-active-class="transition ease-out duration-500"
+            enter-from-class="translate-x-full opacity-0"
+            enter-to-class="translate-x-0 opacity-100"
+            leave-active-class="transition ease-in duration-300"
+            leave-from-class="translate-x-0 opacity-100"
+            leave-to-class="translate-x-full opacity-0"
+          >
+            <aside 
+              v-if="selectedToothId && isSidebarOpen" 
+              class="fixed top-0 right-0 z-[60] w-[360px] h-full shadow-[-20px_0_50px_-15px_rgba(0,0,0,0.1)]"
+            >
+              <ToothSidebar 
+                :toothId="selectedToothId" 
+                :toothData="selectedToothData" 
+                @close="isSidebarOpen = false"
+                @update-note="handleUpdateNote"
+              />
+            </aside>
+          </Transition>
+        </Teleport>
       </div>
     </main>
   </div>
