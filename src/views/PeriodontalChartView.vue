@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useAuthStore } from '../stores/auth'
-import { FileText, Image as ImageIcon, Download, Stethoscope, Plus, Save, X, Info } from 'lucide-vue-next'
+import { FileText, Image as ImageIcon, Download, Stethoscope, Plus, Save, X } from 'lucide-vue-next'
 import Navbar from '../components/layout/Navbar.vue'
 import ToothSidebar from '../components/chart/ToothSidebar.vue'
 

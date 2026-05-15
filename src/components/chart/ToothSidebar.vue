@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { X, Activity } from 'lucide-vue-next'
+import { X } from 'lucide-vue-next'
 import { computed, ref, watch } from 'vue'
 
 const showPrognosisInfo = ref(false)
@@ -43,7 +43,7 @@ const analysisData = computed(() => {
     prognosisKC: props.toothData.prognosisKC || "N/A",
     prognosisMN: props.toothData.prognosisMN || "N/A",
     buccalKTW: props.toothData.ktw || "0",
-    palatalKTW: "2", // Assuming default or second KTW if added later
+    palatalKTW: props.toothData.ktw || "0", // Uses same KTW state unless decoupled later
     mobility: props.toothData.mo || "0",
     furcation: props.toothData.fur?.buccal?.[0] || 0
   }
