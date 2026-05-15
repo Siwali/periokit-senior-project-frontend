@@ -185,15 +185,15 @@ const buccalRows = [
   "CAL",
 ];
 const palatalRows = [
-  "CAL",
-  "PD",
-  "Recession",
-  "PI",
-  "BOP",
-  "Furcation",
-  "Keratinized",
-  "Mobility",
   "Implant",
+  "Mobility",
+  "Keratinized",
+  "Furcation",
+  "BOP",
+  "PI",
+  "Recession",
+  "PD",
+  "CAL",
 ];
 
 const getToothImage = (id: number | string, surface: "buccal" | "lingual") => {
@@ -222,6 +222,125 @@ const handleUpdateNote = ({
 }) => {
   if (teethData.value[id]) {
     teethData.value[id].note = note;
+  }
+};
+
+// --- Keyboard Navigation Logic ---
+const chartContainerRef = ref<HTMLElement | null>(null);
+
+const handleKeyDown = (e: KeyboardEvent) => {
+  const target = e.target as HTMLElement;
+  if (!target.classList.contains("chart-input")) return;
+
+  const key = e.key;
+  if (
+    !["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Enter"].includes(key)
+  )
+    return;
+
+  e.preventDefault();
+
+  const currentTooth = target.getAttribute("data-tooth");
+  const currentField = target.getAttribute("data-field");
+  const currentSite = parseInt(target.getAttribute("data-site") || "0");
+  const currentSurface = target.getAttribute("data-surface");
+
+  // Get all potential inputs in the chart
+  const allInputs = Array.from(
+    chartContainerRef.value?.querySelectorAll(".chart-input") || [],
+  ) as HTMLElement[];
+
+  const currentIndex = allInputs.indexOf(target);
+  if (currentIndex === -1) return;
+
+  let nextTarget: HTMLElement | null = null;
+
+  if (key === "ArrowDown") {
+    // Vertical: Find next field (row) for the same tooth/site
+    for (let i = currentIndex + 1; i < allInputs.length; i++) {
+      if (
+        allInputs[i].getAttribute("data-tooth") === currentTooth &&
+        allInputs[i].getAttribute("data-site") === currentSite.toString() &&
+        allInputs[i].getAttribute("data-surface") === currentSurface &&
+        !(allInputs[i] as HTMLInputElement).disabled
+      ) {
+        nextTarget = allInputs[i];
+        break;
+      }
+    }
+  } else if (key === "ArrowUp") {
+    // Vertical: Find previous field (row) for the same tooth/site
+    for (let i = currentIndex - 1; i >= 0; i--) {
+      if (
+        allInputs[i].getAttribute("data-tooth") === currentTooth &&
+        allInputs[i].getAttribute("data-site") === currentSite.toString() &&
+        allInputs[i].getAttribute("data-surface") === currentSurface &&
+        !(allInputs[i] as HTMLInputElement).disabled
+      ) {
+        nextTarget = allInputs[i];
+        break;
+      }
+    }
+  } else if (key === "ArrowRight" || key === "Enter") {
+    // Strict Row-based navigation:
+    // First, try to find the next input in the SAME field (row)
+    for (let i = currentIndex + 1; i < allInputs.length; i++) {
+      const input = allInputs[i] as HTMLInputElement;
+      if (
+        !input.disabled && 
+        input.offsetParent !== null &&
+        input.getAttribute("data-field") === currentField &&
+        input.getAttribute("data-surface") === currentSurface
+      ) {
+        nextTarget = input;
+        break;
+      }
+    }
+    
+    // If we reached the end of the current row, jump to the first input of the NEXT row
+    if (!nextTarget) {
+      for (let i = currentIndex + 1; i < allInputs.length; i++) {
+        const input = allInputs[i] as HTMLInputElement;
+        if (!input.disabled && input.offsetParent !== null) {
+          nextTarget = input;
+          break;
+        }
+      }
+    }
+  } else if (key === "ArrowLeft") {
+    // Previous in row
+    for (let i = currentIndex - 1; i >= 0; i--) {
+      const input = allInputs[i] as HTMLInputElement;
+      if (
+        !input.disabled && 
+        input.offsetParent !== null &&
+        input.getAttribute("data-field") === currentField &&
+        input.getAttribute("data-surface") === currentSurface
+      ) {
+        nextTarget = input;
+        break;
+      }
+    }
+    
+    // If at the start of row, jump to the end of the PREVIOUS row
+    if (!nextTarget) {
+      for (let i = currentIndex - 1; i >= 0; i--) {
+        const input = allInputs[i] as HTMLInputElement;
+        if (!input.disabled && input.offsetParent !== null) {
+          nextTarget = input;
+          break;
+        }
+      }
+    }
+  }
+
+  if (nextTarget) {
+    nextTarget.focus();
+    
+    const nextToothId = nextTarget.getAttribute("data-tooth");
+    if (nextToothId && nextToothId !== selectedToothId.value) {
+      selectTooth(nextToothId);
+    }
   }
 };
 </script>
@@ -462,6 +581,8 @@ const handleUpdateNote = ({
             class="bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden"
           >
             <div
+              ref="chartContainerRef"
+              @keydown="handleKeyDown"
               class="p-8 bg-[#f8fafc] overflow-x-auto flex flex-col items-center"
             >
               <!-- MAXILLARY ARCH (Upper) -->
@@ -522,7 +643,10 @@ const handleUpdateNote = ({
                               type="checkbox"
                               v-model="teethData[id].implant"
                               :disabled="teethData[id].cut"
-                              class="w-3.5 h-3.5 accent-slate-800 disabled:opacity-30"
+                              class="chart-input w-3.5 h-3.5 accent-slate-800 disabled:opacity-30 focus:ring-1 focus:ring-[#0052ff] outline-none"
+                              :data-tooth="id"
+                              data-field="implant"
+                              data-surface="buccal"
                             />
                           </div>
                           <div class="h-6 border-b border-slate-200">
@@ -533,7 +657,10 @@ const handleUpdateNote = ({
                                 teethData[id].cut || teethData[id].implant
                               "
                               :placeholder="teethData[id].implant ? '0' : ''"
-                              class="w-full h-full text-center text-[11px] outline-none disabled:bg-slate-100/50"
+                              class="chart-input w-full h-full text-center text-[11px] outline-none disabled:bg-slate-100/50 focus:bg-white focus:ring-1 focus:ring-[#0052ff] focus:ring-inset"
+                              :data-tooth="id"
+                              data-field="mo"
+                              data-surface="buccal"
                             />
                           </div>
                           <div class="h-6 border-b border-slate-200">
@@ -541,7 +668,10 @@ const handleUpdateNote = ({
                               type="text"
                               v-model="teethData[id].ktw"
                               :disabled="teethData[id].cut"
-                              class="w-full h-full text-center text-[11px] outline-none disabled:bg-slate-100/50"
+                              class="chart-input w-full h-full text-center text-[11px] outline-none disabled:bg-slate-100/50 focus:bg-white focus:ring-1 focus:ring-[#0052ff] focus:ring-inset"
+                              :data-tooth="id"
+                              data-field="ktw"
+                              data-surface="buccal"
                             />
                           </div>
                           <div
@@ -575,6 +705,7 @@ const handleUpdateNote = ({
                               :toothNumber="id"
                               :sitePosition="s"
                               fieldName="bop"
+                              surface="buccal"
                               inputType="toggle"
                               :value="teethData[id].buccal.bop[s]"
                               :disabled="teethData[id].cut"
@@ -597,6 +728,7 @@ const handleUpdateNote = ({
                               :toothNumber="id"
                               :sitePosition="s"
                               fieldName="pi"
+                              surface="buccal"
                               inputType="toggle"
                               :value="teethData[id].buccal.pi[s]"
                               :disabled="teethData[id].cut"
@@ -613,6 +745,7 @@ const handleUpdateNote = ({
                               :toothNumber="id"
                               :sitePosition="s"
                               fieldName="rec"
+                              surface="buccal"
                               inputType="numeric"
                               :value="teethData[id].buccal.rec[s]"
                               :disabled="teethData[id].cut"
@@ -635,6 +768,7 @@ const handleUpdateNote = ({
                               :toothNumber="id"
                               :sitePosition="s"
                               fieldName="pd"
+                              surface="buccal"
                               inputType="numeric"
                               :value="teethData[id].buccal.pd[s]"
                               :disabled="teethData[id].cut"
@@ -651,6 +785,7 @@ const handleUpdateNote = ({
                               :toothNumber="id"
                               :sitePosition="s"
                               fieldName="cal"
+                              surface="buccal"
                               inputType="numeric"
                               :value="teethData[id].buccal.cal[s] || '0'"
                               readonly
@@ -862,39 +997,71 @@ const handleUpdateNote = ({
                               : '',
                           ]"
                         >
-                          <div class="flex h-6 border-b border-slate-200">
-                            <ClinicalInputCell
-                              v-for="s in [0, 1, 2]"
-                              :key="s"
-                              :toothNumber="id"
-                              :sitePosition="s"
-                              fieldName="cal"
-                              inputType="numeric"
-                              :value="teethData[id].lingual.cal[s] || '0'"
-                              readonly
+                          <div class="h-6 border-b border-slate-200 flex items-center justify-center">
+                            <input
+                              type="checkbox"
+                              v-model="teethData[id].implant"
+                              :disabled="teethData[id].cut"
+                              class="chart-input w-3.5 h-3.5 accent-slate-800 disabled:opacity-30 focus:ring-1 focus:ring-[#0052ff] outline-none"
+                              :data-tooth="id"
+                              data-field="implant"
+                              data-surface="lingual"
                             />
                           </div>
-                          <div class="flex h-6 border-b border-slate-200">
-                            <ClinicalInputCell
-                              v-for="s in [0, 1, 2]"
-                              :key="s"
-                              :toothNumber="id"
-                              :sitePosition="s"
-                              fieldName="pd"
-                              inputType="numeric"
-                              :value="teethData[id].lingual.pd[s]"
-                              :disabled="teethData[id].cut"
-                              @change="
-                                (val) =>
-                                  updateClinicalData(
-                                    id,
-                                    'lingual',
-                                    'pd',
-                                    s,
-                                    val,
-                                  )
+                          <div class="h-6 border-b border-slate-200">
+                            <input
+                              type="text"
+                              v-model="teethData[id].mo"
+                              :disabled="
+                                teethData[id].cut || teethData[id].implant
                               "
+                              :placeholder="teethData[id].implant ? '0' : ''"
+                              class="chart-input w-full h-full text-center text-[11px] outline-none disabled:bg-slate-100/50 focus:bg-white focus:ring-1 focus:ring-[#0052ff] focus:ring-inset"
+                              :data-tooth="id"
+                              data-field="mo"
+                              data-surface="lingual"
                             />
+                          </div>
+                          <div class="h-6 border-b border-slate-200">
+                            <input
+                              type="text"
+                              v-model="teethData[id].ktw"
+                              :disabled="teethData[id].cut"
+                              class="chart-input w-full h-full text-center text-[11px] outline-none disabled:bg-slate-100/50 focus:bg-white focus:ring-1 focus:ring-[#0052ff] focus:ring-inset"
+                              :data-tooth="id"
+                              data-field="ktw"
+                              data-surface="lingual"
+                            />
+                          </div>
+                          <div
+                            class="h-6 border-b border-slate-200 flex items-center justify-center gap-1 cursor-pointer select-none text-slate-800"
+                            :class="{
+                              'pointer-events-none opacity-30':
+                                teethData[id].cut || teethData[id].implant,
+                            }"
+                          >
+                            <div
+                              v-for="(grade, fIdx) in teethData[id].fur.lingual"
+                              :key="fIdx"
+                              @click="toggleFur(id, 'lingual', fIdx)"
+                              @keydown.enter.space.prevent="toggleFur(id, 'lingual', fIdx)"
+                              tabindex="0"
+                              class="chart-input flex items-center justify-center w-4 h-4 cursor-pointer outline-none rounded-sm focus:ring-1 focus:ring-[#0052ff] focus:ring-inset"
+                              :data-tooth="id"
+                              data-field="fur"
+                              data-surface="lingual"
+                              :data-site="fIdx"
+                            >
+                              <img
+                                v-if="grade > 0"
+                                :src="getFurImage(grade)"
+                                class="w-3.5 h-3.5 object-contain"
+                              />
+                              <div
+                                v-else
+                                class="w-3 h-3 border border-slate-200 rounded-full bg-white/50"
+                              ></div>
+                            </div>
                           </div>
                           <div class="flex h-6 border-b border-slate-200">
                             <ClinicalInputCell
@@ -902,16 +1069,17 @@ const handleUpdateNote = ({
                               :key="s"
                               :toothNumber="id"
                               :sitePosition="s"
-                              fieldName="rec"
-                              inputType="numeric"
-                              :value="teethData[id].lingual.rec[s]"
+                              fieldName="bop"
+                              surface="lingual"
+                              inputType="toggle"
+                              :value="teethData[id].lingual.bop[s]"
                               :disabled="teethData[id].cut"
                               @change="
                                 (val) =>
                                   updateClinicalData(
                                     id,
                                     'lingual',
-                                    'rec',
+                                    'bop',
                                     s,
                                     val,
                                   )
@@ -925,6 +1093,7 @@ const handleUpdateNote = ({
                               :toothNumber="id"
                               :sitePosition="s"
                               fieldName="pi"
+                              surface="lingual"
                               inputType="toggle"
                               :value="teethData[id].lingual.pi[s]"
                               :disabled="teethData[id].cut"
@@ -946,71 +1115,57 @@ const handleUpdateNote = ({
                               :key="s"
                               :toothNumber="id"
                               :sitePosition="s"
-                              fieldName="bop"
-                              inputType="toggle"
-                              :value="teethData[id].lingual.bop[s]"
+                              fieldName="rec"
+                              surface="lingual"
+                              inputType="numeric"
+                              :value="teethData[id].lingual.rec[s]"
                               :disabled="teethData[id].cut"
                               @change="
                                 (val) =>
                                   updateClinicalData(
                                     id,
                                     'lingual',
-                                    'bop',
+                                    'rec',
                                     s,
                                     val,
                                   )
                               "
                             />
                           </div>
-                          <div
-                            class="h-6 border-b border-slate-200 flex items-center justify-center gap-1 cursor-pointer select-none text-slate-800"
-                            :class="{
-                              'pointer-events-none opacity-30':
-                                teethData[id].cut || teethData[id].implant,
-                            }"
-                          >
-                            <div
-                              v-for="(grade, fIdx) in teethData[id].fur.lingual"
-                              :key="fIdx"
-                              @click="toggleFur(id, 'lingual', fIdx)"
-                              class="flex items-center justify-center w-4 h-4 cursor-pointer"
-                            >
-                              <img
-                                v-if="grade > 0"
-                                :src="getFurImage(grade)"
-                                class="w-3.5 h-3.5 object-contain"
-                              />
-                              <div
-                                v-else
-                                class="w-3 h-3 border border-slate-200 rounded-full bg-white/50"
-                              ></div>
-                            </div>
-                          </div>
-                          <div class="h-6 border-b border-slate-200">
-                            <input
-                              type="text"
-                              v-model="teethData[id].ktw"
+                          <div class="flex h-6 border-b border-slate-200">
+                            <ClinicalInputCell
+                              v-for="s in [0, 1, 2]"
+                              :key="s"
+                              :toothNumber="id"
+                              :sitePosition="s"
+                              fieldName="pd"
+                              surface="lingual"
+                              inputType="numeric"
+                              :value="teethData[id].lingual.pd[s]"
                               :disabled="teethData[id].cut"
-                              class="w-full h-full text-center text-[11px] outline-none disabled:bg-slate-100/50"
-                            />
-                          </div>
-                          <div class="h-6 border-b border-slate-200">
-                            <input
-                              type="text"
-                              v-model="teethData[id].mo"
-                              :disabled="
-                                teethData[id].cut || teethData[id].implant
+                              @change="
+                                (val) =>
+                                  updateClinicalData(
+                                    id,
+                                    'lingual',
+                                    'pd',
+                                    s,
+                                    val,
+                                  )
                               "
-                              :placeholder="teethData[id].implant ? '0' : ''"
-                              class="w-full h-full text-center text-[11px] outline-none disabled:bg-slate-100/50"
                             />
                           </div>
-                          <div class="h-6 flex items-center justify-center">
-                            <input
-                              type="checkbox"
-                              v-model="teethData[id].implant"
-                              :disabled="teethData[id].cut"
-                              class="w-3.5 h-3.5 accent-slate-800 disabled:opacity-30"
+                          <div class="flex h-6 border-slate-200">
+                            <ClinicalInputCell
+                              v-for="s in [0, 1, 2]"
+                              :key="s"
+                              :toothNumber="id"
+                              :sitePosition="s"
+                              fieldName="cal"
+                              surface="lingual"
+                              inputType="numeric"
+                              :value="teethData[id].lingual.cal[s] || '0'"
+                              readonly
                             />
                           </div>
                         </div>
@@ -1060,7 +1215,10 @@ const handleUpdateNote = ({
                               type="checkbox"
                               v-model="teethData[id].implant"
                               :disabled="teethData[id].cut"
-                              class="w-3.5 h-3.5 accent-slate-800 disabled:opacity-30"
+                              class="chart-input w-3.5 h-3.5 accent-slate-800 disabled:opacity-30 focus:ring-1 focus:ring-[#0052ff] outline-none"
+                              :data-tooth="id"
+                              data-field="implant"
+                              data-surface="lingual"
                             />
                           </div>
                           <div class="h-6 border-b border-slate-200">
@@ -1071,7 +1229,10 @@ const handleUpdateNote = ({
                                 teethData[id].cut || teethData[id].implant
                               "
                               :placeholder="teethData[id].implant ? '0' : ''"
-                              class="w-full h-full text-center text-[11px] outline-none disabled:bg-slate-100/50"
+                              class="chart-input w-full h-full text-center text-[11px] outline-none disabled:bg-slate-100/50 focus:bg-white focus:ring-1 focus:ring-[#0052ff] focus:ring-inset"
+                              :data-tooth="id"
+                              data-field="mo"
+                              data-surface="lingual"
                             />
                           </div>
                           <div class="h-6 border-b border-slate-200">
@@ -1079,7 +1240,10 @@ const handleUpdateNote = ({
                               type="text"
                               v-model="teethData[id].ktw"
                               :disabled="teethData[id].cut"
-                              class="w-full h-full text-center text-[11px] outline-none disabled:bg-slate-100/50"
+                              class="chart-input w-full h-full text-center text-[11px] outline-none disabled:bg-slate-100/50 focus:bg-white focus:ring-1 focus:ring-[#0052ff] focus:ring-inset"
+                              :data-tooth="id"
+                              data-field="ktw"
+                              data-surface="lingual"
                             />
                           </div>
                           <div
@@ -1093,7 +1257,13 @@ const handleUpdateNote = ({
                               v-for="(grade, fIdx) in teethData[id].fur.lingual"
                               :key="fIdx"
                               @click="toggleFur(id, 'lingual', fIdx)"
-                              class="flex items-center justify-center w-4 h-4 cursor-pointer"
+                              @keydown.enter.space.prevent="toggleFur(id, 'lingual', fIdx)"
+                              tabindex="0"
+                              class="chart-input flex items-center justify-center w-4 h-4 cursor-pointer outline-none rounded-sm focus:ring-1 focus:ring-[#0052ff] focus:ring-inset"
+                              :data-tooth="id"
+                              data-field="fur"
+                              data-surface="lingual"
+                              :data-site="fIdx"
                             >
                               <img
                                 v-if="grade > 0"
@@ -1113,6 +1283,7 @@ const handleUpdateNote = ({
                               :toothNumber="id"
                               :sitePosition="s"
                               fieldName="bop"
+                              surface="lingual"
                               inputType="toggle"
                               :value="teethData[id].lingual.bop[s]"
                               :disabled="teethData[id].cut"
@@ -1135,6 +1306,7 @@ const handleUpdateNote = ({
                               :toothNumber="id"
                               :sitePosition="s"
                               fieldName="pi"
+                              surface="lingual"
                               inputType="toggle"
                               :value="teethData[id].lingual.pi[s]"
                               :disabled="teethData[id].cut"
@@ -1157,6 +1329,7 @@ const handleUpdateNote = ({
                               :toothNumber="id"
                               :sitePosition="s"
                               fieldName="rec"
+                              surface="lingual"
                               inputType="numeric"
                               :value="teethData[id].lingual.rec[s]"
                               :disabled="teethData[id].cut"
@@ -1179,6 +1352,7 @@ const handleUpdateNote = ({
                               :toothNumber="id"
                               :sitePosition="s"
                               fieldName="pd"
+                              surface="lingual"
                               inputType="numeric"
                               :value="teethData[id].lingual.pd[s]"
                               :disabled="teethData[id].cut"
@@ -1201,6 +1375,7 @@ const handleUpdateNote = ({
                               :toothNumber="id"
                               :sitePosition="s"
                               fieldName="cal"
+                              surface="lingual"
                               inputType="numeric"
                               :value="teethData[id].lingual.cal[s] || '0'"
                               readonly
@@ -1414,16 +1589,93 @@ const handleUpdateNote = ({
                               : '',
                           ]"
                         >
+                          <div class="h-6 border-b border-slate-200 flex items-center justify-center">
+                            <input
+                              type="checkbox"
+                              v-model="teethData[id].implant"
+                              :disabled="teethData[id].cut"
+                              class="chart-input w-3.5 h-3.5 accent-slate-800 disabled:opacity-30 focus:ring-1 focus:ring-[#0052ff] outline-none"
+                              :data-tooth="id"
+                              data-field="implant"
+                              data-surface="buccal"
+                            />
+                          </div>
+                          <div class="h-6 border-b border-slate-200">
+                            <input
+                              type="text"
+                              v-model="teethData[id].mo"
+                              :disabled="
+                                teethData[id].cut || teethData[id].implant
+                              "
+                              :placeholder="teethData[id].implant ? '0' : ''"
+                              class="chart-input w-full h-full text-center text-[11px] outline-none disabled:bg-slate-100/50 focus:bg-white focus:ring-1 focus:ring-[#0052ff] focus:ring-inset"
+                              :data-tooth="id"
+                              data-field="mo"
+                              data-surface="buccal"
+                            />
+                          </div>
+                          <div class="h-6 border-b border-slate-200">
+                            <input
+                              type="text"
+                              v-model="teethData[id].ktw"
+                              :disabled="teethData[id].cut"
+                              class="chart-input w-full h-full text-center text-[11px] outline-none disabled:bg-slate-100/50 focus:bg-white focus:ring-1 focus:ring-[#0052ff] focus:ring-inset"
+                              :data-tooth="id"
+                              data-field="ktw"
+                              data-surface="buccal"
+                            />
+                          </div>
+                          <div
+                            class="h-6 border-b border-slate-200 flex items-center justify-center gap-1 cursor-pointer select-none text-slate-800"
+                            :class="{
+                              'pointer-events-none opacity-30':
+                                teethData[id].cut || teethData[id].implant,
+                            }"
+                          >
+                            <div
+                              v-for="(grade, fIdx) in teethData[id].fur.buccal"
+                              :key="fIdx"
+                              @click="toggleFur(id, 'buccal', fIdx)"
+                              @keydown.enter.space.prevent="toggleFur(id, 'buccal', fIdx)"
+                              tabindex="0"
+                              class="chart-input flex items-center justify-center w-4 h-4 cursor-pointer outline-none rounded-sm focus:ring-1 focus:ring-[#0052ff] focus:ring-inset"
+                              :data-tooth="id"
+                              data-field="fur"
+                              data-surface="buccal"
+                              :data-site="fIdx"
+                            >
+                              <img
+                                v-if="grade > 0"
+                                :src="getFurImage(grade)"
+                                class="w-3.5 h-3.5 object-contain"
+                              />
+                              <div
+                                v-else
+                                class="w-3 h-3 border border-slate-200 rounded-full bg-white/50"
+                              ></div>
+                            </div>
+                          </div>
                           <div class="flex h-6 border-b border-slate-200">
                             <ClinicalInputCell
                               v-for="s in [0, 1, 2]"
                               :key="s"
                               :toothNumber="id"
                               :sitePosition="s"
-                              fieldName="cal"
-                              inputType="numeric"
-                              :value="teethData[id].buccal.cal[s] || '0'"
-                              readonly
+                              fieldName="bop"
+                              surface="buccal"
+                              inputType="toggle"
+                              :value="teethData[id].buccal.bop[s]"
+                              :disabled="teethData[id].cut"
+                              @change="
+                                (val) =>
+                                  updateClinicalData(
+                                    id,
+                                    'buccal',
+                                    'bop',
+                                    s,
+                                    val,
+                                  )
+                              "
                             />
                           </div>
                           <div class="flex h-6 border-b border-slate-200">
@@ -1432,13 +1684,14 @@ const handleUpdateNote = ({
                               :key="s"
                               :toothNumber="id"
                               :sitePosition="s"
-                              fieldName="pd"
-                              inputType="numeric"
-                              :value="teethData[id].buccal.pd[s]"
+                              fieldName="pi"
+                              surface="buccal"
+                              inputType="toggle"
+                              :value="teethData[id].buccal.pi[s]"
                               :disabled="teethData[id].cut"
                               @change="
                                 (val) =>
-                                  updateClinicalData(id, 'buccal', 'pd', s, val)
+                                  updateClinicalData(id, 'buccal', 'pi', s, val)
                               "
                             />
                           </div>
@@ -1449,6 +1702,7 @@ const handleUpdateNote = ({
                               :toothNumber="id"
                               :sitePosition="s"
                               fieldName="rec"
+                              surface="buccal"
                               inputType="numeric"
                               :value="teethData[id].buccal.rec[s]"
                               :disabled="teethData[id].cut"
@@ -1470,87 +1724,28 @@ const handleUpdateNote = ({
                               :key="s"
                               :toothNumber="id"
                               :sitePosition="s"
-                              fieldName="pi"
-                              inputType="toggle"
-                              :value="teethData[id].buccal.pi[s]"
+                              fieldName="pd"
+                              surface="buccal"
+                              inputType="numeric"
+                              :value="teethData[id].buccal.pd[s]"
                               :disabled="teethData[id].cut"
                               @change="
                                 (val) =>
-                                  updateClinicalData(id, 'buccal', 'pi', s, val)
+                                  updateClinicalData(id, 'buccal', 'pd', s, val)
                               "
                             />
                           </div>
-                          <div class="flex h-6 border-b border-slate-200">
+                          <div class="flex h-6 border-slate-200">
                             <ClinicalInputCell
                               v-for="s in [0, 1, 2]"
                               :key="s"
                               :toothNumber="id"
                               :sitePosition="s"
-                              fieldName="bop"
-                              inputType="toggle"
-                              :value="teethData[id].buccal.bop[s]"
-                              :disabled="teethData[id].cut"
-                              @change="
-                                (val) =>
-                                  updateClinicalData(
-                                    id,
-                                    'buccal',
-                                    'bop',
-                                    s,
-                                    val,
-                                  )
-                              "
-                            />
-                          </div>
-                          <div
-                            class="h-6 border-b border-slate-200 flex items-center justify-center gap-1 cursor-pointer select-none text-slate-800"
-                            :class="{
-                              'pointer-events-none opacity-30':
-                                teethData[id].cut || teethData[id].implant,
-                            }"
-                          >
-                            <div
-                              v-for="(grade, fIdx) in teethData[id].fur.buccal"
-                              :key="fIdx"
-                              @click="toggleFur(id, 'buccal', fIdx)"
-                              class="flex items-center justify-center w-4 h-4 cursor-pointer"
-                            >
-                              <img
-                                v-if="grade > 0"
-                                :src="getFurImage(grade)"
-                                class="w-3.5 h-3.5 object-contain"
-                              />
-                              <div
-                                v-else
-                                class="w-3 h-3 border border-slate-200 rounded-full bg-white/50"
-                              ></div>
-                            </div>
-                          </div>
-                          <div class="h-6 border-b border-slate-200">
-                            <input
-                              type="text"
-                              v-model="teethData[id].ktw"
-                              :disabled="teethData[id].cut"
-                              class="w-full h-full text-center text-[11px] outline-none disabled:bg-slate-100/50"
-                            />
-                          </div>
-                          <div class="h-6 border-b border-slate-200">
-                            <input
-                              type="text"
-                              v-model="teethData[id].mo"
-                              :disabled="
-                                teethData[id].cut || teethData[id].implant
-                              "
-                              :placeholder="teethData[id].implant ? '0' : ''"
-                              class="w-full h-full text-center text-[11px] outline-none disabled:bg-slate-100/50"
-                            />
-                          </div>
-                          <div class="h-6 flex items-center justify-center">
-                            <input
-                              type="checkbox"
-                              v-model="teethData[id].implant"
-                              :disabled="teethData[id].cut"
-                              class="w-3.5 h-3.5 accent-slate-800 disabled:opacity-30"
+                              fieldName="cal"
+                              surface="buccal"
+                              inputType="numeric"
+                              :value="teethData[id].buccal.cal[s] || '0'"
+                              readonly
                             />
                           </div>
                           <div

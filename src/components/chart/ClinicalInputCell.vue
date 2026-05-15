@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref } from "vue";
 
 interface Props {
   toothNumber: number | string;
   sitePosition: number; // 0, 1, 2
   fieldName: string;
+  surface: string; // 'buccal' or 'lingual'
   value: any;
   inputType: "numeric" | "toggle";
   validationState?: "valid" | "invalid" | "none";
@@ -21,6 +22,8 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits<{
   (e: "change", value: any): void;
 }>();
+
+
 
 // Determine if the text should be red (clinical threshold)
 const isCriticalValue = computed(() => {
@@ -76,7 +79,11 @@ const containerClasses = computed(() => ({
         :disabled="disabled"
         :readonly="readonly"
         @input="handleInput"
-        class="w-full h-full text-center text-[10px] outline-none bg-transparent transition-colors focus:bg-white focus:ring-1 focus:ring-[#0052ff] focus:ring-inset z-10"
+        :data-tooth="toothNumber"
+        :data-surface="surface"
+        :data-field="fieldName"
+        :data-site="sitePosition"
+        class="chart-input w-full h-full text-center text-[10px] outline-none bg-transparent transition-colors focus:bg-white focus:ring-1 focus:ring-[#0052ff] focus:ring-inset z-10"
         :class="[
           isCriticalValue ? 'text-red-600 font-extrabold' : 'text-slate-700',
           readonly ? 'font-bold cursor-default' : 'cursor-text font-medium',
@@ -88,9 +95,24 @@ const containerClasses = computed(() => ({
     <template v-else-if="inputType === 'toggle'">
       <div
         @click="handleToggle"
-        class="w-full h-full cursor-pointer transition-all duration-150 flex items-center justify-center"
-        :class="[toggleColorClass, !value ? 'hover:bg-slate-100/50' : '']"
-      ></div>
+        @keydown.enter.space.prevent="handleToggle"
+        tabindex="0"
+        :data-tooth="toothNumber"
+        :data-surface="surface"
+        :data-field="fieldName"
+        :data-site="sitePosition"
+        class="chart-input w-full h-full cursor-pointer transition-all duration-150 outline-none flex items-center justify-center focus:ring-1 focus:ring-[#0052ff] focus:ring-inset"
+        :class="[toggleColorClass]"
+      >
+        <div
+          v-if="value"
+          class="w-full h-full opacity-100"
+        ></div>
+        <div
+          v-else
+          class="w-1.5 h-1.5 rounded-full bg-slate-200/50 group-hover:bg-slate-300 transition-colors"
+        ></div>
+      </div>
     </template>
 
     <!-- Focus Indicator (Subtle) -->
