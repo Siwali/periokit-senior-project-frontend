@@ -39,13 +39,14 @@ const cancelEditing = () => {
 
 const analysisData = computed(() => {
   if (!props.toothData) return null
+  const isImplant = props.toothData.implant
   return {
-    prognosisKC: props.toothData.prognosisKC || "N/A",
-    prognosisMN: props.toothData.prognosisMN || "N/A",
+    prognosisKC: isImplant ? (props.toothData.prognosisKC || "Favorable") : (props.toothData.prognosisKC || "N/A"),
+    prognosisMN: isImplant ? (props.toothData.prognosisMN || "Good") : (props.toothData.prognosisMN || "N/A"),
     buccalKTW: props.toothData.ktw || "0",
     palatalKTW: props.toothData.ktw || "0", // Uses same KTW state unless decoupled later
-    mobility: props.toothData.mo || "0",
-    furcation: props.toothData.fur?.buccal?.[0] || 0
+    mobility: isImplant ? "Fixed" : (props.toothData.mo || "0"),
+    furcation: isImplant ? null : (props.toothData.fur?.buccal?.[0] || 0)
   }
 })
 
@@ -76,7 +77,7 @@ const getFurLabel = (grade: number) => {
     <div class="flex-1 overflow-y-auto p-6 space-y-8 scrollbar-hide">
       
       <!-- PD Section -->
-      <section>
+      <section :class="{ 'opacity-40 grayscale pointer-events-none': toothData.cut }">
         <h3 class="text-[11px] font-black text-slate-400 uppercase tracking-[0.15em] mb-4">PD</h3>
         <div class="grid grid-cols-2 gap-4">
           <!-- Buccal Card -->
@@ -103,7 +104,7 @@ const getFurLabel = (grade: number) => {
       </section>
 
       <!-- CAL Section -->
-      <section>
+      <section :class="{ 'opacity-40 grayscale pointer-events-none': toothData.cut }">
         <h3 class="text-[11px] font-black text-slate-400 uppercase tracking-[0.15em] mb-4">CAL</h3>
         <div class="grid grid-cols-2 gap-4">
           <!-- Buccal Card -->
@@ -130,7 +131,7 @@ const getFurLabel = (grade: number) => {
       </section>
 
       <!-- Visual Indicators Section -->
-      <section class="grid grid-cols-2 gap-4">
+      <section class="grid grid-cols-2 gap-4" :class="{ 'opacity-40 grayscale pointer-events-none': toothData.cut }">
         <!-- BoP Diagram -->
         <div class="bg-slate-50/50 border border-slate-100 rounded-2xl p-5 flex flex-col items-center">
           <div class="relative w-16 h-16 mb-4">
@@ -176,7 +177,7 @@ const getFurLabel = (grade: number) => {
       </section>
 
       <!-- Analysis Summary -->
-      <section class="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm">
+      <section class="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm" :class="{ 'opacity-40 grayscale pointer-events-none': toothData.cut }">
         <h3 class="text-[13px] font-black text-slate-800 mb-6">
           Analysis Summary
         </h3>
@@ -222,9 +223,9 @@ const getFurLabel = (grade: number) => {
           </div>
           <div class="flex justify-between items-center">
             <span class="text-[11px] font-bold text-slate-400">Mobility</span>
-            <span class="text-[11px] font-black text-slate-700">Grade {{ analysisData?.mobility }}</span>
+            <span class="text-[11px] font-black text-slate-700">{{ analysisData?.mobility === 'Fixed' ? 'Fixed (0)' : 'Grade ' + analysisData?.mobility }}</span>
           </div>
-          <div class="flex justify-between items-center">
+          <div v-if="!toothData.implant" class="flex justify-between items-center">
             <span class="text-[11px] font-bold text-slate-400">Furcation</span>
             <span class="text-[11px] font-black text-slate-700">{{ getFurLabel(analysisData?.furcation) }}</span>
           </div>
