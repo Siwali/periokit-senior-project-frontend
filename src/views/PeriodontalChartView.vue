@@ -251,42 +251,45 @@ const handleUpdateNote = ({ id, note }: { id: string | number, note: string }) =
                 <div class="w-40"></div>
               </div>
 
-              <div class="grid grid-cols-12 gap-y-4 gap-x-4 items-center">
-                <div class="col-span-3 flex items-center gap-2">
-                  <span class="text-xs font-bold text-slate-400 uppercase">Date:</span>
-                  <input type="date" v-model="patientInfo.date" class="bg-slate-50 border border-slate-100 rounded-lg px-3 py-1.5 text-xs font-bold w-full" />
+              <div class="grid grid-cols-12 gap-y-4 gap-x-6 items-center">
+                <!-- Row 1: Date, Doctor, Student ID -->
+                <div class="col-span-2 flex items-center gap-2">
+                  <span class="text-[10px] font-bold text-slate-400 uppercase whitespace-nowrap shrink-0">Date:</span>
+                  <input type="date" v-model="patientInfo.date" class="bg-slate-50 border border-slate-100 rounded-lg px-2 py-1.5 text-xs font-bold w-full outline-none focus:ring-2 focus:ring-blue-100 transition-all" />
                 </div>
                 <div class="col-span-6 flex items-center gap-2">
-                  <span class="text-xs font-bold text-slate-400 uppercase">Doctor:</span>
-                  <input type="text" v-model="patientInfo.doctor" class="bg-slate-50 border border-slate-100 rounded-lg px-3 py-1.5 text-xs font-bold w-full" />
-                </div>
-                <div class="col-span-3 flex items-center gap-2">
-                  <span class="text-xs font-bold text-slate-400 uppercase">Student ID:</span>
-                  <input type="text" v-model="patientInfo.studentId" class="bg-slate-50 border border-slate-100 rounded-lg px-3 py-1.5 text-xs font-bold w-full" />
+                  <span class="text-[10px] font-bold text-slate-400 uppercase whitespace-nowrap shrink-0">Doctor:</span>
+                  <input type="text" v-model="patientInfo.doctor" class="bg-slate-50 border border-slate-100 rounded-lg px-3 py-1.5 text-xs font-bold w-full outline-none focus:ring-2 focus:ring-blue-100 transition-all" />
                 </div>
                 <div class="col-span-4 flex items-center gap-2">
-                  <span class="text-xs font-bold text-slate-400 uppercase">Patient:</span>
-                  <input type="text" v-model="patientInfo.patientName" placeholder="Full Name" class="bg-slate-50 border border-slate-100 rounded-lg px-3 py-1.5 text-xs font-bold w-full" />
+                  <span class="text-[10px] font-bold text-slate-400 uppercase whitespace-nowrap shrink-0">Student ID:</span>
+                  <input type="text" v-model="patientInfo.studentId" class="bg-slate-50 border border-slate-100 rounded-lg px-3 py-1.5 text-xs font-bold w-full outline-none focus:ring-2 focus:ring-blue-100 transition-all" />
+                </div>
+
+                <!-- Row 2: Patient, Age, Nationality, Gender -->
+                <div class="col-span-4 flex items-center gap-2">
+                  <span class="text-[10px] font-bold text-slate-400 uppercase whitespace-nowrap shrink-0">Patient:</span>
+                  <input type="text" v-model="patientInfo.patientName" placeholder="Full Name" class="bg-slate-50 border border-slate-100 rounded-lg px-3 py-1.5 text-xs font-bold w-full outline-none focus:ring-2 focus:ring-blue-100 transition-all" />
                 </div>
                 <div class="col-span-2 flex items-center gap-2">
-                  <span class="text-xs font-bold text-slate-400 uppercase">Age:</span>
-                  <input type="number" v-model="patientInfo.age" placeholder="0" class="bg-slate-50 border border-slate-100 rounded-lg px-3 py-1.5 text-xs font-bold w-12" />
-                  <span class="text-[10px] font-bold text-slate-400">Y/O</span>
+                  <span class="text-[10px] font-bold text-slate-400 uppercase whitespace-nowrap shrink-0">Age:</span>
+                  <input type="number" v-model="patientInfo.age" placeholder="0" class="bg-slate-50 border border-slate-100 rounded-lg px-3 py-1.5 text-xs font-bold w-full outline-none focus:ring-2 focus:ring-blue-100 transition-all" />
                 </div>
                 <div class="col-span-3 flex items-center gap-2">
-                  <span class="text-xs font-bold text-slate-400 uppercase">Nationality:</span>
-                  <input type="text" v-model="patientInfo.nationality" placeholder="e.g. Thai" class="bg-slate-50 border border-slate-100 rounded-lg px-3 py-1.5 text-xs font-bold w-full" />
+                  <span class="text-[10px] font-bold text-slate-400 uppercase whitespace-nowrap shrink-0">Nationality:</span>
+                  <input type="text" v-model="patientInfo.nationality" placeholder="e.g. Thai" class="bg-slate-50 border border-slate-100 rounded-lg px-3 py-1.5 text-xs font-bold w-full outline-none focus:ring-2 focus:ring-blue-100 transition-all" />
                 </div>
-                <div class="col-span-3 flex items-center gap-6 pl-4">
-                  <span class="text-xs font-bold text-slate-400 uppercase">Gender:</span>
-                  <div class="flex gap-4">
-                    <label v-for="g in ['Male', 'Female']" :key="g" class="flex items-center gap-2 cursor-pointer">
-                      <input type="radio" :value="g" v-model="patientInfo.gender" class="w-3.5 h-3.5 text-[#0052ff]" />
-                      <span class="text-xs font-bold text-slate-600">{{ g }}</span>
+                <div class="col-span-3 flex items-center gap-4 pl-2">
+                  <span class="text-[10px] font-bold text-slate-400 uppercase whitespace-nowrap shrink-0">Gender:</span>
+                  <div class="flex gap-3">
+                    <label v-for="g in ['Male', 'Female']" :key="g" class="flex items-center gap-1.5 cursor-pointer group">
+                      <input type="radio" :value="g" v-model="patientInfo.gender" class="w-3.5 h-3.5 text-[#0052ff] border-slate-300 focus:ring-blue-100" />
+                      <span class="text-[11px] font-bold text-slate-600 group-hover:text-[#0052ff] transition-colors">{{ g }}</span>
                     </label>
                   </div>
                 </div>
               </div>
+
             </div>
           </section>
 
