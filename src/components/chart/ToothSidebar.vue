@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { X, Activity } from 'lucide-vue-next'
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
+
+const showPrognosisInfo = ref(false)
 
 const props = defineProps<{
   toothId: number | string | null
@@ -151,20 +153,39 @@ const getFurLabel = (grade: number) => {
 
       <!-- Analysis Summary -->
       <section class="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm">
-        <h3 class="text-[13px] font-black text-slate-800 mb-6 flex items-center gap-2">
+        <h3 class="text-[13px] font-black text-slate-800 mb-6">
           Analysis Summary
         </h3>
         <div class="space-y-5">
-          <div class="flex justify-between gap-4">
-            <span class="text-[11px] font-bold text-slate-400">Prognosis K&C</span>
+          <!-- Prognosis K&C Row -->
+          <div 
+            @click="showPrognosisInfo = true" 
+            class="flex justify-between gap-4 cursor-pointer group"
+          >
+            <div class="flex items-center gap-1.5">
+              <span class="text-[11px] font-bold text-slate-400 border-b border-dotted border-slate-300 group-hover:text-[#0052ff] group-hover:border-[#0052ff] transition-all">
+                Prognosis K&C
+              </span>
+              <svg class="text-slate-200 group-hover:text-[#0052ff] transition-colors" xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+            </div>
             <span class="text-[11px] font-bold text-[#3b82f6] text-right max-w-[180px] leading-relaxed">
-              {{ analysisData?.prognosisKC }}
+              {{ analysisData?.prognosisKC || 'N/A' }}
             </span>
           </div>
-          <div class="flex justify-between gap-4">
-            <span class="text-[11px] font-bold text-slate-400">Prognosis M&N</span>
+
+          <!-- Prognosis M&N Row -->
+          <div 
+            @click="showPrognosisInfo = true" 
+            class="flex justify-between gap-4 cursor-pointer group"
+          >
+            <div class="flex items-center gap-1.5">
+              <span class="text-[11px] font-bold text-slate-400 border-b border-dotted border-slate-300 group-hover:text-[#0052ff] group-hover:border-[#0052ff] transition-all">
+                Prognosis M&N
+              </span>
+              <svg class="text-slate-200 group-hover:text-[#0052ff] transition-colors" xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+            </div>
             <span class="text-[11px] font-bold text-[#3b82f6] text-right max-w-[180px] leading-relaxed">
-              {{ analysisData?.prognosisMN }}
+              {{ analysisData?.prognosisMN || 'N/A' }}
             </span>
           </div>
           <div class="flex justify-between items-center pt-2">
@@ -196,22 +217,121 @@ const getFurLabel = (grade: number) => {
 
     <!-- Footer Action -->
     <div class="p-6 bg-white border-t border-slate-50">
-      <button class="w-full py-4 bg-slate-50 hover:bg-slate-100 rounded-2xl text-[11px] font-black text-slate-500 uppercase tracking-widest transition-all active:scale-95">
-        Detailed Assessment
+      <button class="w-full py-4 bg-slate-50 hover:bg-blue-50 border border-slate-100 hover:border-blue-200 rounded-2xl text-[11px] font-black text-slate-400 hover:text-blue-600 uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-2">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        Add Clinical Note
       </button>
     </div>
   </div>
   
-  <!-- Empty State -->
-  <div v-else class="flex flex-col items-center justify-center h-full p-10 text-center bg-slate-50/30 rounded-3xl border-2 border-dashed border-slate-100">
-    <div class="w-20 h-20 bg-white rounded-3xl flex items-center justify-center mb-6 text-slate-200 shadow-sm border border-slate-50">
-      <Activity class="w-10 h-10" />
-    </div>
-    <h3 class="text-sm font-black text-slate-800 uppercase tracking-tight mb-2">No Tooth Selected</h3>
-    <p class="text-xs font-bold text-slate-400 leading-relaxed max-w-[200px] mx-auto">
-      Select a tooth from the chart to view clinical analysis
-    </p>
-  </div>
+
+  <!-- Prognosis Reference Modal -->
+  <Teleport to="body">
+    <Transition
+      enter-active-class="transition duration-300 ease-out"
+      enter-from-class="opacity-0"
+      enter-to-class="opacity-100"
+      leave-active-class="transition duration-200 ease-in"
+      leave-from-class="opacity-100"
+      leave-to-class="opacity-0"
+    >
+      <div v-if="showPrognosisInfo" class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+        <div 
+          class="bg-white w-full max-w-2xl max-h-[85vh] overflow-y-auto rounded-[32px] shadow-2xl"
+          @click.stop
+        >
+          <div class="sticky top-0 bg-white/80 backdrop-blur-md px-8 py-6 border-b border-slate-50 flex items-center justify-between z-10">
+            <h2 class="text-lg font-black text-slate-800 tracking-tight">Prognosis Classification Systems</h2>
+            <button @click="showPrognosisInfo = false" class="w-10 h-10 flex items-center justify-center rounded-full bg-slate-50 text-slate-400 hover:text-slate-600 transition-all">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+
+          <div class="p-8 space-y-10">
+            <!-- Table 1: McGuire and Nunn -->
+            <div>
+              <div class="flex items-center gap-3 mb-5">
+                <span class="bg-red-500 text-white text-[10px] font-black px-2 py-1 rounded-md uppercase tracking-wider">Table 1</span>
+                <h3 class="text-sm font-black text-slate-800 uppercase tracking-wide">McGuire and Nunn (M&N)</h3>
+              </div>
+              <div class="overflow-hidden border border-slate-100 rounded-2xl shadow-sm">
+                <table class="w-full text-left border-collapse">
+                  <thead>
+                    <tr class="bg-slate-50">
+                      <th class="px-4 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 w-32">Prognosis</th>
+                      <th class="px-4 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">Criteria</th>
+                    </tr>
+                  </thead>
+                  <tbody class="text-[11px] font-medium text-slate-600">
+                    <tr class="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
+                      <td class="px-4 py-4 font-black text-green-600 bg-green-50/30">Good</td>
+                      <td class="px-4 py-4 leading-relaxed italic">Control of etiologic factors and enough support to enable the tooth to be maintained by the patient and clinician.</td>
+                    </tr>
+                    <tr class="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
+                      <td class="px-4 py-4 font-black text-blue-600 bg-blue-50/30">Fair</td>
+                      <td class="px-4 py-4 leading-relaxed italic">~25% attachment loss, Class I furcation. Adequate maintenance possible.</td>
+                    </tr>
+                    <tr class="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
+                      <td class="px-4 py-4 font-black text-yellow-600 bg-yellow-50/30">Poor</td>
+                      <td class="px-4 py-4 leading-relaxed italic">50% attachment loss, Class II furcation. Maintenance difficult.</td>
+                    </tr>
+                    <tr class="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
+                      <td class="px-4 py-4 font-black text-orange-600 bg-orange-50/30">Questionable</td>
+                      <td class="px-4 py-4 leading-relaxed italic">> 50% attachment loss, Class II/III furcation, Class II mobility, poor crown/root ratio.</td>
+                    </tr>
+                    <tr class="hover:bg-slate-50/50 transition-colors">
+                      <td class="px-4 py-4 font-black text-red-600 bg-red-50/30">Hopeless</td>
+                      <td class="px-4 py-4 leading-relaxed italic">Severe attachment loss; extraction suggested.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Table 2: Kwok and Caton -->
+            <div>
+              <div class="flex items-center gap-3 mb-5">
+                <span class="bg-blue-500 text-white text-[10px] font-black px-2 py-1 rounded-md uppercase tracking-wider">Table 2</span>
+                <h3 class="text-sm font-black text-slate-800 uppercase tracking-wide">Kwok and Caton (K&C)</h3>
+              </div>
+              <div class="overflow-hidden border border-slate-100 rounded-2xl shadow-sm">
+                <table class="w-full text-left border-collapse">
+                  <thead>
+                    <tr class="bg-slate-50">
+                      <th class="px-4 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 w-32">Prognosis</th>
+                      <th class="px-4 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">Classification</th>
+                    </tr>
+                  </thead>
+                  <tbody class="text-[11px] font-medium text-slate-600">
+                    <tr class="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
+                      <td class="px-4 py-4 font-black text-green-600 bg-green-50/30">Favorable</td>
+                      <td class="px-4 py-4 leading-relaxed italic">Can be stabilized with treatment/maintenance; less chance of breakdown.</td>
+                    </tr>
+                    <tr class="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
+                      <td class="px-4 py-4 font-black text-orange-600 bg-orange-50/30">Questionable</td>
+                      <td class="px-4 py-4 leading-relaxed italic">Influenced by local/systemic factors that may or may not be controlled.</td>
+                    </tr>
+                    <tr class="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
+                      <td class="px-4 py-4 font-black text-red-600 bg-red-50/30">Unfavorable</td>
+                      <td class="px-4 py-4 leading-relaxed italic">Influenced by factors that cannot be controlled; maintenance unlikely.</td>
+                    </tr>
+                    <tr class="hover:bg-slate-50/50 transition-colors">
+                      <td class="px-4 py-4 font-black text-black bg-slate-50/30">Hopeless</td>
+                      <td class="px-4 py-4 leading-relaxed italic">Must be extracted.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+          
+          <div class="p-8 bg-slate-50/50 border-t border-slate-50 text-center rounded-b-[32px]">
+            <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest italic">Reference: Clinical Periodontology Standards</p>
+          </div>
+        </div>
+      </div>
+    </Transition>
+  </Teleport>
 </template>
 
 <style scoped>
