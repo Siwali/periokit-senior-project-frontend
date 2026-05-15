@@ -63,7 +63,7 @@ const getFurLabel = (grade: number) => {
       <div>
         <div class="flex items-center gap-3">
           <h2 class="text-3xl font-black text-slate-800 tracking-tight">#{{ toothId }}</h2>
-          <span v-if="toothData.cut" class="px-2 py-1 bg-red-50 text-red-500 rounded border border-red-100 text-[9px] font-black uppercase tracking-wider">Missing</span>
+          <span v-if="toothData.extracted" class="px-2 py-1 bg-red-50 text-red-500 rounded border border-red-100 text-[9px] font-black uppercase tracking-wider">Missing</span>
           <span v-if="toothData.implant" class="px-2 py-1 bg-slate-100 text-slate-500 rounded border border-slate-200 text-[9px] font-black uppercase tracking-wider">Implant</span>
         </div>
         <p class="text-xs font-bold text-slate-400 uppercase tracking-widest mt-0.5">Tooth Details</p>
@@ -77,7 +77,7 @@ const getFurLabel = (grade: number) => {
     <div class="flex-1 overflow-y-auto p-6 space-y-8 scrollbar-hide">
       
       <!-- PD Section -->
-      <section :class="{ 'opacity-40 grayscale pointer-events-none': toothData.cut }">
+      <section :class="{ 'opacity-40 grayscale pointer-events-none': toothData.extracted }">
         <h3 class="text-[11px] font-black text-slate-400 uppercase tracking-[0.15em] mb-4">PD</h3>
         <div class="grid grid-cols-2 gap-4">
           <!-- Buccal Card -->
@@ -104,7 +104,7 @@ const getFurLabel = (grade: number) => {
       </section>
 
       <!-- CAL Section -->
-      <section :class="{ 'opacity-40 grayscale pointer-events-none': toothData.cut }">
+      <section :class="{ 'opacity-40 grayscale pointer-events-none': toothData.extracted }">
         <h3 class="text-[11px] font-black text-slate-400 uppercase tracking-[0.15em] mb-4">CAL</h3>
         <div class="grid grid-cols-2 gap-4">
           <!-- Buccal Card -->
@@ -131,7 +131,7 @@ const getFurLabel = (grade: number) => {
       </section>
 
       <!-- Visual Indicators Section -->
-      <section class="grid grid-cols-2 gap-4" :class="{ 'opacity-40 grayscale pointer-events-none': toothData.cut }">
+      <section class="grid grid-cols-2 gap-4" :class="{ 'opacity-40 grayscale pointer-events-none': toothData.extracted }">
         <!-- BoP Diagram -->
         <div class="bg-slate-50/50 border border-slate-100 rounded-2xl p-5 flex flex-col items-center">
           <div class="relative w-16 h-16 mb-4">
@@ -177,7 +177,7 @@ const getFurLabel = (grade: number) => {
       </section>
 
       <!-- Analysis Summary -->
-      <section class="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm" :class="{ 'opacity-40 grayscale pointer-events-none': toothData.cut }">
+      <section class="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm" :class="{ 'opacity-40 grayscale pointer-events-none': toothData.extracted }">
         <h3 class="text-[13px] font-black text-slate-800 mb-6">
           Analysis Summary
         </h3>
