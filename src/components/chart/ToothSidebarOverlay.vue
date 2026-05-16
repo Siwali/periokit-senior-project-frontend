@@ -14,19 +14,24 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <Teleport to="body">
-    <Transition name="sidebar-focus">
-      <aside
-        v-if="isOpen && toothId"
-        class="fixed top-0 right-0 z-[60] w-[360px] h-full shadow-[-20px_0_50px_-15px_rgba(0,0,0,0.15)]"
-      >
-        <ToothSidebar
-          :toothId="toothId"
-          :toothData="toothData"
-          @close="emit('close')"
-          @update-note="($event) => emit('update-note', $event)"
-        />
-      </aside>
-    </Transition>
-  </Teleport>
+  <Transition
+    enter-active-class="transition ease-out duration-300"
+    enter-from-class="translate-x-full opacity-0"
+    enter-to-class="translate-x-0 opacity-100"
+    leave-active-class="transition ease-in duration-200"
+    leave-from-class="translate-x-0 opacity-100"
+    leave-to-class="translate-x-full opacity-0"
+  >
+    <aside
+      v-if="isOpen && toothId"
+      class="w-80 sticky top-32 h-[calc(100vh-160px)] flex-shrink-0"
+    >
+      <ToothSidebar
+        :toothId="toothId"
+        :toothData="toothData"
+        @close="emit('close')"
+        @update-note="($event) => emit('update-note', $event)"
+      />
+    </aside>
+  </Transition>
 </template>

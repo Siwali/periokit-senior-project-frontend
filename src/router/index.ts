@@ -21,7 +21,7 @@ const router = createRouter({
     {
       path: "/chart",
       name: "home",
-      component: () => import("../views/PeriodontalChartView.vue"),
+      component: () => import("../views/PeriodontalChartPage.vue"),
       meta: { requiresAuth: true },
     },
     {

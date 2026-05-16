@@ -2,7 +2,7 @@
  * Clinical Validation Composable
  */
 
-import { ref, computed, reactive } from "vue";
+import { reactive } from "vue";
 
 export const useClinicalValidation = () => {
   interface ValidationState {

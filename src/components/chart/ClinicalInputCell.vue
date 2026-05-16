@@ -93,7 +93,7 @@ const handleInput = (event: Event) => {
       // Store pending value and show confirmation
       pendingValue.value = filteredValue;
       target.value = ""; // Clear input while showing confirmation
-      warningMessage.value = `${getFieldDisplayName(props.fieldName)}: ${filteredValue} (เกินเกณฑ์)`;
+      warningMessage.value = `${getFieldDisplayName(props.fieldName)}: ${filteredValue} (Exceeds threshold)`;
       showWarning.value = true;
       return;
     }
@@ -166,9 +166,25 @@ const containerClasses = computed(() => ({
       >
         <div
           v-if="showWarning"
-          class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-red-600 text-white text-[9px] font-bold rounded-md whitespace-nowrap z-50 shadow-lg pointer-events-none"
+          class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-red-600 text-white text-[9px] font-bold rounded-md whitespace-nowrap z-50 shadow-lg"
         >
           {{ warningMessage }}
+          <div v-if="pendingValue" class="mt-1 flex items-center justify-center gap-1">
+            <button
+              type="button"
+              class="rounded bg-white/20 px-1.5 py-0.5 hover:bg-white/30"
+              @click.stop="confirmAbnormalValue"
+            >
+              Use
+            </button>
+            <button
+              type="button"
+              class="rounded bg-white/20 px-1.5 py-0.5 hover:bg-white/30"
+              @click.stop="rejectAbnormalValue"
+            >
+              Clear
+            </button>
+          </div>
           <div class="absolute top-full left-1/2 -translate-x-1/2 -mt-px">
             <div class="border-4 border-transparent border-t-red-600"></div>
           </div>
@@ -181,7 +197,8 @@ const containerClasses = computed(() => ({
       <div
         @click="handleToggle"
         @keydown.enter.space.prevent="handleToggle"
-        tabindex="0"
+        :tabindex="disabled || readonly ? -1 : 0"
+        :aria-disabled="disabled || readonly"
         :data-tooth="toothNumber"
         :data-surface="surface"
         :data-field="fieldName"

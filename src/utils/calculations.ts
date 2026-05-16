@@ -20,7 +20,7 @@ export const calculateCALValue = (
  * Calculates McGuire and Nunn (M&N) Prognosis
  */
 export const calculatePrognosisMN = (data: any): string => {
-  if (!data || data.cut) return "N/A";
+  if (!data || data.cut || data.extracted) return "N/A";
   if (data.implant) return "Good (Fixed)";
 
   // Get all CAL values
@@ -54,7 +54,7 @@ export const calculatePrognosisMN = (data: any): string => {
  * Calculates Kwok and Caton (K&C) Prognosis
  */
 export const calculatePrognosisKC = (data: any): string => {
-  if (!data || data.cut) return "N/A";
+  if (!data || data.cut || data.extracted) return "N/A";
   if (data.implant) return "Favorable"; // Implants are generally considered favorable if stable
 
   const mn = calculatePrognosisMN(data);
@@ -86,7 +86,7 @@ export const calculatePercentage = (active: number, total: number): string => {
  * Calculates BOP percentage for a single tooth (6 sites)
  */
 export const calculateToothBopPercentage = (data: any): string => {
-  if (!data || data.cut) return "0%";
+  if (!data || data.cut || data.extracted) return "0%";
   const buccalBop = data.buccal?.bop || [];
   const lingualBop = data.lingual?.bop || [];
   const activeCount = [...buccalBop, ...lingualBop].filter(
@@ -99,7 +99,7 @@ export const calculateToothBopPercentage = (data: any): string => {
  * Calculates PI percentage for a single tooth (6 sites)
  */
 export const calculateToothPiPercentage = (data: any): string => {
-  if (!data || data.cut) return "0%";
+  if (!data || data.cut || data.extracted) return "0%";
   const buccalPi = data.buccal?.pi || [];
   const lingualPi = data.lingual?.pi || [];
   const activeCount = [...buccalPi, ...lingualPi].filter(
