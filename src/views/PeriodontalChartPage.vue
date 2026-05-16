@@ -87,7 +87,7 @@ const handleUpdateNote = ({ id, note }: { id: ToothId; note: string }) => {
       <div class="flex gap-6 transition-all duration-500">
         <ChartLegend />
 
-        <div class="w-[1008px] max-w-full flex-shrink-0 flex flex-col gap-0 transition-all duration-500">
+        <div class="w-[1020px] max-w-full flex-shrink-0 flex flex-col gap-0 transition-all duration-500">
           <div class="flex items-center gap-0 relative z-10">
             <div class="bg-white px-6 py-2.5 rounded-t-xl border-t border-l border-r border-slate-200 text-[11px] font-black text-[#0052ff] flex items-center gap-3 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] -mb-[1px]">
               CHART 1
