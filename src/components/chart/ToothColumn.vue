@@ -8,6 +8,7 @@ const props = defineProps<{
   id: ToothId
   toothData: ToothData
   surface: Surface
+  section?: string
   selected: boolean
   midline?: boolean
   headerPosition?: 'top' | 'bottom' | 'none'
@@ -61,6 +62,7 @@ const getToothColumnStyle = (id: ToothId) => {
       <div class="h-6 border-b border-slate-400 flex items-center justify-center"><input v-model="toothData.implant" type="checkbox" :disabled="toothData.extracted" class="w-3.5 h-3.5 accent-slate-800 disabled:opacity-30" /></div>
       <div class="flex h-6 border-b border-slate-400">
         <ClinicalInputCell
+          :section="section"
           :tooth-number="id"
           :site-position="0"
           field-name="mo"
@@ -75,6 +77,7 @@ const getToothColumnStyle = (id: ToothId) => {
       </div>
       <div class="flex h-6 border-b border-slate-400">
         <ClinicalInputCell
+          :section="section"
           :tooth-number="id"
           :site-position="0"
           field-name="ktw"
@@ -101,6 +104,7 @@ const getToothColumnStyle = (id: ToothId) => {
           :site-position="site"
           field-name="bop"
           :surface="surface"
+          :section="section"
           input-type="toggle"
           :value="toothData[surface].bop[site]"
           :disabled="toothData.extracted"
@@ -115,6 +119,7 @@ const getToothColumnStyle = (id: ToothId) => {
           :site-position="site"
           field-name="pi"
           :surface="surface"
+          :section="section"
           input-type="toggle"
           :value="toothData[surface].pi[site]"
           :disabled="toothData.extracted"
@@ -129,6 +134,7 @@ const getToothColumnStyle = (id: ToothId) => {
           :site-position="site"
           field-name="rec"
           :surface="surface"
+          :section="section"
           input-type="numeric"
           :value="toothData[surface].rec[site]"
           :validation-state="getFieldValidation(id, surface, 'rec', site)"
@@ -145,6 +151,7 @@ const getToothColumnStyle = (id: ToothId) => {
           :site-position="site"
           field-name="pd"
           :surface="surface"
+          :section="section"
           input-type="numeric"
           :value="toothData[surface].pd[site]"
           :validation-state="getFieldValidation(id, surface, 'pd', site)"
@@ -161,6 +168,7 @@ const getToothColumnStyle = (id: ToothId) => {
           :site-position="site"
           field-name="cal"
           :surface="surface"
+          :section="section"
           input-type="numeric"
           :value="toothData[surface].cal[site] || '0'"
           readonly
@@ -177,6 +185,7 @@ const getToothColumnStyle = (id: ToothId) => {
           :site-position="site"
           field-name="cal"
           :surface="surface"
+          :section="section"
           input-type="numeric"
           :value="toothData[surface].cal[site] || '0'"
           readonly
@@ -190,6 +199,7 @@ const getToothColumnStyle = (id: ToothId) => {
           :site-position="site"
           field-name="pd"
           :surface="surface"
+          :section="section"
           input-type="numeric"
           :value="toothData[surface].pd[site]"
           :validation-state="getFieldValidation(id, surface, 'pd', site)"
@@ -206,6 +216,7 @@ const getToothColumnStyle = (id: ToothId) => {
           :site-position="site"
           field-name="rec"
           :surface="surface"
+          :section="section"
           input-type="numeric"
           :value="toothData[surface].rec[site]"
           :validation-state="getFieldValidation(id, surface, 'rec', site)"
@@ -222,6 +233,7 @@ const getToothColumnStyle = (id: ToothId) => {
           :site-position="site"
           field-name="pi"
           :surface="surface"
+          :section="section"
           input-type="toggle"
           :value="toothData[surface].pi[site]"
           :disabled="toothData.extracted"
@@ -236,6 +248,7 @@ const getToothColumnStyle = (id: ToothId) => {
           :site-position="site"
           field-name="bop"
           :surface="surface"
+          :section="section"
           input-type="toggle"
           :value="toothData[surface].bop[site]"
           :disabled="toothData.extracted"
@@ -250,6 +263,7 @@ const getToothColumnStyle = (id: ToothId) => {
       </div>
       <div class="flex h-6 border-b border-slate-400">
         <ClinicalInputCell
+          :section="section"
           :tooth-number="id"
           :site-position="0"
           field-name="ktw"
@@ -264,6 +278,7 @@ const getToothColumnStyle = (id: ToothId) => {
       </div>
       <div class="flex h-6 border-b border-slate-400">
         <ClinicalInputCell
+          :section="section"
           :tooth-number="id"
           :site-position="0"
           field-name="mo"

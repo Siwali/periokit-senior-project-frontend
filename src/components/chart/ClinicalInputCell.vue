@@ -7,6 +7,7 @@ interface Props {
   sitePosition: number;
   fieldName: string;
   surface: string;
+  section?: string;
   value: any;
   inputType: "numeric" | "toggle";
   validationState?: "valid" | "invalid" | "none";
@@ -145,9 +146,10 @@ const containerClasses = computed(() => ({
         @input="handleInput"
         :data-tooth="toothNumber"
         :data-surface="surface"
+        :data-section="section"
         :data-field="fieldName"
         :data-site="sitePosition"
-        class="chart-input w-full h-full text-center text-[10px] outline-none bg-transparent transition-colors focus:bg-white focus:ring-1 focus:ring-[#0052ff] focus:ring-inset z-10"
+        class="chart-input w-full h-full text-center text-[10px] outline-none bg-transparent transition-colors focus:bg-white z-10"
         :class="[
           isAbnormal ? 'text-red-600 font-bold' : '',
           isCriticalValue && !isAbnormal ? 'text-red-600 font-extrabold' : '',
@@ -201,6 +203,7 @@ const containerClasses = computed(() => ({
         :aria-disabled="disabled || readonly"
         :data-tooth="toothNumber"
         :data-surface="surface"
+        :data-section="section"
         :data-field="fieldName"
         :data-site="sitePosition"
         class="chart-input w-full h-full cursor-pointer transition-all duration-150 outline-none flex items-center justify-center focus:ring-1 focus:ring-[#0052ff] focus:ring-inset"
@@ -214,7 +217,7 @@ const containerClasses = computed(() => ({
     <!-- Focus Indicator -->
     <div
       v-if="!disabled && !readonly"
-      class="absolute inset-0 border-b-2 border-transparent group-focus-within:border-[#0052ff] pointer-events-none transition-colors"
+      class="absolute inset-0 rounded-sm border border-transparent group-focus-within:border-[#0052ff] group-focus-within:shadow-[0_0_0_1px_#0052ff] pointer-events-none transition-all"
     ></div>
   </div>
 </template>
