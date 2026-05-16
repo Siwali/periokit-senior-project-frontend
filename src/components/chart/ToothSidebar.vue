@@ -10,6 +10,7 @@ import {
   calculateToothBopPercentage,
   calculateToothPiPercentage
 } from '../../utils/calculations'
+import { isUpperTooth } from '@/domain/chart/chart.rules'
 
 
 const prognosisModalType = ref<'MN' | 'KC' | null>(null)
@@ -51,6 +52,11 @@ const getFurLabel = (grade?: number) => {
   return labels[grade] || '-'
 }
 
+const innerSurfaceLabel = computed(() => {
+  if (!props.toothId) return 'Palatal'
+  return isUpperTooth(props.toothId) ? 'Palatal' : 'Lingual'
+})
+
 const getPrognosisColorMN = (val?: string) => {
   if (!val || val === 'N/A') return 'text-slate-400 bg-slate-50'
   if (val.includes('Good')) return 'text-green-600 bg-green-50'
@@ -84,13 +90,13 @@ const analysisData = computed(() => {
     prognosisKC: calculatePrognosisKC(props.toothData),
     prognosisMN: calculatePrognosisMN(props.toothData),
     buccalKTW: props.toothData.ktw || "0",
-    palatalKTW: props.toothData.ktw || "0",
+    innerSurfaceKTW: props.toothData.ktw || "0",
     mobility: props.toothData.mo || "0",
     furcation: maxFur,
     buccalPD: getSafePDValues(props.toothData.buccal?.pd),
-    palatalPD: getSafePDValues(props.toothData.lingual?.pd),
+    innerSurfacePD: getSafePDValues(props.toothData.lingual?.pd),
     buccalCAL: getSafeCALValues(props.toothData.buccal?.cal),
-    palatalCAL: getSafeCALValues(props.toothData.lingual?.cal),
+    innerSurfaceCAL: getSafeCALValues(props.toothData.lingual?.cal),
     bopPercentage: calculateToothBopPercentage(props.toothData),
     piPercentage: calculateToothPiPercentage(props.toothData)
   }
@@ -133,15 +139,15 @@ const analysisData = computed(() => {
             </div>
             <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Buccal (mm)</p>
           </div>
-          <!-- Palatal Card -->
+          <!-- Inner surface card -->
           <div class="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm text-center group hover:border-[#0052ff]/20 transition-all">
             <div class="text-2xl font-black mb-1 flex items-center justify-center gap-0.5">
-              <span v-for="(val, i) in analysisData?.palatalPD" :key="i"
+              <span v-for="(val, i) in analysisData?.innerSurfacePD" :key="i"
                 :class="parseInt(val) > 4 ? 'text-red-500' : 'text-[#0052ff]'">
                 {{ val }}{{ Number(i) < 2 ? '-' : '' }}
               </span>
             </div>
-            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Palatal (mm)</p>
+            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{{ innerSurfaceLabel }} (mm)</p>
           </div>
         </div>
 
@@ -161,15 +167,15 @@ const analysisData = computed(() => {
             </div>
             <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Buccal (mm)</p>
           </div>
-          <!-- Palatal Card -->
+          <!-- Inner surface card -->
           <div class="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm text-center group hover:border-[#0052ff]/20 transition-all">
             <div class="text-2xl font-black mb-1 flex items-center justify-center gap-0.5">
-              <span v-for="(val, i) in analysisData?.palatalCAL" :key="i"
+              <span v-for="(val, i) in analysisData?.innerSurfaceCAL" :key="i"
                 :class="parseInt(val) > 4 ? 'text-red-500' : 'text-[#0052ff]'">
                 {{ val }}{{ Number(i) < 2 ? '-' : '' }}
               </span>
             </div>
-            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Palatal (mm)</p>
+            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{{ innerSurfaceLabel }} (mm)</p>
           </div>
         </div>
 
@@ -201,7 +207,7 @@ const analysisData = computed(() => {
               <!-- Top-Right (Mesial/Distal) -->
               <path v-if="toothData.buccal.bop[2]" d="M50 50 L93.3 25 L93.3 75 Z" fill="#ef4444" />
 
-              <!-- Lingual Sites (Bottom) -->
+              <!-- Inner surface sites (palatal for upper, lingual for lower) -->
               <!-- Bottom-Left -->
               <path v-if="toothData.lingual.bop[0]" d="M50 50 L6.7 25 L6.7 75 Z" fill="#ef4444" />
               <!-- Bottom-Mid -->
@@ -243,7 +249,7 @@ const analysisData = computed(() => {
               <path v-if="toothData.buccal.pi[1]" d="M50 50 L50 0 L93.3 25 Z" fill="#3b82f6" />
               <path v-if="toothData.buccal.pi[2]" d="M50 50 L93.3 25 L93.3 75 Z" fill="#3b82f6" />
 
-              <!-- Lingual Sites (Bottom) -->
+              <!-- Inner surface sites (palatal for upper, lingual for lower) -->
               <path v-if="toothData.lingual.pi[0]" d="M50 50 L6.7 25 L6.7 75 Z" fill="#3b82f6" />
               <path v-if="toothData.lingual.pi[1]" d="M50 50 L6.7 75 L50 100 Z" fill="#3b82f6" />
               <path v-if="toothData.lingual.pi[2]" d="M50 50 L50 100 L93.3 75 Z" fill="#3b82f6" />
@@ -310,8 +316,8 @@ const analysisData = computed(() => {
             <span class="text-[11px] font-black text-slate-700">{{ analysisData?.buccalKTW }} mm</span>
           </div>
           <div class="flex justify-between items-center">
-            <span class="text-[11px] font-bold text-slate-400">Palatal-Keratinized</span>
-            <span class="text-[11px] font-black text-slate-700">{{ analysisData?.palatalKTW }} mm</span>
+            <span class="text-[11px] font-bold text-slate-400">{{ innerSurfaceLabel }}-Keratinized</span>
+            <span class="text-[11px] font-black text-slate-700">{{ analysisData?.innerSurfaceKTW }} mm</span>
           </div>
           <div class="flex justify-between items-center">
             <span class="text-[11px] font-bold text-slate-400">Mobility</span>
