@@ -23,11 +23,11 @@ defineProps<{
           <span class="text-[10px] font-bold text-slate-400 uppercase whitespace-nowrap shrink-0">Date:</span>
           <input v-model="patientInfo.date" type="date" class="bg-slate-50 border border-slate-100 rounded-lg px-2 py-1.5 text-xs font-bold w-full outline-none focus:ring-2 focus:ring-blue-100 transition-all" />
         </div>
-        <div class="col-span-6 flex items-center gap-2">
+        <div class="col-span-5 flex items-center gap-2 ml-6">
           <span class="text-[10px] font-bold text-slate-400 uppercase whitespace-nowrap shrink-0">Doctor:</span>
           <input v-model="patientInfo.doctor" type="text" class="bg-slate-50 border border-slate-100 rounded-lg px-3 py-1.5 text-xs font-bold w-full outline-none focus:ring-2 focus:ring-blue-100 transition-all" />
         </div>
-        <div class="col-span-4 flex items-center gap-2">
+        <div class="col-span-4 flex items-center gap-2 ml-2">
           <span class="text-[10px] font-bold text-slate-400 uppercase whitespace-nowrap shrink-0">Student ID:</span>
           <input v-model="patientInfo.studentId" type="text" class="bg-slate-50 border border-slate-100 rounded-lg px-3 py-1.5 text-xs font-bold w-full outline-none focus:ring-2 focus:ring-blue-100 transition-all" />
         </div>
