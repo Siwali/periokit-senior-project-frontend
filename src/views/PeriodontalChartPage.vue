@@ -7,12 +7,12 @@ import PatientChartHeader from '@/components/chart/PatientChartHeader.vue'
 import PeriodontalChartGrid from '@/components/chart/PeriodontalChartGrid.vue'
 import ToothSidebarOverlay from '@/components/chart/ToothSidebarOverlay.vue'
 import { usePeriodontalChartStore } from '@/stores/periodontal-chart'
-import { useClinicalValidation } from '@/composables/useClinicalValidation'
+import { useClinicalValidationStore } from '@/stores/clinical-validation'
 import type { ToothId } from '@/domain/chart/chart.types'
 
 const chartStore = usePeriodontalChartStore()
 chartStore.initializeChart()
-const { getFieldValidation, setFieldValidation } = useClinicalValidation()
+const validationStore = useClinicalValidationStore()
 
 const {
   patientInfo,
@@ -111,8 +111,8 @@ const handleUpdateNote = ({ id, note }: { id: string | number; note: string }) =
             @update-rec="chartStore.updateRec"
             @update-mobility="chartStore.updateMobility"
             @update-ktw="chartStore.updateKtw"
-            :get-field-validation="getFieldValidation"
-            @validate-field="setFieldValidation"
+            :get-field-validation="validationStore.getFieldValidation"
+            @validate-field="validationStore.setFieldValidation"
             @toggle-extracted="chartStore.toggleExtracted"
           />
 
