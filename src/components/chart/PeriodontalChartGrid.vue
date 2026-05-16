@@ -2,7 +2,7 @@
 import { ref } from 'vue'
 import ToothColumn from './ToothColumn.vue'
 import ToothImageRow from './ToothImageRow.vue'
-import { BUCCAL_ROWS, LOWER_ARCH, PALATAL_ROWS, UPPER_ARCH } from '@/domain/chart/chart.constants'
+import { BUCCAL_ROWS, INNER_SURFACE_ROWS, LOWER_ARCH, UPPER_ARCH } from '@/domain/chart/chart.constants'
 import { getToothColumnWidth } from '@/domain/chart/chart.image'
 import type { ChartData, SiteIndex, Surface, ToothId } from '@/domain/chart/chart.types'
 
@@ -208,7 +208,7 @@ const handleKeyDown = (event: KeyboardEvent) => {
         <!-- Upper Arch Palatal -->
         <div class="flex mt-6 mb-16">
           <div class="flex flex-col bg-white border-l border-y border-slate-400 text-[9px] font-bold text-slate-500 w-20 sticky left-0 z-20">
-            <div v-for="row in PALATAL_ROWS" :key="row" class="h-6 flex items-center px-2 border-b border-r border-slate-300 last:border-b-0">{{ row }}</div>
+            <div v-for="row in INNER_SURFACE_ROWS" :key="row" class="h-6 flex items-center px-2 border-b border-r border-slate-300 last:border-b-0">{{ row }}</div>
           </div>
           <div class="flex">
             <template v-for="(group, gIdx) in UPPER_ARCH" :key="gIdx">
@@ -240,7 +240,7 @@ const handleKeyDown = (event: KeyboardEvent) => {
           </div>
         </div>
 
-        <!-- Lower Arch Buccal -->
+        <!-- Lower Arch Lingual -->
         <div class="flex items-end mb-1 mt-12">
           <div class="flex flex-col bg-white border-l border-t border-slate-400 text-[9px] font-bold text-slate-500 uppercase w-20 sticky left-0 z-20">
             <div v-for="row in BUCCAL_ROWS" :key="row" class="h-6 flex items-center px-2 border-b border-r border-slate-400">{{ row }}</div>
@@ -291,14 +291,14 @@ const handleKeyDown = (event: KeyboardEvent) => {
         </div>
 
         <div class="flex flex-col gap-10 mb-6">
-          <ToothImageRow label="LINGUAL" :arch="LOWER_ARCH" :chart-data="chartData" surface="buccal" :selected-tooth-id="selectedToothId" grid-class="clinical-grid-bg" group-gap-class="w-6" label-position="bottom" />
-          <ToothImageRow label="BUCCAL" :arch="LOWER_ARCH" :chart-data="chartData" surface="lingual" :selected-tooth-id="selectedToothId" grid-class="clinical-grid-bg-inf" group-gap-class="w-6" label-position="bottom" />
+          <ToothImageRow label="LINGUAL" :arch="LOWER_ARCH" :chart-data="chartData" surface="lingual" :selected-tooth-id="selectedToothId" grid-class="clinical-grid-bg" group-gap-class="w-6" label-position="bottom" />
+          <ToothImageRow label="BUCCAL" :arch="LOWER_ARCH" :chart-data="chartData" surface="buccal" :selected-tooth-id="selectedToothId" grid-class="clinical-grid-bg-inf" group-gap-class="w-6" label-position="bottom" />
         </div>
 
-        <!-- Lower Arch lingual -->
+        <!-- Lower Arch Buccal -->
         <div class="flex mb-4">
           <div class="flex flex-col bg-white border-l border-y border-slate-400 text-[9px] font-bold text-slate-500 uppercase w-20 sticky left-0 z-20">
-            <div v-for="row in PALATAL_ROWS" :key="row" class="h-6 flex items-center px-2 border-b border-r border-slate-300 last:border-b-0">{{ row }}</div>
+            <div v-for="row in INNER_SURFACE_ROWS" :key="row" class="h-6 flex items-center px-2 border-b border-r border-slate-300 last:border-b-0">{{ row }}</div>
             <div class="h-7 border-t border-r border-slate-400 bg-slate-50"></div>
           </div>
           <div class="flex">
