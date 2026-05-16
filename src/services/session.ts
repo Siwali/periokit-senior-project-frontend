@@ -1,61 +1,62 @@
-import router from '../router'
-import { useNotificationStore } from '../stores/notification'
-import { clearSessionStorage } from './token-storage'
+import router from "../router";
+import { useNotificationStore } from "../stores/notification";
+import { clearSessionStorage } from "./token-storage";
 
-type SessionClearListener = () => void
-type ApolloResetHandler = () => Promise<void>
+type SessionClearListener = () => void;
+type ApolloResetHandler = () => Promise<void>;
 
-const sessionClearListeners = new Set<SessionClearListener>()
-let apolloResetHandler: ApolloResetHandler | null = null
-let isHandlingUnauthorized = false
+const sessionClearListeners = new Set<SessionClearListener>();
+let apolloResetHandler: ApolloResetHandler | null = null;
+let isHandlingUnauthorized = false;
 
-export function registerSessionClearListener(listener: SessionClearListener): () => void {
-  sessionClearListeners.add(listener)
-  return () => sessionClearListeners.delete(listener)
+export function registerSessionClearListener(
+  listener: SessionClearListener,
+): () => void {
+  sessionClearListeners.add(listener);
+  return () => sessionClearListeners.delete(listener);
 }
 
 export function registerApolloResetHandler(handler: ApolloResetHandler): void {
-  apolloResetHandler = handler
+  apolloResetHandler = handler;
 }
 
 async function resetApolloCache(): Promise<void> {
   if (!apolloResetHandler) {
-    return
+    return;
   }
 
   try {
-    await apolloResetHandler()
+    await apolloResetHandler();
   } catch (error) {
-    console.error('Apollo reset error:', error)
+    console.error("Apollo reset error:", error);
   }
 }
 
 function notifySessionCleared(): void {
-  sessionClearListeners.forEach((listener) => listener())
+  sessionClearListeners.forEach((listener) => listener());
 }
 
 export async function clearClientSession(): Promise<void> {
-  clearSessionStorage()
-  notifySessionCleared()
-  await resetApolloCache()
+  clearSessionStorage();
+  notifySessionCleared();
+  await resetApolloCache();
 }
 
 export async function handleUnauthorizedSession(): Promise<void> {
-  if (isHandlingUnauthorized || router.currentRoute.value.name === 'login') {
-    return
+  if (isHandlingUnauthorized || router.currentRoute.value.name === "login") {
+    return;
   }
 
-  isHandlingUnauthorized = true
+  isHandlingUnauthorized = true;
 
   try {
-    await clearClientSession()
+    await clearClientSession();
 
-    const notificationStore = useNotificationStore()
-    notificationStore.error('Please login again (Session expired)')
+    const notificationStore = useNotificationStore();
+    notificationStore.error("Please login again (Session expired)");
 
-    await router.push({ name: 'login' })
+    await router.push({ name: "login" });
   } finally {
-    isHandlingUnauthorized = false
+    isHandlingUnauthorized = false;
   }
 }
-
