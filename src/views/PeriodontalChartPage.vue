@@ -69,7 +69,7 @@ const handleUpdateNote = ({ id, note }: { id: string | number; note: string }) =
 
     <main class="max-w-[1600px] mx-auto p-6 lg:p-8">
       <div class="flex items-center justify-between mb-6">
-        <button class="bg-white px-4 py-2 rounded-lg border border-slate-200 text-xs font-bold text-slate-600 flex items-center gap-2 shadow-sm hover:bg-slate-50 transition-colors">
+        <button class="bg-white px-4 py-2 rounded-lg border border-slate-200 text-xs font-bold text-slate-600 flex items-center gap-2 shadow-sm hover:bg-slate-50 transition-colors ml-78">
           <FileText class="w-4 h-4" /> Overview
         </button>
 
