@@ -27,6 +27,24 @@ const emit = defineEmits<{
 
 const chartContainerRef = ref<HTMLElement | null>(null)
 
+// Define section order for navigation
+const SECTION_ORDER = ['upper-buccal', 'upper-palatal', 'lower-lingual', 'lower-buccal'] as const
+type Section = typeof SECTION_ORDER[number]
+
+const getNextSection = (current: string | null): string | null => {
+  if (!current) return SECTION_ORDER[0]
+  const idx = SECTION_ORDER.indexOf(current as Section)
+  if (idx === -1) return SECTION_ORDER[0]
+  return SECTION_ORDER[(idx + 1) % SECTION_ORDER.length]
+}
+
+const getPrevSection = (current: string | null): string | null => {
+  if (!current) return SECTION_ORDER[SECTION_ORDER.length - 1]
+  const idx = SECTION_ORDER.indexOf(current as Section)
+  if (idx === -1) return SECTION_ORDER[SECTION_ORDER.length - 1]
+  return SECTION_ORDER[(idx - 1 + SECTION_ORDER.length) % SECTION_ORDER.length]
+}
+
 const getToothColumnStyle = (id: ToothId) => {
   const width = `${getToothColumnWidth(id)}px`
 
@@ -58,6 +76,7 @@ const handleKeyDown = (event: KeyboardEvent) => {
   const currentField = target.getAttribute('data-field')
   const currentSite = target.getAttribute('data-site') || '0'
   const currentSurface = target.getAttribute('data-surface')
+  const currentSection = target.getAttribute('data-section')
 
   const allInputs = Array.from(chartContainerRef.value?.querySelectorAll('.chart-input') || []) as HTMLElement[]
   const currentIndex = allInputs.indexOf(target)
@@ -92,11 +111,14 @@ const handleKeyDown = (event: KeyboardEvent) => {
       }
     }
   } else if (key === 'ArrowRight' || key === 'Enter') {
+    // Find next input with same field, surface, section, and site
     for (let i = currentIndex + 1; i < allInputs.length; i += 1) {
       const input = allInputs[i]
       if (
         input.getAttribute('data-field') === currentField &&
         input.getAttribute('data-surface') === currentSurface &&
+        input.getAttribute('data-section') === currentSection &&
+        input.getAttribute('data-site') === currentSite &&
         isFocusableChartInput(input)
       ) {
         nextTarget = input
@@ -104,10 +126,17 @@ const handleKeyDown = (event: KeyboardEvent) => {
       }
     }
 
-    if (!nextTarget) {
-      for (let i = currentIndex + 1; i < allInputs.length; i += 1) {
+    // If not found, go to next section (same field + site)
+    if (!nextTarget && currentSection) {
+      const nextSection = getNextSection(currentSection)
+      for (let i = 0; i < allInputs.length; i += 1) {
         const input = allInputs[i]
-        if (isFocusableChartInput(input)) {
+        if (
+          input.getAttribute('data-field') === currentField &&
+          input.getAttribute('data-section') === nextSection &&
+          input.getAttribute('data-site') === currentSite &&
+          isFocusableChartInput(input)
+        ) {
           nextTarget = input
           break
         }
@@ -119,6 +148,8 @@ const handleKeyDown = (event: KeyboardEvent) => {
       if (
         input.getAttribute('data-field') === currentField &&
         input.getAttribute('data-surface') === currentSurface &&
+        input.getAttribute('data-section') === currentSection &&
+        input.getAttribute('data-site') === currentSite &&
         isFocusableChartInput(input)
       ) {
         nextTarget = input
@@ -126,10 +157,17 @@ const handleKeyDown = (event: KeyboardEvent) => {
       }
     }
 
-    if (!nextTarget) {
-      for (let i = currentIndex - 1; i >= 0; i -= 1) {
+    // If not found, go to previous section (same field + site)
+    if (!nextTarget && currentSection) {
+      const prevSection = getPrevSection(currentSection)
+      for (let i = allInputs.length - 1; i >= 0; i -= 1) {
         const input = allInputs[i]
-        if (isFocusableChartInput(input)) {
+        if (
+          input.getAttribute('data-field') === currentField &&
+          input.getAttribute('data-section') === prevSection &&
+          input.getAttribute('data-site') === currentSite &&
+          isFocusableChartInput(input)
+        ) {
           nextTarget = input
           break
         }
@@ -149,7 +187,7 @@ const handleKeyDown = (event: KeyboardEvent) => {
       <div ref="chartContainerRef" class="w-fit mx-auto" @keydown="handleKeyDown">
 
         <!-- Upper Arch Buccal -->
-        <div class="flex items-end mb-1">
+        <div class="flex items-end mb-1" data-section="upper-buccal">
           <div class="flex flex-col bg-white border-l border-t border-slate-400 text-[9px] font-bold text-slate-500 uppercase w-20 sticky left-0 z-20">
             <div class="h-7 border-b border-r border-slate-400"></div>
             <div v-for="row in BUCCAL_ROWS" :key="row" class="h-6 flex items-center px-2 border-b border-r border-slate-400">{{ row }}</div>
@@ -163,6 +201,7 @@ const handleKeyDown = (event: KeyboardEvent) => {
                   :key="id"
                   :tooth-data="chartData[id]"
                   surface="buccal"
+                  section="upper-buccal"
                   order="standard"
                   header-position="top"
                   :midline="gIdx === 1 && idx === 3"
@@ -206,7 +245,7 @@ const handleKeyDown = (event: KeyboardEvent) => {
         </div>
 
         <!-- Upper Arch Palatal -->
-        <div class="flex mt-6 mb-16">
+        <div class="flex mt-6 mb-16" data-section="upper-palatal">
           <div class="flex flex-col bg-white border-l border-y border-slate-400 text-[9px] font-bold text-slate-500 w-20 sticky left-0 z-20">
             <div v-for="row in INNER_SURFACE_ROWS" :key="row" class="h-6 flex items-center px-2 border-b border-r border-slate-300 last:border-b-0">{{ row }}</div>
           </div>
@@ -219,6 +258,7 @@ const handleKeyDown = (event: KeyboardEvent) => {
                   :key="id"
                   :tooth-data="chartData[id]"
                   surface="lingual"
+                  section="upper-palatal"
                   order="reverse"
                   header-position="none"
                   :midline="gIdx === 1 && idx === 3"
@@ -241,7 +281,7 @@ const handleKeyDown = (event: KeyboardEvent) => {
         </div>
 
         <!-- Lower Arch Lingual -->
-        <div class="flex items-end mb-1 mt-12">
+        <div class="flex items-end mb-1 mt-12" data-section="lower-lingual">
           <div class="flex flex-col bg-white border-l border-t border-slate-400 text-[9px] font-bold text-slate-500 uppercase w-20 sticky left-0 z-20">
             <div v-for="row in BUCCAL_ROWS" :key="row" class="h-6 flex items-center px-2 border-b border-r border-slate-400">{{ row }}</div>
           </div>
@@ -254,6 +294,7 @@ const handleKeyDown = (event: KeyboardEvent) => {
                   :key="id"
                   :tooth-data="chartData[id]"
                   surface="lingual"
+                  section="lower-lingual"
                   order="standard"
                   header-position="none"
                   :midline="gIdx === 1 && idx === 3"
@@ -296,7 +337,7 @@ const handleKeyDown = (event: KeyboardEvent) => {
         </div>
 
         <!-- Lower Arch Buccal -->
-        <div class="flex mb-4">
+        <div class="flex mb-4" data-section="lower-buccal">
           <div class="flex flex-col bg-white border-l border-y border-slate-400 text-[9px] font-bold text-slate-500 uppercase w-20 sticky left-0 z-20">
             <div v-for="row in INNER_SURFACE_ROWS" :key="row" class="h-6 flex items-center px-2 border-b border-r border-slate-300 last:border-b-0">{{ row }}</div>
             <div class="h-7 border-t border-r border-slate-400 bg-slate-50"></div>
@@ -310,6 +351,7 @@ const handleKeyDown = (event: KeyboardEvent) => {
                   :key="id"
                   :tooth-data="chartData[id]"
                   surface="buccal"
+                  section="lower-buccal"
                   order="reverse"
                   header-position="bottom"
                   :midline="gIdx === 1 && idx === 3"
