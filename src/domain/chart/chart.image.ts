@@ -1,7 +1,21 @@
 import { isUpperTooth } from './chart.rules'
 import type { ToothData, Surface, ToothId } from './chart.types'
 
-const TOOTH_IMAGE_TOP_OFFSETS: Record<`${number}-${Surface}`, number> = {
+type FurMarkerPosition = {
+  top: string
+  singleLeft: string
+  firstLeft: string
+  secondLeft: string
+}
+
+type ClinicalSurface = 'buccal' | 'palatal' | 'lingual'
+
+const getClinicalSurface = (id: number | string, surface: Surface): ClinicalSurface => {
+  if (isUpperTooth(id) && surface === 'lingual') return 'palatal'
+  return surface
+}
+
+const TOOTH_IMAGE_TOP_OFFSETS: Record<`${number}-${ClinicalSurface}`, number> = {
   '18-buccal': -2,
   '17-buccal': 0,
   '16-buccal': 4,
@@ -18,54 +32,54 @@ const TOOTH_IMAGE_TOP_OFFSETS: Record<`${number}-${Surface}`, number> = {
   '26-buccal': 4,
   '27-buccal': 0,
   '28-buccal': -2,
-  '18-lingual': 23,
-  '17-lingual': 24,
-  '16-lingual': 22,
-  '15-lingual': 17,
-  '14-lingual': 17,
-  '13-lingual': 16,
-  '12-lingual': 18,
-  '11-lingual': 12,
-  '21-lingual': 11,
-  '22-lingual': 17,
-  '23-lingual': 15,
-  '24-lingual': 16,
-  '25-lingual': 16,
-  '26-lingual': 21,
-  '27-lingual': 24,
-  '28-lingual': 23,
-  '48-buccal': -4,
-  '47-buccal': -4,
-  '46-buccal': -1,
-  '45-buccal': 3,
-  '44-buccal': 4,
-  '43-buccal': 7,
-  '42-buccal': 3,
-  '41-buccal': 1,
-  '31-buccal': 1,
-  '32-buccal': 3,
-  '33-buccal': 7,
-  '34-buccal': 3,
-  '35-buccal': 1,
-  '36-buccal': 0,
-  '37-buccal': -4,
-  '38-buccal': -3,
-  '48-lingual': 24,
-  '47-lingual': 22,
-  '46-lingual': 23,
-  '45-lingual': 20,
-  '44-lingual': 13,
-  '43-lingual': 12,
-  '42-lingual': 15,
-  '41-lingual': 19,
-  '31-lingual': 19,
-  '32-lingual': 15,
-  '33-lingual': 12,
-  '34-lingual': 13,
-  '35-lingual': 20,
-  '36-lingual': 23,
-  '37-lingual': 21,
-  '38-lingual': 21
+  '18-palatal': 23,
+  '17-palatal': 24,
+  '16-palatal': 22,
+  '15-palatal': 17,
+  '14-palatal': 17,
+  '13-palatal': 16,
+  '12-palatal': 18,
+  '11-palatal': 12,
+  '21-palatal': 11,
+  '22-palatal': 17,
+  '23-palatal': 15,
+  '24-palatal': 16,
+  '25-palatal': 16,
+  '26-palatal': 21,
+  '27-palatal': 24,
+  '28-palatal': 23,
+  '48-buccal': 24,
+  '47-buccal': 22,
+  '46-buccal': 23,
+  '45-buccal': 20,
+  '44-buccal': 13,
+  '43-buccal': 12,
+  '42-buccal': 15,
+  '41-buccal': 19,
+  '31-buccal': 19,
+  '32-buccal': 15,
+  '33-buccal': 12,
+  '34-buccal': 13,
+  '35-buccal': 20,
+  '36-buccal': 23,
+  '37-buccal': 21,
+  '38-buccal': 21,
+  '48-lingual': -4,
+  '47-lingual': -4,
+  '46-lingual': -1,
+  '45-lingual': 3,
+  '44-lingual': 4,
+  '43-lingual': 7,
+  '42-lingual': 3,
+  '41-lingual': 1,
+  '31-lingual': 1,
+  '32-lingual': 3,
+  '33-lingual': 7,
+  '34-lingual': 3,
+  '35-lingual': 1,
+  '36-lingual': 0,
+  '37-lingual': -4,
+  '38-lingual': -3
 }
 
 const TOOTH_COLUMN_WIDTHS: Record<ToothId, number> = {
@@ -103,6 +117,50 @@ const TOOTH_COLUMN_WIDTHS: Record<ToothId, number> = {
   38: 70
 }
 
+const FUR_MARKER_POSITIONS: Record<'upper' | 'lower', FurMarkerPosition> = {
+  upper: {
+    top: '49%',
+    singleLeft: '50%',
+    firstLeft: '35%',
+    secondLeft: '65%'
+  },
+  lower: {
+    top: '50%',
+    singleLeft: '40%',
+    firstLeft: '80%',
+    secondLeft: '65%'
+  }
+}
+
+const FUR_MARKER_POSITIONS_BY_TOOTH: Partial<Record<`${number}-${ClinicalSurface}`, FurMarkerPosition>> = {
+  '18-buccal': FUR_MARKER_POSITIONS.upper,
+  '17-buccal': FUR_MARKER_POSITIONS.upper,
+  '16-buccal': FUR_MARKER_POSITIONS.upper,
+  '14-palatal': {top: '55%',singleLeft: '20%',firstLeft: '25%',secondLeft: '75%'},
+  '18-palatal': {top: '55%',singleLeft: '20%',firstLeft: '25%',secondLeft: '65%'},
+  '17-palatal': {top: '55%',singleLeft: '20%',firstLeft: '25%',secondLeft: '65%'},
+  '16-palatal': {top: '55%',singleLeft: '20%',firstLeft: '25%',secondLeft: '65%'},
+  '24-palatal': {top: '55%',singleLeft: '20%',firstLeft: '25%',secondLeft: '75%'},
+  '26-buccal': FUR_MARKER_POSITIONS.upper,
+  '27-buccal': FUR_MARKER_POSITIONS.upper,
+  '28-buccal': FUR_MARKER_POSITIONS.upper,
+  '26-palatal': {top: '55%',singleLeft: '20%',firstLeft: '35%',secondLeft: '75%'},
+  '27-palatal': {top: '55%',singleLeft: '20%',firstLeft: '35%',secondLeft: '75%'},
+  '28-palatal': {top: '55%',singleLeft: '20%',firstLeft: '35%',secondLeft: '75%'},
+  '48-buccal': {top: '52%',singleLeft: '45%',firstLeft: '35%',secondLeft: '75%'},
+  '47-buccal': {top: '52%',singleLeft: '50%',firstLeft: '35%',secondLeft: '75%'},
+  '46-buccal': {top: '49%',singleLeft: '55%',firstLeft: '35%',secondLeft: '75%'},
+  '38-buccal': {top: '53%',singleLeft: '56%',firstLeft: '35%',secondLeft: '75%'},
+  '37-buccal': {top: '50%',singleLeft: '49%',firstLeft: '35%',secondLeft: '75%'},
+  '36-buccal': {top: '49%',singleLeft: '45%',firstLeft: '35%',secondLeft: '75%'},
+  '48-lingual': {top: '45%',singleLeft: '45%',firstLeft: '35%',secondLeft: '75%'},
+  '47-lingual': {top: '45%',singleLeft: '52%',firstLeft: '35%',secondLeft: '75%'},
+  '46-lingual': {top: '50%',singleLeft: '45%',firstLeft: '35%',secondLeft: '75%'},
+  '38-lingual': {top: '45%',singleLeft: '55%',firstLeft: '35%',secondLeft: '75%'},
+  '37-lingual': {top: '45%',singleLeft: '50%',firstLeft: '35%',secondLeft: '75%'},
+  '36-lingual': {top: '51%',singleLeft: '55%',firstLeft: '35%',secondLeft: '75%'}
+}
+
 export const getFurImage = (grade: number) => {
   if (grade === 1) return '/images/teeth/vacio.png'
   if (grade === 2) return '/images/teeth/mediolleno.png'
@@ -112,7 +170,8 @@ export const getFurImage = (grade: number) => {
 
 export const getToothImage = (id: number | string, surface: Surface, data?: ToothData) => {
   const arch = isUpperTooth(id) ? 'arriba' : 'abajo'
-  const suffix = surface === 'lingual' ? 'b' : ''
+  const clinicalSurface = getClinicalSurface(id, surface)
+  const suffix = clinicalSurface === 'palatal' || (!isUpperTooth(id) && clinicalSurface === 'buccal') ? 'b' : ''
 
   let state = ''
   if (data?.extracted) state = 'tachados-'
@@ -122,9 +181,19 @@ export const getToothImage = (id: number | string, surface: Surface, data?: Toot
 }
 
 export const getToothImageTopOffset = (id: ToothId, surface: Surface) => {
-  return TOOTH_IMAGE_TOP_OFFSETS[`${id}-${surface}`] ?? 0
+  return TOOTH_IMAGE_TOP_OFFSETS[`${id}-${getClinicalSurface(id, surface)}`] ?? 0
 }
 
 export const getToothColumnWidth = (id: ToothId) => {
   return TOOTH_COLUMN_WIDTHS[id] ?? 54
+}
+
+export const getFurMarkerStyle = (id: ToothId, surface: Surface, index: number, totalSites: number) => {
+  const clinicalSurface = getClinicalSurface(id, surface)
+  const position = FUR_MARKER_POSITIONS_BY_TOOTH[`${id}-${clinicalSurface}`] ?? FUR_MARKER_POSITIONS[isUpperTooth(id) ? 'upper' : 'lower']
+
+  return {
+    top: position.top,
+    left: totalSites > 1 ? (index === 0 ? position.firstLeft : position.secondLeft) : position.singleLeft
+  }
 }
