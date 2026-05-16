@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { ref, computed, reactive } from "vue";
 import { useAuthStore } from "../stores/auth";
 import {
   FileText,
@@ -14,6 +14,49 @@ import Navbar from "../components/layout/Navbar.vue";
 import ToothSidebarOverlay from "../components/chart/ToothSidebarOverlay.vue";
 import ClinicalInputCell from "../components/chart/ClinicalInputCell.vue";
 import { calculateCALValue } from "../utils/calculations";
+
+// Validation state
+interface ValidationState {
+  [key: string]: "valid" | "invalid" | "none";
+}
+
+const validationStates = reactive<ValidationState>({});
+
+const getFieldKey = (
+  id: string | number,
+  surface: string,
+  field: string,
+  site = 0,
+): string => `${id}-${surface}-${field}-${site}`;
+
+const getFieldValidation = (
+  id: string | number,
+  surface: string,
+  field: string,
+  site = 0,
+): "valid" | "invalid" | "none" => {
+  return validationStates[getFieldKey(id, surface, field, site)] || "none";
+};
+
+const setFieldValidation = (
+  id: string | number,
+  surface: string,
+  field: string,
+  site: number,
+  state: "valid" | "invalid" | "none",
+) => {
+  validationStates[getFieldKey(id, surface, field, site)] = state;
+};
+
+const handleValidation = (
+  id: string | number,
+  surface: "buccal" | "lingual",
+  field: string,
+  site: number,
+  state: "valid" | "invalid" | "none",
+) => {
+  setFieldValidation(id, surface, field, site, state);
+};
 
 const authStore = useAuthStore();
 const user = authStore.user;
@@ -53,10 +96,10 @@ const patientInfo = ref({
 });
 
 // Tooth Chart Data
-const upperTeeth = [
+const upperTeeth: number[] = [
   18, 17, 16, 15, 14, 13, 12, 11, 21, 22, 23, 24, 25, 26, 27, 28,
 ];
-const lowerTeeth = [
+const lowerTeeth: number[] = [
   48, 47, 46, 45, 44, 43, 42, 41, 31, 32, 33, 34, 35, 36, 37, 38,
 ];
 
@@ -143,6 +186,45 @@ const updateClinicalData = (
   }
 };
 
+// Handle MO/KTW field input with validation
+const handleFieldInput = (
+  event: Event,
+  id: string | number,
+  surface: "buccal" | "lingual",
+  field: string,
+) => {
+  const target = event.target as HTMLInputElement;
+  const value = target.value;
+
+  // Filter to digits only
+  const filteredValue = value.replace(/[^0-9]/g, "");
+
+  // Define field limits
+  const normalMax = field === "mo" ? 2 : 5;
+  const absoluteMax = field === "mo" ? 9 : 20;
+
+  const numValue = parseInt(filteredValue) || 0;
+
+  // Block if exceeds absolute limit
+  if (filteredValue !== "" && numValue > absoluteMax) {
+    target.value = "";
+    teethData.value[id][field] = "";
+    setFieldValidation(id, surface, field, 0, "invalid");
+    return;
+  }
+
+  // Update value
+  if (filteredValue !== value) {
+    target.value = filteredValue;
+  }
+  teethData.value[id][field] = filteredValue;
+
+  // Set validation state (invalid = abnormal/red)
+  const state: "valid" | "invalid" | "none" =
+    filteredValue === "" ? "none" : numValue > normalMax ? "invalid" : "valid";
+  setFieldValidation(id, surface, field, 0, state);
+};
+
 const toggleFur = (
   id: string | number,
   surface: "buccal" | "lingual",
@@ -161,19 +243,19 @@ const getFurImage = (grade: number) => {
   return "";
 };
 
-const upperArch = [
+const upperArch: number[][] = [
   [18, 17, 16, 15, 14],
   [13, 12, 11, 21, 22, 23],
   [24, 25, 26, 27, 28],
 ];
 
-const lowerArch = [
+const lowerArch: number[][] = [
   [48, 47, 46, 45, 44],
   [43, 42, 41, 31, 32, 33],
   [34, 35, 36, 37, 38],
 ];
 
-const buccalRows = [
+const buccalRows: string[] = [
   "Implant",
   "Mobility",
   "Keratinized",
@@ -184,7 +266,7 @@ const buccalRows = [
   "PD",
   "CAL",
 ];
-const palatalRows = [
+const palatalRows: string[] = [
   "Implant",
   "Mobility",
   "Keratinized",
@@ -657,7 +739,9 @@ const handleKeyDown = (e: KeyboardEvent) => {
                                 teethData[id].cut || teethData[id].implant
                               "
                               :placeholder="teethData[id].implant ? '0' : ''"
+                              @input="(e) => handleFieldInput(e, id, 'buccal', 'mo')"
                               class="chart-input w-full h-full text-center text-[11px] outline-none disabled:bg-slate-100/50 focus:bg-white focus:ring-1 focus:ring-[#0052ff] focus:ring-inset"
+                              :class="getFieldValidation(id, 'buccal', 'mo') === 'invalid' ? 'text-red-600 font-bold' : ''"
                               :data-tooth="id"
                               data-field="mo"
                               data-surface="buccal"
@@ -668,7 +752,9 @@ const handleKeyDown = (e: KeyboardEvent) => {
                               type="text"
                               v-model="teethData[id].ktw"
                               :disabled="teethData[id].cut"
+                              @input="(e) => handleFieldInput(e, id, 'buccal', 'ktw')"
                               class="chart-input w-full h-full text-center text-[11px] outline-none disabled:bg-slate-100/50 focus:bg-white focus:ring-1 focus:ring-[#0052ff] focus:ring-inset"
+                              :class="getFieldValidation(id, 'buccal', 'ktw') === 'invalid' ? 'text-red-600 font-bold' : ''"
                               :data-tooth="id"
                               data-field="ktw"
                               data-surface="buccal"
@@ -748,6 +834,7 @@ const handleKeyDown = (e: KeyboardEvent) => {
                               surface="buccal"
                               inputType="numeric"
                               :value="teethData[id].buccal.rec[s]"
+                              :validationState="getFieldValidation(id, 'buccal', 'rec', s)"
                               :disabled="teethData[id].cut"
                               @change="
                                 (val) =>
@@ -759,6 +846,7 @@ const handleKeyDown = (e: KeyboardEvent) => {
                                     val,
                                   )
                               "
+                              @validate="(state) => handleValidation(id, 'buccal', 'rec', s, state)"
                             />
                           </div>
                           <div class="flex h-6 border-b border-slate-200">
@@ -771,11 +859,13 @@ const handleKeyDown = (e: KeyboardEvent) => {
                               surface="buccal"
                               inputType="numeric"
                               :value="teethData[id].buccal.pd[s]"
+                              :validationState="getFieldValidation(id, 'buccal', 'pd', s)"
                               :disabled="teethData[id].cut"
                               @change="
                                 (val) =>
                                   updateClinicalData(id, 'buccal', 'pd', s, val)
                               "
+                              @validate="(state) => handleValidation(id, 'buccal', 'pd', s, state)"
                             />
                           </div>
                           <div class="flex h-6 border-slate-200">
@@ -1119,6 +1209,7 @@ const handleKeyDown = (e: KeyboardEvent) => {
                               surface="lingual"
                               inputType="numeric"
                               :value="teethData[id].lingual.rec[s]"
+                              :validationState="getFieldValidation(id, 'lingual', 'rec', s)"
                               :disabled="teethData[id].cut"
                               @change="
                                 (val) =>
@@ -1130,6 +1221,7 @@ const handleKeyDown = (e: KeyboardEvent) => {
                                     val,
                                   )
                               "
+                              @validate="(state) => handleValidation(id, 'lingual', 'rec', s, state)"
                             />
                           </div>
                           <div class="flex h-6 border-b border-slate-200">
@@ -1142,6 +1234,7 @@ const handleKeyDown = (e: KeyboardEvent) => {
                               surface="lingual"
                               inputType="numeric"
                               :value="teethData[id].lingual.pd[s]"
+                              :validationState="getFieldValidation(id, 'lingual', 'pd', s)"
                               :disabled="teethData[id].cut"
                               @change="
                                 (val) =>
@@ -1153,6 +1246,7 @@ const handleKeyDown = (e: KeyboardEvent) => {
                                     val,
                                   )
                               "
+                              @validate="(state) => handleValidation(id, 'lingual', 'pd', s, state)"
                             />
                           </div>
                           <div class="flex h-6 border-slate-200">
@@ -1332,6 +1426,7 @@ const handleKeyDown = (e: KeyboardEvent) => {
                               surface="lingual"
                               inputType="numeric"
                               :value="teethData[id].lingual.rec[s]"
+                              :validationState="getFieldValidation(id, 'lingual', 'rec', s)"
                               :disabled="teethData[id].cut"
                               @change="
                                 (val) =>
@@ -1343,6 +1438,7 @@ const handleKeyDown = (e: KeyboardEvent) => {
                                     val,
                                   )
                               "
+                              @validate="(state) => handleValidation(id, 'lingual', 'rec', s, state)"
                             />
                           </div>
                           <div class="flex h-6 border-b border-slate-200">
@@ -1355,6 +1451,7 @@ const handleKeyDown = (e: KeyboardEvent) => {
                               surface="lingual"
                               inputType="numeric"
                               :value="teethData[id].lingual.pd[s]"
+                              :validationState="getFieldValidation(id, 'lingual', 'pd', s)"
                               :disabled="teethData[id].cut"
                               @change="
                                 (val) =>
@@ -1366,6 +1463,7 @@ const handleKeyDown = (e: KeyboardEvent) => {
                                     val,
                                   )
                               "
+                              @validate="(state) => handleValidation(id, 'lingual', 'pd', s, state)"
                             />
                           </div>
                           <div class="flex h-6 border-slate-200">
@@ -1608,7 +1706,9 @@ const handleKeyDown = (e: KeyboardEvent) => {
                                 teethData[id].cut || teethData[id].implant
                               "
                               :placeholder="teethData[id].implant ? '0' : ''"
+                              @input="(e) => handleFieldInput(e, id, 'buccal', 'mo')"
                               class="chart-input w-full h-full text-center text-[11px] outline-none disabled:bg-slate-100/50 focus:bg-white focus:ring-1 focus:ring-[#0052ff] focus:ring-inset"
+                              :class="getFieldValidation(id, 'buccal', 'mo') === 'invalid' ? 'text-red-600 font-bold' : ''"
                               :data-tooth="id"
                               data-field="mo"
                               data-surface="buccal"
@@ -1619,7 +1719,9 @@ const handleKeyDown = (e: KeyboardEvent) => {
                               type="text"
                               v-model="teethData[id].ktw"
                               :disabled="teethData[id].cut"
+                              @input="(e) => handleFieldInput(e, id, 'buccal', 'ktw')"
                               class="chart-input w-full h-full text-center text-[11px] outline-none disabled:bg-slate-100/50 focus:bg-white focus:ring-1 focus:ring-[#0052ff] focus:ring-inset"
+                              :class="getFieldValidation(id, 'buccal', 'ktw') === 'invalid' ? 'text-red-600 font-bold' : ''"
                               :data-tooth="id"
                               data-field="ktw"
                               data-surface="buccal"
@@ -1705,6 +1807,7 @@ const handleKeyDown = (e: KeyboardEvent) => {
                               surface="buccal"
                               inputType="numeric"
                               :value="teethData[id].buccal.rec[s]"
+                              :validationState="getFieldValidation(id, 'buccal', 'rec', s)"
                               :disabled="teethData[id].cut"
                               @change="
                                 (val) =>
@@ -1716,6 +1819,7 @@ const handleKeyDown = (e: KeyboardEvent) => {
                                     val,
                                   )
                               "
+                              @validate="(state) => handleValidation(id, 'buccal', 'rec', s, state)"
                             />
                           </div>
                           <div class="flex h-6 border-b border-slate-200">
@@ -1728,11 +1832,13 @@ const handleKeyDown = (e: KeyboardEvent) => {
                               surface="buccal"
                               inputType="numeric"
                               :value="teethData[id].buccal.pd[s]"
+                              :validationState="getFieldValidation(id, 'buccal', 'pd', s)"
                               :disabled="teethData[id].cut"
                               @change="
                                 (val) =>
                                   updateClinicalData(id, 'buccal', 'pd', s, val)
                               "
+                              @validate="(state) => handleValidation(id, 'buccal', 'pd', s, state)"
                             />
                           </div>
                           <div class="flex h-6 border-slate-200">

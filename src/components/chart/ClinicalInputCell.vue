@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
+import { filterNumericInput, getFieldKey, isAbnormalValue, exceedsAbsoluteLimit, getFieldDisplayName } from "../../utils/validation";
 
 interface Props {
   toothNumber: number | string;
-  sitePosition: number; // 0, 1, 2
+  sitePosition: number;
   fieldName: string;
-  surface: string; // 'buccal' or 'lingual'
+  surface: string;
   value: any;
   inputType: "numeric" | "toggle";
   validationState?: "valid" | "invalid" | "none";
@@ -21,21 +22,92 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<{
   (e: "change", value: any): void;
+  (e: "validate", state: "valid" | "invalid" | "none"): void;
 }>();
 
+// Warning state
+const showWarning = ref(false);
+const warningMessage = ref("");
+const pendingValue = ref("");
 
+const clearWarning = () => {
+  setTimeout(() => {
+    showWarning.value = false;
+    warningMessage.value = "";
+  }, 2000);
+};
 
-// Determine if the text should be red (clinical threshold)
+// Confirm abnormal value
+const confirmAbnormalValue = () => {
+  emit("change", pendingValue.value);
+  const state = "valid"; // User confirmed, treat as valid
+  emit("validate", state);
+  showWarning.value = false;
+  pendingValue.value = "";
+};
+
+// Reject abnormal value
+const rejectAbnormalValue = () => {
+  pendingValue.value = "";
+  showWarning.value = false;
+};
+
+// Critical value (>=4) - existing logic
 const isCriticalValue = computed(() => {
   if (props.inputType !== "numeric") return false;
   const val = parseInt(String(props.value));
   return !isNaN(val) && val >= 4;
 });
 
+// Abnormal value (exceeds normal threshold but within absolute limit)
+const isAbnormal = computed(() => {
+  if (props.inputType !== "numeric" || !props.value) return false;
+  return isAbnormalValue(String(props.value), props.fieldName);
+});
+
 const handleInput = (event: Event) => {
   if (props.disabled || props.readonly) return;
   const target = event.target as HTMLInputElement;
-  emit("change", target.value);
+  const inputValue = target.value;
+
+  if (props.inputType === "numeric") {
+    const fieldKeyInfo = getFieldKey(props.fieldName);
+    const allowNegative = fieldKeyInfo === "cal";
+    let filteredValue = filterNumericInput(inputValue, allowNegative);
+
+    // Block values exceeding absolute limit (obviously wrong)
+    if (filteredValue !== "" && exceedsAbsoluteLimit(filteredValue, props.fieldName)) {
+      const absLimit = { pd: 99, rec: 99, cal: 99, mo: 9, ktw: 20, furcation: 3 };
+      const limit = absLimit[fieldKeyInfo as keyof typeof absLimit] || 99;
+
+      filteredValue = "";
+      target.value = "";
+      warningMessage.value = `${getFieldDisplayName(props.fieldName)}: Max ${limit}`;
+      showWarning.value = true;
+      clearWarning();
+      return;
+    }
+
+    // Check if value is abnormal (exceeds normal range)
+    if (filteredValue !== "" && isAbnormalValue(filteredValue, props.fieldName)) {
+      // Store pending value and show confirmation
+      pendingValue.value = filteredValue;
+      target.value = ""; // Clear input while showing confirmation
+      warningMessage.value = `${getFieldDisplayName(props.fieldName)}: ${filteredValue} (เกินเกณฑ์)`;
+      showWarning.value = true;
+      return;
+    }
+
+    if (target.value !== filteredValue) {
+      target.value = filteredValue;
+    }
+
+    // Normal value - proceed normally
+    const state: "valid" | "invalid" | "none" =
+      filteredValue === "" ? "none" : "valid";
+    emit("validate", state);
+    emit("change", filteredValue);
+  }
 };
 
 const handleToggle = () => {
@@ -43,26 +115,18 @@ const handleToggle = () => {
   emit("change", !props.value);
 };
 
-// Background colors for toggle fields
 const toggleColorClass = computed(() => {
   if (props.inputType !== "toggle" || !props.value) return "";
-
   const name = props.fieldName.toLowerCase();
   if (name.includes("bop")) return "bg-red-500 shadow-inner";
-  if (name.includes("pi") || name.includes("plaque"))
-    return "bg-blue-500 shadow-inner";
-  if (name.includes("suppuration")) return "bg-yellow-500 shadow-inner";
-
+  if (name.includes("pi")) return "bg-blue-500 shadow-inner";
   return "bg-slate-500";
 });
 
 const containerClasses = computed(() => ({
   "opacity-50 pointer-events-none": props.disabled,
   "bg-slate-50/50": props.readonly,
-  "ring-1 ring-inset ring-red-400 bg-red-50/50":
-    props.validationState === "invalid",
-  "hover:bg-slate-50/80":
-    !props.disabled && !props.readonly && props.inputType === "numeric",
+  "hover:bg-slate-50/80": !props.disabled && !props.readonly && props.inputType === "numeric",
 }));
 </script>
 
@@ -85,10 +149,31 @@ const containerClasses = computed(() => ({
         :data-site="sitePosition"
         class="chart-input w-full h-full text-center text-[10px] outline-none bg-transparent transition-colors focus:bg-white focus:ring-1 focus:ring-[#0052ff] focus:ring-inset z-10"
         :class="[
-          isCriticalValue ? 'text-red-600 font-extrabold' : 'text-slate-700',
+          isAbnormal ? 'text-red-600 font-bold' : '',
+          isCriticalValue && !isAbnormal ? 'text-red-600 font-extrabold' : '',
+          !isAbnormal && !isCriticalValue ? 'text-slate-700' : '',
           readonly ? 'font-bold cursor-default' : 'cursor-text font-medium',
         ]"
       />
+      <!-- Warning Tooltip -->
+      <Transition
+        enter-active-class="transition ease-out duration-200"
+        enter-from-class="opacity-0 translate-y-1"
+        enter-to-class="opacity-100 translate-y-0"
+        leave-active-class="transition ease-in duration-150"
+        leave-from-class="opacity-100 translate-y-0"
+        leave-to-class="opacity-0 translate-y-1"
+      >
+        <div
+          v-if="showWarning"
+          class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-red-600 text-white text-[9px] font-bold rounded-md whitespace-nowrap z-50 shadow-lg pointer-events-none"
+        >
+          {{ warningMessage }}
+          <div class="absolute top-full left-1/2 -translate-x-1/2 -mt-px">
+            <div class="border-4 border-transparent border-t-red-600"></div>
+          </div>
+        </div>
+      </Transition>
     </template>
 
     <!-- Toggle Input -->
@@ -104,18 +189,12 @@ const containerClasses = computed(() => ({
         class="chart-input w-full h-full cursor-pointer transition-all duration-150 outline-none flex items-center justify-center focus:ring-1 focus:ring-[#0052ff] focus:ring-inset"
         :class="[toggleColorClass]"
       >
-        <div
-          v-if="value"
-          class="w-full h-full opacity-100"
-        ></div>
-        <div
-          v-else
-          class="w-1.5 h-1.5 rounded-full bg-slate-200/50 group-hover:bg-slate-300 transition-colors"
-        ></div>
+        <div v-if="value" class="w-full h-full opacity-100"></div>
+        <div v-else class="w-1.5 h-1.5 rounded-full bg-slate-200/50 group-hover:bg-slate-300 transition-colors"></div>
       </div>
     </template>
 
-    <!-- Focus Indicator (Subtle) -->
+    <!-- Focus Indicator -->
     <div
       v-if="!disabled && !readonly"
       class="absolute inset-0 border-b-2 border-transparent group-focus-within:border-[#0052ff] pointer-events-none transition-colors"
