@@ -88,12 +88,12 @@ input[type=number] {
 
 .clinical-grid-bg {
   background-image: url('/images/teeth/fondo-grafico.png');
-  background-size: 100% 100%;
-  background-repeat: no-repeat;
+  background-size: 62px 155px;
+  background-repeat: repeat-x;
 }
 
 .clinical-grid-bg-inf {
   background-image: url('/images/teeth/fondo-grafico-inf.png');
-  background-size: 100% 100%;
-  background-repeat: no-repeat;
+  background-size: 62px 155px;
+  background-repeat: repeat-x;
 }
