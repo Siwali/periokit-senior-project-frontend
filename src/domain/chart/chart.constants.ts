@@ -17,7 +17,7 @@ export const LOWER_ARCH = [
 ]
 
 export const BUCCAL_ROWS = ['Implant', 'Mobility', 'Keratinized', 'Furcation', 'BOP', 'PI', 'Recession', 'PD', 'CAL']
-export const PALATAL_ROWS = ['CAL', 'PD', 'Recession', 'PI', 'BOP', 'Furcation', 'Keratinized', 'Mobility', 'Implant']
+export const INNER_SURFACE_ROWS = ['CAL', 'PD', 'Recession', 'PI', 'BOP', 'Furcation', 'Keratinized', 'Mobility', 'Implant']
 export const SITE_INDEXES: SiteIndex[] = [0, 1, 2]
 
 export const CHART_LEGEND_ITEMS = {
