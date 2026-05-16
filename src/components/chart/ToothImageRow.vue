@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { getFurImage, getToothColumnWidth, getToothImage, getToothImageTopOffset } from '@/domain/chart/chart.image'
+import { getFurImage, getFurMarkerStyle, getToothColumnWidth, getToothImage, getToothImageTopOffset } from '@/domain/chart/chart.image'
 import type { ChartData, Surface, ToothId } from '@/domain/chart/chart.types'
 
 const getToothColumnStyle = (id: ToothId) => {
@@ -59,8 +59,8 @@ defineProps<{
             <div
               v-for="(grade, fIdx) in chartData[id].fur[surface]"
               :key="fIdx"
-              class="absolute top-[40%] z-40 pointer-events-none -translate-x-1/2"
-              :style="{ left: chartData[id].fur[surface].length > 1 ? (fIdx === 0 ? '35%' : '65%') : '50%' }"
+              class="absolute z-40 pointer-events-none -translate-x-1/2"
+              :style="getFurMarkerStyle(id, surface, fIdx, chartData[id].fur[surface].length)"
             >
               <img v-if="grade > 0" :src="getFurImage(grade)" class="w-3 h-3 object-contain" />
             </div>
