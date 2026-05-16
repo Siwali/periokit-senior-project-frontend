@@ -1,5 +1,5 @@
 import { ALL_TEETH } from './chart.constants'
-import { getFurcationSites } from './chart.rules'
+import { getFurcationSites, isUpperTooth } from './chart.rules'
 import type { ChartData, ToothData } from './chart.types'
 
 const createSurfaceData = () => ({
@@ -12,6 +12,7 @@ const createSurfaceData = () => ({
 
 const createToothData = (id: number): ToothData => {
   const furConfig = getFurcationSites(id)
+  const innerSurfaceFurSites = isUpperTooth(id) ? (furConfig.palatal ?? 0) : (furConfig.lingual ?? 0)
 
   return {
     implant: false,
@@ -19,7 +20,7 @@ const createToothData = (id: number): ToothData => {
     ktw: '',
     fur: {
       buccal: new Array(furConfig.buccal).fill(0),
-      lingual: new Array(furConfig.lingual).fill(0)
+      lingual: new Array(innerSurfaceFurSites).fill(0)
     },
     extracted: false,
     prognosisKC: '',
