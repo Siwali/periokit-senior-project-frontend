@@ -13,7 +13,7 @@
 <template>
   <aside :class="[
     'flex flex-col gap-6 sticky top-32 transition-all duration-500',
-    isSidebarOpen ? 'w-16 z-[150]' : 'w-72 z-0'
+    isSidebarOpen ? 'w-16 z-150' : 'w-72 z-0'
   ]">
     <!-- Collapsed Icon Mode with Toggle -->
     <div v-if="isSidebarOpen" class="flex flex-col items-center relative">
@@ -45,7 +45,7 @@
       >
         <div
           v-if="isExpanded"
-          class="absolute left-full top-0 ml-4 bg-white rounded-2xl border border-slate-200 shadow-xl p-4 min-w-[200px] z-[200]"
+          class="absolute left-full top-0 ml-4 bg-white rounded-2xl border border-slate-200 shadow-xl p-4 min-w-50 z-200"
         >
           <!-- Close Button -->
           <button
@@ -60,7 +60,7 @@
           </h3>
           <ul class="space-y-2">
             <li v-for="(desc, key) in CHART_LEGEND_ITEMS" :key="key" class="flex items-baseline gap-2">
-              <span class="text-[10px] font-black text-slate-800 min-w-[40px]">{{ key }}</span>
+              <span class="text-[10px] font-black text-slate-800 min-w-10">{{ key }}</span>
               <span class="text-[10px] font-medium text-slate-400">= {{ desc }}</span>
             </li>
           </ul>
@@ -94,7 +94,7 @@
         </h3>
         <ul class="space-y-2.5">
           <li v-for="(desc, key) in CHART_LEGEND_ITEMS" :key="key" class="flex items-baseline gap-2">
-            <span class="text-[10px] font-black text-slate-800 min-w-[45px]">{{ key }}</span>
+            <span class="text-[10px] font-black text-slate-800 min-w-11.25">{{ key }}</span>
             <span class="text-[10px] font-medium text-slate-400">= {{ desc }}</span>
           </li>
         </ul>

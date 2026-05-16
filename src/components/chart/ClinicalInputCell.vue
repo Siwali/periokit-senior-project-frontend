@@ -133,7 +133,7 @@ const containerClasses = computed(() => ({
 
 <template>
   <div
-    class="relative flex-1 h-full min-h-[24px] transition-all duration-200 border-r border-slate-100 last:border-r-0 group"
+    class="relative flex-1 h-full min-h-6 transition-all duration-200 border-r border-slate-100 last:border-r-0 group"
     :class="containerClasses"
   >
     <!-- Numeric Input -->

@@ -34,7 +34,7 @@ const handleUpdateNote = ({ id, note }: { id: string | number; note: string }) =
     <Navbar />
 
     <div class="bg-white border-b border-slate-200 py-2.5 sticky top-16 z-40">
-      <div class="max-w-[1600px] mx-auto px-8 flex items-center justify-center">
+      <div class="max-w-400 mx-auto px-8 flex items-center justify-center">
         <div class="inline-flex p-1 bg-slate-100/80 rounded-xl border border-slate-200">
           <button
             class="flex items-center gap-2 px-6 py-1.5 rounded-lg text-[13px] font-bold transition-all duration-200"
@@ -67,7 +67,7 @@ const handleUpdateNote = ({ id, note }: { id: string | number; note: string }) =
 
     <!-- Tooth Sidebar -->
 
-    <main class="max-w-[1600px] mx-auto p-6 lg:p-8">
+    <main class="max-w-400 mx-auto p-6 lg:p-8">
       <div class="flex items-center justify-between mb-6">
         <button class="bg-white px-4 py-2 rounded-lg border border-slate-200 text-xs font-bold text-slate-600 flex items-center gap-2 shadow-sm hover:bg-slate-50 transition-colors ml-78">
           <FileText class="w-4 h-4" /> Overview
@@ -89,9 +89,9 @@ const handleUpdateNote = ({ id, note }: { id: string | number; note: string }) =
       <div class="flex gap-6 transition-all duration-500">
         <ChartLegend :is-sidebar-open="selectedToothId !== null" />
 
-        <div class="w-[1020px] max-w-full flex-shrink-0 flex flex-col gap-0 transition-all duration-500">
+        <div class="w-255 max-w-full shrink-0 flex flex-col gap-0 transition-all duration-500">
           <div class="flex items-center gap-0 relative z-10">
-            <div class="bg-white px-6 py-2.5 rounded-t-xl border-t border-l border-r border-slate-200 text-[11px] font-black text-[#0052ff] flex items-center gap-3 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] -mb-[1px]">
+            <div class="bg-white px-6 py-2.5 rounded-t-xl border-t border-l border-r border-slate-200 text-[11px] font-black text-[#0052ff] flex items-center gap-3 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] -mb-px">
               CHART 1
               <X class="w-3.5 h-3.5 cursor-pointer hover:text-red-500 transition-colors" />
             </div>

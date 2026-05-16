@@ -347,7 +347,7 @@ const analysisData = computed(() => {
         <textarea
           v-model="noteInput"
           placeholder="Enter clinical observations, findings, or remarks for this tooth..."
-          class="w-full min-h-[120px] p-4 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-bold text-slate-700 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-[#0052ff]/10 focus:border-[#0052ff]/30 transition-all resize-none mb-4"
+          class="w-full min-h-30 p-4 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-bold text-slate-700 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-[#0052ff]/10 focus:border-[#0052ff]/30 transition-all resize-none mb-4"
           autofocus
         ></textarea>
         <div class="flex gap-3">
@@ -392,9 +392,9 @@ const analysisData = computed(() => {
       leave-from-class="opacity-100"
       leave-to-class="opacity-0"
     >
-      <div v-if="prognosisModalType" class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm" @click="prognosisModalType = null">
+      <div v-if="prognosisModalType" class="fixed inset-0 z-100 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm" @click="prognosisModalType = null">
         <div
-          class="bg-white w-full max-w-2xl max-h-[85vh] overflow-y-auto rounded-[32px] shadow-2xl"
+          class="bg-white w-full max-w-2xl max-h-[85vh] overflow-y-auto rounded-4xl shadow-2xl"
           @click.stop
         >
           <div class="sticky top-0 bg-white/80 backdrop-blur-md px-8 py-6 border-b border-slate-50 flex items-center justify-between z-10">
@@ -484,7 +484,7 @@ const analysisData = computed(() => {
             </div>
           </div>
 
-          <div class="p-8 bg-slate-50/50 border-t border-slate-50 text-center rounded-b-[32px]">
+          <div class="p-8 bg-slate-50/50 border-t border-slate-50 text-center rounded-b-4xl">
             <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest italic">Reference: Clinical Periodontology Standards</p>
           </div>
         </div>
