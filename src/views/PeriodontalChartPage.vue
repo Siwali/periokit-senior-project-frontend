@@ -87,7 +87,7 @@ const handleUpdateNote = ({ id, note }: { id: string | number; note: string }) =
       </div>
 
       <div class="flex gap-6 transition-all duration-500">
-        <ChartLegend />
+        <ChartLegend :is-sidebar-open="selectedToothId !== null" />
 
         <div class="w-[1020px] max-w-full flex-shrink-0 flex flex-col gap-0 transition-all duration-500">
           <div class="flex items-center gap-0 relative z-10">
