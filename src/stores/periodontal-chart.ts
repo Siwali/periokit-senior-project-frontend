@@ -47,7 +47,7 @@ export const usePeriodontalChartStore = defineStore('periodontalChart', {
     },
 
     selectTooth(id: ToothId) {
-      this.selectedToothId = id
+      this.selectedToothId = this.selectedToothId === id ? null : id
     },
 
     toggleBop(id: ToothId, surface: Surface, site: SiteIndex) {
