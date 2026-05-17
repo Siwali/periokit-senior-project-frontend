@@ -50,11 +50,30 @@ export const calculatePdCategories = (chartData: ChartData): PdCategories => {
   return categories
 }
 
-export const calculateChartSummary = (chartData: ChartData): ChartSummary => ({
-  totalTeeth: Object.keys(chartData).length,
-  missingTeeth: Object.values(chartData).filter(tooth => tooth.extracted).length,
-  implantTeeth: Object.values(chartData).filter(tooth => tooth.implant).length,
-  bopPercentage: calculateBopPercentage(chartData),
-  piPercentage: calculatePiPercentage(chartData),
-  pdCategories: calculatePdCategories(chartData)
-})
+export const calculateChartSummary = (chartData: ChartData): ChartSummary => {
+  const pdCategories = calculatePdCategories(chartData)
+  const bopPercentage = calculateBopPercentage(chartData)
+
+  const healthySites = pdCategories.healthy
+  const moderateSites = pdCategories.warning + Math.round(pdCategories.healthy * (bopPercentage / 200))
+  const severeSites = pdCategories.deep + Math.round(pdCategories.warning * (bopPercentage / 200))
+
+  const total = healthySites + moderateSites + severeSites || 1
+  const healthyPercent = Math.round((healthySites / total) * 100)
+  const moderatePercent = Math.round((moderateSites / total) * 100)
+  const severePercent = Math.max(0, 100 - healthyPercent - moderatePercent)
+
+  return {
+    totalTeeth: Object.keys(chartData).length,
+    missingTeeth: Object.values(chartData).filter(tooth => tooth.extracted).length,
+    implantTeeth: Object.values(chartData).filter(tooth => tooth.implant).length,
+    bopPercentage,
+    piPercentage: calculatePiPercentage(chartData),
+    pdCategories,
+    healthDistribution: {
+      healthy: healthyPercent,
+      moderate: moderatePercent,
+      severe: severePercent
+    }
+  }
+}

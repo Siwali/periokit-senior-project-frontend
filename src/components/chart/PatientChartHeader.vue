@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import type { PatientInfo } from '@/domain/chart/chart.types'
+import { Activity } from 'lucide-vue-next'
+import type { PatientInfo, ChartSummary } from '@/domain/chart/chart.types'
 
 defineProps<{
   patientInfo: PatientInfo
+  summary: ChartSummary
 }>()
 </script>
 
@@ -51,6 +53,65 @@ defineProps<{
               <span class="text-[11px] font-bold text-slate-600 group-hover:text-[#0052ff] transition-colors">{{ gender }}</span>
             </label>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Mini Summary Bar -->
+    <div class="px-6 py-2.5 bg-linear-to-r from-slate-50 to-white border-t border-slate-100 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <!-- Full-mouth Summary Label -->
+        <div class="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-blue-50 border border-blue-100">
+          <Activity class="w-3 h-3 text-blue-500" />
+          <span class="text-[9px] font-bold text-blue-600 uppercase">Summary</span>
+        </div>
+
+        <!-- Teeth Badge -->
+        <div class="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-slate-50 border border-slate-200">
+          <span class="text-[8px] font-bold uppercase text-slate-400">Teeth</span>
+          <span class="text-[9px] font-black text-slate-600">
+            {{ summary.totalTeeth - summary.missingTeeth }}/{{ summary.totalTeeth }}
+          </span>
+        </div>
+
+        <!-- Implants Badge -->
+        <div class="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-violet-50 border border-violet-200">
+          <span class="text-[8px] font-bold uppercase text-violet-400">Implants</span>
+          <span class="text-[9px] font-black text-violet-600">
+            {{ summary.implantTeeth }}
+          </span>
+        </div>
+
+        <!-- BoP Badge -->
+        <div class="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-rose-50 border border-rose-200">
+          <span class="text-[8px] font-bold uppercase text-rose-400">BoP</span>
+          <span class="text-[9px] font-black text-rose-600">
+            {{ summary.bopPercentage }}%
+          </span>
+        </div>
+
+        <!-- PI Badge -->
+        <div class="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-blue-50 border border-blue-100">
+          <span class="text-[8px] font-bold uppercase text-blue-400">PI</span>
+          <span class="text-[9px] font-black text-blue-600">
+            {{ summary.piPercentage }}%
+          </span>
+        </div>
+
+        <!-- PD 4-5 Badge -->
+        <div class="flex items-center gap-1.5 px-2 py-0.5 rounded-md" :class="summary.pdCategories.warning > 5 ? 'bg-amber-50 border border-amber-200' : 'bg-slate-50 border border-slate-200'">
+          <span class="text-[8px] font-bold uppercase" :class="summary.pdCategories.warning > 5 ? 'text-amber-500' : 'text-slate-400'">PD 4-5</span>
+          <span class="text-[9px] font-black" :class="summary.pdCategories.warning > 5 ? 'text-amber-600' : 'text-slate-600'">
+            {{ summary.pdCategories.warning }}
+          </span>
+        </div>
+
+        <!-- PD 6+ Badge -->
+        <div class="flex items-center gap-1.5 px-2 py-0.5 rounded-md" :class="summary.pdCategories.deep > 0 ? 'bg-rose-50 border border-rose-200' : 'bg-slate-50 border border-slate-200'">
+          <span class="text-[8px] font-bold uppercase" :class="summary.pdCategories.deep > 0 ? 'text-rose-400' : 'text-slate-400'">PD 6+</span>
+          <span class="text-[9px] font-black" :class="summary.pdCategories.deep > 0 ? 'text-rose-600' : 'text-slate-600'">
+            {{ summary.pdCategories.deep }}
+          </span>
         </div>
       </div>
     </div>
