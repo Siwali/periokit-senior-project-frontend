@@ -53,14 +53,12 @@ export const calculatePdCategories = (chartData: ChartData): PdCategories => {
 export const calculateChartSummary = (chartData: ChartData): ChartSummary => {
   const pdCategories = calculatePdCategories(chartData)
   const bopPercentage = calculateBopPercentage(chartData)
+  const piPercentage = calculatePiPercentage(chartData)
 
-  const healthySites = pdCategories.healthy
-  const moderateSites = pdCategories.warning + Math.round(pdCategories.healthy * (bopPercentage / 200))
-  const severeSites = pdCategories.deep + Math.round(pdCategories.warning * (bopPercentage / 200))
-
-  const total = healthySites + moderateSites + severeSites || 1
-  const healthyPercent = Math.round((healthySites / total) * 100)
-  const moderatePercent = Math.round((moderateSites / total) * 100)
+  // Health distribution based on PD categories (standard periodontal classification)
+  const totalSites = pdCategories.healthy + pdCategories.warning + pdCategories.deep || 1
+  const healthyPercent = Math.round((pdCategories.healthy / totalSites) * 100)
+  const moderatePercent = Math.round((pdCategories.warning / totalSites) * 100)
   const severePercent = Math.max(0, 100 - healthyPercent - moderatePercent)
 
   return {
@@ -68,7 +66,7 @@ export const calculateChartSummary = (chartData: ChartData): ChartSummary => {
     missingTeeth: Object.values(chartData).filter(tooth => tooth.extracted).length,
     implantTeeth: Object.values(chartData).filter(tooth => tooth.implant).length,
     bopPercentage,
-    piPercentage: calculatePiPercentage(chartData),
+    piPercentage,
     pdCategories,
     healthDistribution: {
       healthy: healthyPercent,
