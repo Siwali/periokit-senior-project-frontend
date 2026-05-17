@@ -132,6 +132,7 @@ const containerClasses = computed(() => ({
         :data-field="fieldName"
         :data-site="sitePosition"
         class="chart-input w-full h-full text-center text-[10px] outline-none bg-transparent transition-colors focus:bg-white z-10"
+        :tabindex="readonly ? -1 : 0"
         :class="[
           isAbnormal ? 'text-red-600 font-bold' : '',
           isCriticalValue && !isAbnormal ? 'text-red-600 font-extrabold' : '',
