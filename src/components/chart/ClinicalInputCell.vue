@@ -29,28 +29,12 @@ const emit = defineEmits<{
 // Warning state
 const showWarning = ref(false);
 const warningMessage = ref("");
-const pendingValue = ref("");
 
 const clearWarning = () => {
   setTimeout(() => {
     showWarning.value = false;
     warningMessage.value = "";
-  }, 2000);
-};
-
-// Confirm abnormal value
-const confirmAbnormalValue = () => {
-  emit("change", pendingValue.value);
-  const state = "valid"; // User confirmed, treat as valid
-  emit("validate", state);
-  showWarning.value = false;
-  pendingValue.value = "";
-};
-
-// Reject abnormal value
-const rejectAbnormalValue = () => {
-  pendingValue.value = "";
-  showWarning.value = false;
+  }, 3000);
 };
 
 // Critical value (>=4) - existing logic
@@ -89,14 +73,12 @@ const handleInput = (event: Event) => {
       return;
     }
 
-    // Check if value is abnormal (exceeds normal range)
+    // Check if value is abnormal (exceeds normal range) - just show warning, don't block
     if (filteredValue !== "" && isAbnormalValue(filteredValue, props.fieldName)) {
-      // Store pending value and show confirmation
-      pendingValue.value = filteredValue;
-      target.value = ""; // Clear input while showing confirmation
       warningMessage.value = `${getFieldDisplayName(props.fieldName)}: ${filteredValue} (Exceeds threshold)`;
       showWarning.value = true;
-      return;
+      clearWarning();
+      // Continue processing - don't return early
     }
 
     if (target.value !== filteredValue) {
@@ -171,22 +153,6 @@ const containerClasses = computed(() => ({
           class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-red-600 text-white text-[9px] font-bold rounded-md whitespace-nowrap z-50 shadow-lg"
         >
           {{ warningMessage }}
-          <div v-if="pendingValue" class="mt-1 flex items-center justify-center gap-1">
-            <button
-              type="button"
-              class="rounded bg-white/20 px-1.5 py-0.5 hover:bg-white/30"
-              @click.stop="confirmAbnormalValue"
-            >
-              Use
-            </button>
-            <button
-              type="button"
-              class="rounded bg-white/20 px-1.5 py-0.5 hover:bg-white/30"
-              @click.stop="rejectAbnormalValue"
-            >
-              Clear
-            </button>
-          </div>
           <div class="absolute top-full left-1/2 -translate-x-1/2 -mt-px">
             <div class="border-4 border-transparent border-t-red-600"></div>
           </div>
