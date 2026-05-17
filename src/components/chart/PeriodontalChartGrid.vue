@@ -92,10 +92,15 @@ const handleKeyDown = (event: KeyboardEvent) => {
   if (key === 'ArrowDown') {
     for (let i = currentIndex + 1; i < allInputs.length; i += 1) {
       const input = allInputs[i]
+      const targetField = input.getAttribute('data-field')
+      const isTargetSingleCell = isSingleCellField(targetField)
+
       if (
         input.getAttribute('data-tooth') === currentTooth &&
-        input.getAttribute('data-site') === currentSite &&
+        // Skip site check for single-cell fields (mo, ktw), but enforce it for multi-site fields
+        (isTargetSingleCell || input.getAttribute('data-site') === currentSite) &&
         (input.getAttribute('data-surface') || '') === currentSurface &&
+        (input.getAttribute('data-section') || '') === currentSection &&
         isFocusableChartInput(input)
       ) {
         nextTarget = input
@@ -105,10 +110,15 @@ const handleKeyDown = (event: KeyboardEvent) => {
   } else if (key === 'ArrowUp') {
     for (let i = currentIndex - 1; i >= 0; i -= 1) {
       const input = allInputs[i]
+      const targetField = input.getAttribute('data-field')
+      const isTargetSingleCell = isSingleCellField(targetField)
+
       if (
         input.getAttribute('data-tooth') === currentTooth &&
-        input.getAttribute('data-site') === currentSite &&
+        // Skip site check for single-cell fields (mo, ktw), but enforce it for multi-site fields
+        (isTargetSingleCell || input.getAttribute('data-site') === currentSite) &&
         (input.getAttribute('data-surface') || '') === currentSurface &&
+        (input.getAttribute('data-section') || '') === currentSection &&
         isFocusableChartInput(input)
       ) {
         nextTarget = input
