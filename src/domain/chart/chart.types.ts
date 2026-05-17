@@ -42,6 +42,12 @@ export interface PdCategories {
   deep: number
 }
 
+export interface HealthDistribution {
+  healthy: number
+  moderate: number
+  severe: number
+}
+
 export interface ChartSummary {
   totalTeeth: number
   missingTeeth: number
@@ -49,4 +55,5 @@ export interface ChartSummary {
   bopPercentage: number
   piPercentage: number
   pdCategories: PdCategories
+  healthDistribution: HealthDistribution
 }

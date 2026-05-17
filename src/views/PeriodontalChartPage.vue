@@ -98,7 +98,7 @@ const handleUpdateNote = ({ id, note }: { id: string | number; note: string }) =
             <button class="p-1.5 text-slate-400 hover:text-[#0052ff] transition-colors"><Plus class="w-4 h-4" /></button>
           </div>
 
-          <PatientChartHeader :patient-info="patientInfo" />
+          <PatientChartHeader :patient-info="patientInfo" :summary="summary" />
 
           <PeriodontalChartGrid
             :chart-data="teethData"
@@ -115,37 +115,6 @@ const handleUpdateNote = ({ id, note }: { id: string | number; note: string }) =
             @validate-field="validationStore.setFieldValidation"
             @toggle-extracted="chartStore.toggleExtracted"
           />
-
-          <!-- Summary -->
-          <section class="mt-4 w-full bg-white rounded-2xl border border-slate-200 p-3 shadow-sm">
-            <h2 class="text-[10px] font-black text-slate-800 uppercase tracking-widest mb-2">Full-mouth summary</h2>
-            <div class="grid grid-cols-6 gap-2">
-              <div class="rounded-xl bg-slate-50 p-2">
-                <p class="text-[9px] font-bold text-slate-400 uppercase">Teeth</p>
-                <p class="text-base font-black text-slate-800">{{ summary.totalTeeth - summary.missingTeeth }}/{{ summary.totalTeeth }}</p>
-              </div>
-              <div class="rounded-xl bg-slate-50 p-2">
-                <p class="text-[9px] font-bold text-slate-400 uppercase">Implants</p>
-                <p class="text-base font-black text-slate-800">{{ summary.implantTeeth }}</p>
-              </div>
-              <div class="rounded-xl bg-red-50 p-2">
-                <p class="text-[9px] font-bold text-red-400 uppercase">BoP</p>
-                <p class="text-base font-black text-red-600">{{ summary.bopPercentage }}%</p>
-              </div>
-              <div class="rounded-xl bg-blue-50 p-2">
-                <p class="text-[9px] font-bold text-blue-400 uppercase">PI</p>
-                <p class="text-base font-black text-blue-600">{{ summary.piPercentage }}%</p>
-              </div>
-              <div class="rounded-xl bg-amber-50 p-2">
-                <p class="text-[9px] font-bold text-amber-500 uppercase">PD 4-5</p>
-                <p class="text-base font-black text-amber-600">{{ summary.pdCategories.warning }}</p>
-              </div>
-              <div class="rounded-xl bg-rose-50 p-2">
-                <p class="text-[9px] font-bold text-rose-500 uppercase">PD 6+</p>
-                <p class="text-base font-black text-rose-600">{{ summary.pdCategories.deep }}</p>
-              </div>
-            </div>
-          </section>
         </div>
 
         <ToothSidebarOverlay
