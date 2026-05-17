@@ -182,8 +182,8 @@ const handleKeyDown = (event: KeyboardEvent) => {
 </script>
 
 <template>
-  <section class="mt-6 w-full bg-white rounded-3xl shadow-xl border border-slate-300 overflow-hidden">
-    <div class="p-4 bg-[#f8fafc] overflow-x-auto">
+  <section class="mt-4 w-full bg-white rounded-3xl shadow-xl border border-slate-300 overflow-hidden">
+    <div class="p-3 bg-[#f8fafc] overflow-x-auto">
       <div ref="chartContainerRef" class="w-fit mx-auto" @keydown="handleKeyDown">
 
         <!-- Upper Arch Buccal -->
@@ -239,13 +239,13 @@ const handleKeyDown = (event: KeyboardEvent) => {
         </div>
 
         <!-- Upper Arch - Images -->
-        <div class="flex flex-col gap-10 mb-6">
+        <div class="flex flex-col gap-6 mb-4">
           <ToothImageRow label="BUCCAL" :arch="UPPER_ARCH" :chart-data="chartData" surface="buccal" :selected-tooth-id="selectedToothId" grid-class="clinical-grid-bg" group-gap-class="w-4" label-position="top" />
           <ToothImageRow label="PALATAL" :arch="UPPER_ARCH" :chart-data="chartData" surface="lingual" :selected-tooth-id="selectedToothId" grid-class="clinical-grid-bg-inf" group-gap-class="w-4" label-position="top" />
         </div>
 
         <!-- Upper Arch Palatal -->
-        <div class="flex mt-6 mb-16" data-section="upper-palatal">
+        <div class="flex mt-4 mb-10" data-section="upper-palatal">
           <div class="flex flex-col bg-white border-l border-y border-slate-400 text-[9px] font-bold text-slate-500 w-20 sticky left-0 z-20">
             <div v-for="row in INNER_SURFACE_ROWS" :key="row" class="h-6 flex items-center px-2 border-b border-r border-slate-300 last:border-b-0">{{ row }}</div>
           </div>
@@ -281,7 +281,7 @@ const handleKeyDown = (event: KeyboardEvent) => {
         </div>
 
         <!-- Lower Arch Lingual -->
-        <div class="flex items-end mb-1 mt-12" data-section="lower-lingual">
+        <div class="flex items-end mb-1 mt-8" data-section="lower-lingual">
           <div class="flex flex-col bg-white border-l border-t border-slate-400 text-[9px] font-bold text-slate-500 uppercase w-20 sticky left-0 z-20">
             <div v-for="row in BUCCAL_ROWS" :key="row" class="h-6 flex items-center px-2 border-b border-r border-slate-400">{{ row }}</div>
           </div>
@@ -317,7 +317,7 @@ const handleKeyDown = (event: KeyboardEvent) => {
         </div>
 
         <!-- Lower Arch - Extracted Button -->
-        <div class="flex mt-1 mb-8">
+        <div class="flex mt-1 mb-4">
           <div class="w-20"></div>
           <div class="flex">
             <template v-for="(group, gIdx) in LOWER_ARCH" :key="gIdx">
@@ -331,7 +331,7 @@ const handleKeyDown = (event: KeyboardEvent) => {
           </div>
         </div>
 
-        <div class="flex flex-col gap-10 mb-6">
+        <div class="flex flex-col gap-6 mb-4">
           <ToothImageRow label="LINGUAL" :arch="LOWER_ARCH" :chart-data="chartData" surface="lingual" :selected-tooth-id="selectedToothId" grid-class="clinical-grid-bg" group-gap-class="w-6" label-position="bottom" />
           <ToothImageRow label="BUCCAL" :arch="LOWER_ARCH" :chart-data="chartData" surface="buccal" :selected-tooth-id="selectedToothId" grid-class="clinical-grid-bg-inf" group-gap-class="w-6" label-position="bottom" />
         </div>
