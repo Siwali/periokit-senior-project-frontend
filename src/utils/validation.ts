@@ -8,10 +8,13 @@ export const FIELD_RANGES = {
   pd: { normal: 10, absolute: 99 },
   rec: { normal: 10, absolute: 99 },
   cal: { normal: 10, absolute: 99 },
-  mo: { normal: 2, absolute: 9 },
+  mo: { normal: 3, absolute: 3 }, // Miller's Classification: 0-3 only
   ktw: { normal: 5, absolute: 20 },
   furcation: { normal: 3, absolute: 3 },
 } as const;
+
+// Mobility valid values (Miller's Classification)
+export const MOBILITY_VALID_VALUES = [0, 1, 2, 3];
 
 type FieldKey = keyof typeof FIELD_RANGES;
 
