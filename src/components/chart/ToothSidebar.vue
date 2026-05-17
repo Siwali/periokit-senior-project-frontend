@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { X } from 'lucide-vue-next'
+import { X, Trash2 } from 'lucide-vue-next'
 import { computed, ref, watch } from 'vue'
 
 import {
@@ -39,6 +39,12 @@ const startEditing = () => {
 const saveNote = () => {
   emit('update-note', { id: props.toothId, note: noteInput.value })
   isEditingNote.value = false
+}
+
+const deleteNote = () => {
+  emit('update-note', { id: props.toothId, note: '' })
+  isEditingNote.value = false
+  noteInput.value = ''
 }
 
 const cancelEditing = () => {
@@ -334,9 +340,14 @@ const analysisData = computed(() => {
       <section v-if="toothData.note && !isEditingNote" class="bg-yellow-50/50 border border-yellow-100 rounded-3xl p-6 shadow-sm group relative">
         <div class="flex justify-between items-start mb-3">
           <h3 class="text-[11px] font-black text-yellow-600 uppercase tracking-[0.15em]">Note</h3>
-          <button @click="startEditing" class="opacity-0 group-hover:opacity-100 p-1 hover:bg-yellow-100 rounded text-yellow-600 transition-all">
-            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
-          </button>
+          <div class="flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
+            <button @click="startEditing" class="p-1 hover:bg-yellow-100 rounded text-yellow-600 transition-all" title="Edit note">
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
+            </button>
+            <button @click="deleteNote" class="p-1 hover:bg-red-100 rounded text-red-500 transition-all" title="Delete note">
+              <Trash2 :size="12" />
+            </button>
+          </div>
         </div>
         <p class="text-xs font-bold text-slate-600 leading-relaxed whitespace-pre-wrap">{{ toothData.note }}</p>
       </section>
@@ -347,7 +358,7 @@ const analysisData = computed(() => {
         <textarea
           v-model="noteInput"
           placeholder="Enter clinical observations, findings, or remarks for this tooth..."
-          class="w-full min-h-[120px] p-4 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-bold text-slate-700 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-[#0052ff]/10 focus:border-[#0052ff]/30 transition-all resize-none mb-4"
+          class="w-full min-h-30 p-4 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-bold text-slate-700 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-[#0052ff]/10 focus:border-[#0052ff]/30 transition-all resize-none mb-4"
           autofocus
         ></textarea>
         <div class="flex gap-3">
@@ -356,6 +367,14 @@ const analysisData = computed(() => {
             class="flex-1 py-3 bg-[#0052ff] hover:bg-[#0041cc] text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 shadow-lg shadow-blue-200"
           >
             Save Note
+          </button>
+          <button
+            v-if="toothData.note"
+            @click="deleteNote"
+            class="px-4 py-3 bg-red-50 hover:bg-red-100 text-red-500 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 flex items-center gap-1.5"
+            title="Delete note"
+          >
+            <Trash2 :size="12" />
           </button>
           <button
             @click="cancelEditing"
@@ -392,9 +411,9 @@ const analysisData = computed(() => {
       leave-from-class="opacity-100"
       leave-to-class="opacity-0"
     >
-      <div v-if="prognosisModalType" class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm" @click="prognosisModalType = null">
+      <div v-if="prognosisModalType" class="fixed inset-0 z-100 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm" @click="prognosisModalType = null">
         <div
-          class="bg-white w-full max-w-2xl max-h-[85vh] overflow-y-auto rounded-[32px] shadow-2xl"
+          class="bg-white w-full max-w-2xl max-h-[85vh] overflow-y-auto rounded-4xl shadow-2xl"
           @click.stop
         >
           <div class="sticky top-0 bg-white/80 backdrop-blur-md px-8 py-6 border-b border-slate-50 flex items-center justify-between z-10">
@@ -484,7 +503,7 @@ const analysisData = computed(() => {
             </div>
           </div>
 
-          <div class="p-8 bg-slate-50/50 border-t border-slate-50 text-center rounded-b-[32px]">
+          <div class="p-8 bg-slate-50/50 border-t border-slate-50 text-center rounded-b-4xl">
             <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest italic">Reference: Clinical Periodontology Standards</p>
           </div>
         </div>

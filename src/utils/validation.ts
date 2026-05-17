@@ -3,10 +3,11 @@
  */
 
 // Field ranges: { normal threshold, absolute max }
+// Values above normal show red (abnormal), values above absolute are blocked
 export const FIELD_RANGES = {
   pd: { normal: 10, absolute: 99 },
-  rec: { normal: 5, absolute: 99 },
-  cal: { normal: 15, absolute: 99 },
+  rec: { normal: 10, absolute: 99 },
+  cal: { normal: 10, absolute: 99 },
   mo: { normal: 2, absolute: 9 },
   ktw: { normal: 5, absolute: 20 },
   furcation: { normal: 3, absolute: 3 },

@@ -7,6 +7,7 @@ interface Props {
   sitePosition: number;
   fieldName: string;
   surface: string;
+  section?: string;
   value: any;
   inputType: "numeric" | "toggle";
   validationState?: "valid" | "invalid" | "none";
@@ -28,28 +29,12 @@ const emit = defineEmits<{
 // Warning state
 const showWarning = ref(false);
 const warningMessage = ref("");
-const pendingValue = ref("");
 
 const clearWarning = () => {
   setTimeout(() => {
     showWarning.value = false;
     warningMessage.value = "";
-  }, 2000);
-};
-
-// Confirm abnormal value
-const confirmAbnormalValue = () => {
-  emit("change", pendingValue.value);
-  const state = "valid"; // User confirmed, treat as valid
-  emit("validate", state);
-  showWarning.value = false;
-  pendingValue.value = "";
-};
-
-// Reject abnormal value
-const rejectAbnormalValue = () => {
-  pendingValue.value = "";
-  showWarning.value = false;
+  }, 3000);
 };
 
 // Critical value (>=4) - existing logic
@@ -88,14 +73,12 @@ const handleInput = (event: Event) => {
       return;
     }
 
-    // Check if value is abnormal (exceeds normal range)
+    // Check if value is abnormal (exceeds normal range) - just show warning, don't block
     if (filteredValue !== "" && isAbnormalValue(filteredValue, props.fieldName)) {
-      // Store pending value and show confirmation
-      pendingValue.value = filteredValue;
-      target.value = ""; // Clear input while showing confirmation
       warningMessage.value = `${getFieldDisplayName(props.fieldName)}: ${filteredValue} (Exceeds threshold)`;
       showWarning.value = true;
-      return;
+      clearWarning();
+      // Continue processing - don't return early
     }
 
     if (target.value !== filteredValue) {
@@ -132,7 +115,7 @@ const containerClasses = computed(() => ({
 
 <template>
   <div
-    class="relative flex-1 h-full min-h-[24px] transition-all duration-200 border-r border-slate-100 last:border-r-0 group"
+    class="relative flex-1 h-full min-h-6 transition-all duration-200 border-r border-slate-100 last:border-r-0 group"
     :class="containerClasses"
   >
     <!-- Numeric Input -->
@@ -145,9 +128,11 @@ const containerClasses = computed(() => ({
         @input="handleInput"
         :data-tooth="toothNumber"
         :data-surface="surface"
+        :data-section="section"
         :data-field="fieldName"
         :data-site="sitePosition"
-        class="chart-input w-full h-full text-center text-[10px] outline-none bg-transparent transition-colors focus:bg-white focus:ring-1 focus:ring-[#0052ff] focus:ring-inset z-10"
+        class="chart-input w-full h-full text-center text-[10px] outline-none bg-transparent transition-colors focus:bg-white z-10"
+        :tabindex="readonly ? -1 : 0"
         :class="[
           isAbnormal ? 'text-red-600 font-bold' : '',
           isCriticalValue && !isAbnormal ? 'text-red-600 font-extrabold' : '',
@@ -169,22 +154,6 @@ const containerClasses = computed(() => ({
           class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-red-600 text-white text-[9px] font-bold rounded-md whitespace-nowrap z-50 shadow-lg"
         >
           {{ warningMessage }}
-          <div v-if="pendingValue" class="mt-1 flex items-center justify-center gap-1">
-            <button
-              type="button"
-              class="rounded bg-white/20 px-1.5 py-0.5 hover:bg-white/30"
-              @click.stop="confirmAbnormalValue"
-            >
-              Use
-            </button>
-            <button
-              type="button"
-              class="rounded bg-white/20 px-1.5 py-0.5 hover:bg-white/30"
-              @click.stop="rejectAbnormalValue"
-            >
-              Clear
-            </button>
-          </div>
           <div class="absolute top-full left-1/2 -translate-x-1/2 -mt-px">
             <div class="border-4 border-transparent border-t-red-600"></div>
           </div>
@@ -201,6 +170,7 @@ const containerClasses = computed(() => ({
         :aria-disabled="disabled || readonly"
         :data-tooth="toothNumber"
         :data-surface="surface"
+        :data-section="section"
         :data-field="fieldName"
         :data-site="sitePosition"
         class="chart-input w-full h-full cursor-pointer transition-all duration-150 outline-none flex items-center justify-center focus:ring-1 focus:ring-[#0052ff] focus:ring-inset"
@@ -214,7 +184,7 @@ const containerClasses = computed(() => ({
     <!-- Focus Indicator -->
     <div
       v-if="!disabled && !readonly"
-      class="absolute inset-0 border-b-2 border-transparent group-focus-within:border-[#0052ff] pointer-events-none transition-colors"
+      class="absolute inset-0 rounded-sm border border-transparent group-focus-within:border-[#0052ff] group-focus-within:shadow-[0_0_0_1px_#0052ff] pointer-events-none transition-all"
     ></div>
   </div>
 </template>

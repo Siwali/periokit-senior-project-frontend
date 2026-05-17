@@ -40,7 +40,7 @@ defineProps<{
     </div>
     <div class="flex-1 flex">
       <template v-for="(group, gIdx) in arch" :key="gIdx">
-        <div class="flex h-[155px] relative">
+        <div class="flex h-38.75 relative">
           <div class="absolute inset-0 z-30 pointer-events-none" :class="gridClass"></div>
           <div
             v-for="id in group"
@@ -52,7 +52,7 @@ defineProps<{
             <img
               :src="getToothImage(id, surface, chartData[id])"
               :alt="`Tooth ${id} ${label}`"
-              class="absolute h-[141px] w-auto max-w-none object-contain transition-all duration-300"
+              class="absolute h-35.25 w-auto max-w-none object-contain transition-all duration-300"
               :class="imageClass"
               :style="getToothImageStyle(id, surface)"
             />
