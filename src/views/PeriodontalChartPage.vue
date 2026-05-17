@@ -73,7 +73,7 @@ const handleUpdateNote = ({ id, note }: { id: string | number; note: string }) =
           <FileText class="w-3.5 h-3.5" /> Overview
         </button>
 
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2 mr-50">
           <button class="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-[#9333ea]/30 text-[#9333ea] rounded-lg font-bold text-[11px] shadow-sm hover:bg-purple-50 transition-colors">
             <Stethoscope class="w-3.5 h-3.5" /> Diagnosis
           </button>
