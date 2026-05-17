@@ -132,7 +132,7 @@ const hasMyPatientRoute = computed(() => {
         >
           <!-- Avatar -->
           <div
-            class="w-10 h-10 rounded-full bg-[#0052ff]/10 flex items-center justify-center overflow-hidden border-2 border-white shadow-sm group-hover:border-[#0052ff]/30 transition-all flex-shrink-0"
+            class="w-10 h-10 rounded-full bg-[#0052ff]/10 flex items-center justify-center overflow-hidden border-2 border-white shadow-sm group-hover:border-[#0052ff]/30 transition-all shrink-0"
           >
             <img
               v-if="user?.profile_image_url"
@@ -156,7 +156,7 @@ const hasMyPatientRoute = computed(() => {
               {{ user?.first_name }} {{ user?.last_name }}
             </p>
             <p
-              class="text-[11px] text-gray-400 leading-none truncate max-w-[140px]"
+              class="text-[11px] text-gray-400 leading-none truncate max-w-35"
             >
               {{ user?.email }}
             </p>
@@ -177,7 +177,7 @@ const hasMyPatientRoute = computed(() => {
           <div class="px-4 py-3 border-b border-[#e2e8f0] mb-1 sm:hidden">
             <div class="flex items-center gap-3 mb-1">
               <div
-                class="w-8 h-8 rounded-full bg-[#0052ff]/10 flex items-center justify-center overflow-hidden flex-shrink-0"
+                class="w-8 h-8 rounded-full bg-[#0052ff]/10 flex items-center justify-center overflow-hidden shrink-0"
               >
                 <img
                   v-if="user?.profile_image_url"
