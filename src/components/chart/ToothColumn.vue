@@ -12,7 +12,7 @@ const props = defineProps<{
   selected: boolean
   midline?: boolean
   headerPosition?: 'top' | 'bottom' | 'none'
-  order: 'standard' | 'reverse'
+  order: 'standard' | 'reverse' | 'palatal'
   getFieldValidation: (id: ToothId, surface: Surface, field: string, site: number) => 'valid' | 'invalid' | 'none'
 }>()
 
@@ -176,6 +176,101 @@ const getToothColumnStyle = (id: ToothId) => {
       </div>
     </template>
 
+    <!-- Palatal template: Furcation, BOP, PI, Rec, PD, CAL -->
+    <template v-else-if="order === 'palatal'">
+      <!-- Furcation - 3 cells per tooth -->
+      <div class="h-6 border-b border-slate-400 flex items-center justify-center gap-1 cursor-pointer select-none text-slate-800" :class="{ 'pointer-events-none opacity-30': toothData.extracted || toothData.implant }">
+        <div v-for="(grade, fIdx) in toothData.fur[surface]" :key="fIdx" class="flex items-center justify-center w-4 h-4 cursor-pointer" @click.stop="emit('toggleFur', id, surface, fIdx)">
+          <img v-if="grade > 0" :src="getFurImage(grade)" class="w-3.5 h-3.5 object-contain" />
+          <div v-else class="w-3 h-3 border border-slate-400 rounded-full bg-white/50"></div>
+        </div>
+      </div>
+      <!-- BOP - 3 cells -->
+      <div class="flex h-6 border-b border-slate-400">
+        <ClinicalInputCell
+          v-for="site in SITE_INDEXES"
+          :key="site"
+          :tooth-number="id"
+          :site-position="site"
+          field-name="bop"
+          :surface="surface"
+          :section="section"
+          input-type="toggle"
+          :value="toothData[surface].bop[site]"
+          :disabled="toothData.extracted"
+          @change="emit('toggleBop', id, surface, site)"
+        />
+      </div>
+      <!-- PI - 3 cells -->
+      <div class="flex h-6 border-b border-slate-400">
+        <ClinicalInputCell
+          v-for="site in SITE_INDEXES"
+          :key="site"
+          :tooth-number="id"
+          :site-position="site"
+          field-name="pi"
+          :surface="surface"
+          :section="section"
+          input-type="toggle"
+          :value="toothData[surface].pi[site]"
+          :disabled="toothData.extracted"
+          @change="emit('togglePi', id, surface, site)"
+        />
+      </div>
+      <!-- Rec - 3 cells -->
+      <div class="flex h-6 border-b border-slate-400">
+        <ClinicalInputCell
+          v-for="site in SITE_INDEXES"
+          :key="site"
+          :tooth-number="id"
+          :site-position="site"
+          field-name="rec"
+          :surface="surface"
+          :section="section"
+          input-type="numeric"
+          :value="toothData[surface].rec[site]"
+          :validation-state="getFieldValidation(id, surface, 'rec', site)"
+          :disabled="toothData.extracted"
+          @change="value => emit('updateRec', id, surface, site, String(value))"
+          @validate="state => validateField('rec', site, state)"
+        />
+      </div>
+      <!-- PD - 3 cells -->
+      <div class="flex h-6 border-b border-slate-400">
+        <ClinicalInputCell
+          v-for="site in SITE_INDEXES"
+          :key="site"
+          :tooth-number="id"
+          :site-position="site"
+          field-name="pd"
+          :surface="surface"
+          :section="section"
+          input-type="numeric"
+          :value="toothData[surface].pd[site]"
+          :validation-state="getFieldValidation(id, surface, 'pd', site)"
+          :disabled="toothData.extracted"
+          @change="value => emit('updatePd', id, surface, site, String(value))"
+          @validate="state => validateField('pd', site, state)"
+        />
+      </div>
+      <!-- CAL - 3 cells (readonly) -->
+      <div class="flex h-6 border-b border-slate-400 bg-slate-50/30">
+        <ClinicalInputCell
+          v-for="site in SITE_INDEXES"
+          :key="site"
+          :tooth-number="id"
+          :site-position="site"
+          field-name="cal"
+          :surface="surface"
+          :section="section"
+          input-type="numeric"
+          :value="toothData[surface].cal[site] || '0'"
+          readonly
+        />
+      </div>
+    </template>
+
+    <!-- Reverse template for lower buccal -->
     <template v-else>
       <div class="flex h-6 border-b border-slate-400 bg-slate-50/30">
         <ClinicalInputCell
