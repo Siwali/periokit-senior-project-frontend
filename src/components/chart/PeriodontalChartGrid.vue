@@ -61,6 +61,10 @@ const isFocusableChartInput = (input: HTMLElement) => {
   return true
 }
 
+// Single-cell fields: only one value per tooth (no site navigation)
+const SINGLE_CELL_FIELDS = ['mo', 'ktw'] as const
+const isSingleCellField = (field: string | null) => field && SINGLE_CELL_FIELDS.includes(field as any)
+
 // Mirrors the legacy PeriodontalChartView keyboard navigation, but keeps
 // keyboard focus movement independent from selected tooth/sidebar state.
 const handleKeyDown = (event: KeyboardEvent) => {
@@ -77,6 +81,7 @@ const handleKeyDown = (event: KeyboardEvent) => {
   const currentSite = target.getAttribute('data-site') || '0'
   const currentSurface = target.getAttribute('data-surface')
   const currentSection = target.getAttribute('data-section')
+  const isSingleCell = isSingleCellField(currentField)
 
   const allInputs = Array.from(chartContainerRef.value?.querySelectorAll('.chart-input') || []) as HTMLElement[]
   const currentIndex = allInputs.indexOf(target)
@@ -111,100 +116,164 @@ const handleKeyDown = (event: KeyboardEvent) => {
       }
     }
   } else if (key === 'ArrowRight' || key === 'Enter') {
-    // First priority: next site within same tooth (site 0→1→2)
-    for (let i = currentIndex + 1; i < allInputs.length; i += 1) {
-      const input = allInputs[i]
-      if (
-        input.getAttribute('data-tooth') === currentTooth &&
-        input.getAttribute('data-field') === currentField &&
-        (input.getAttribute('data-surface') || '') === currentSurface &&
-        input.getAttribute('data-section') === currentSection &&
-        isFocusableChartInput(input)
-      ) {
-        nextTarget = input
-        break
-      }
-    }
-
-    // Second priority: next tooth with site 0 (wrapping to next tooth)
-    if (!nextTarget) {
+    if (isSingleCell) {
+      // Single-cell field: go directly to next tooth (same field, same surface)
       for (let i = currentIndex + 1; i < allInputs.length; i += 1) {
         const input = allInputs[i]
         if (
           input.getAttribute('data-field') === currentField &&
           (input.getAttribute('data-surface') || '') === currentSurface &&
           input.getAttribute('data-section') === currentSection &&
-          input.getAttribute('data-site') === '0' &&
           isFocusableChartInput(input)
         ) {
           nextTarget = input
           break
         }
       }
-    }
 
-    // Third priority: go to next section, leftmost tooth, site 0
-    if (!nextTarget && currentSection) {
-      const nextSection = getNextSection(currentSection)
-      for (let i = 0; i < allInputs.length; i += 1) {
+      // Wrap to next section, leftmost tooth
+      if (!nextTarget && currentSection) {
+        const nextSection = getNextSection(currentSection)
+        for (let i = 0; i < allInputs.length; i += 1) {
+          const input = allInputs[i]
+          if (
+            input.getAttribute('data-field') === currentField &&
+            input.getAttribute('data-section') === nextSection &&
+            isFocusableChartInput(input)
+          ) {
+            nextTarget = input
+            break
+          }
+        }
+      }
+    } else {
+      // Multi-site field: First priority: next site within same tooth (site 0→1→2)
+      for (let i = currentIndex + 1; i < allInputs.length; i += 1) {
         const input = allInputs[i]
         if (
+          input.getAttribute('data-tooth') === currentTooth &&
           input.getAttribute('data-field') === currentField &&
-          input.getAttribute('data-section') === nextSection &&
-          input.getAttribute('data-site') === '0' &&
+          (input.getAttribute('data-surface') || '') === currentSurface &&
+          input.getAttribute('data-section') === currentSection &&
           isFocusableChartInput(input)
         ) {
           nextTarget = input
           break
+        }
+      }
+
+      // Second priority: next tooth with site 0 (wrapping to next tooth)
+      if (!nextTarget) {
+        for (let i = currentIndex + 1; i < allInputs.length; i += 1) {
+          const input = allInputs[i]
+          if (
+            input.getAttribute('data-field') === currentField &&
+            (input.getAttribute('data-surface') || '') === currentSurface &&
+            input.getAttribute('data-section') === currentSection &&
+            input.getAttribute('data-site') === '0' &&
+            isFocusableChartInput(input)
+          ) {
+            nextTarget = input
+            break
+          }
+        }
+      }
+
+      // Third priority: go to next section, leftmost tooth, site 0
+      if (!nextTarget && currentSection) {
+        const nextSection = getNextSection(currentSection)
+        for (let i = 0; i < allInputs.length; i += 1) {
+          const input = allInputs[i]
+          if (
+            input.getAttribute('data-field') === currentField &&
+            input.getAttribute('data-section') === nextSection &&
+            input.getAttribute('data-site') === '0' &&
+            isFocusableChartInput(input)
+          ) {
+            nextTarget = input
+            break
+          }
         }
       }
     }
   } else if (key === 'ArrowLeft') {
-    // First priority: previous site within same tooth (site 2→1→0)
-    for (let i = currentIndex - 1; i >= 0; i -= 1) {
-      const input = allInputs[i]
-      if (
-        input.getAttribute('data-tooth') === currentTooth &&
-        input.getAttribute('data-field') === currentField &&
-        (input.getAttribute('data-surface') || '') === currentSurface &&
-        input.getAttribute('data-section') === currentSection &&
-        isFocusableChartInput(input)
-      ) {
-        nextTarget = input
-        break
-      }
-    }
-
-    // Second priority: previous tooth with site 2 (wrapping to previous tooth)
-    if (!nextTarget) {
+    if (isSingleCell) {
+      // Single-cell field: go directly to previous tooth (same field, same surface)
       for (let i = currentIndex - 1; i >= 0; i -= 1) {
         const input = allInputs[i]
         if (
           input.getAttribute('data-field') === currentField &&
           (input.getAttribute('data-surface') || '') === currentSurface &&
           input.getAttribute('data-section') === currentSection &&
-          input.getAttribute('data-site') === '2' &&
           isFocusableChartInput(input)
         ) {
           nextTarget = input
           break
         }
       }
-    }
 
-    // Third priority: go to previous section, rightmost tooth, site 2
-    if (!nextTarget && currentSection) {
-      const prevSection = getPrevSection(currentSection)
-      for (let i = allInputs.length - 1; i >= 0; i -= 1) {
+      // Wrap to previous section, rightmost tooth
+      if (!nextTarget && currentSection) {
+        const prevSection = getPrevSection(currentSection)
+        for (let i = allInputs.length - 1; i >= 0; i -= 1) {
+          const input = allInputs[i]
+          if (
+            input.getAttribute('data-field') === currentField &&
+            input.getAttribute('data-section') === prevSection &&
+            isFocusableChartInput(input)
+          ) {
+            nextTarget = input
+            break
+          }
+        }
+      }
+    } else {
+      // Multi-site field: First priority: previous site within same tooth (site 2→1→0)
+      for (let i = currentIndex - 1; i >= 0; i -= 1) {
         const input = allInputs[i]
         if (
+          input.getAttribute('data-tooth') === currentTooth &&
           input.getAttribute('data-field') === currentField &&
-          input.getAttribute('data-section') === prevSection &&
-          input.getAttribute('data-site') === '2' &&
+          (input.getAttribute('data-surface') || '') === currentSurface &&
+          input.getAttribute('data-section') === currentSection &&
           isFocusableChartInput(input)
         ) {
           nextTarget = input
           break
+        }
+      }
+
+      // Second priority: previous tooth with site 2 (wrapping to previous tooth)
+      if (!nextTarget) {
+        for (let i = currentIndex - 1; i >= 0; i -= 1) {
+          const input = allInputs[i]
+          if (
+            input.getAttribute('data-field') === currentField &&
+            (input.getAttribute('data-surface') || '') === currentSurface &&
+            input.getAttribute('data-section') === currentSection &&
+            input.getAttribute('data-site') === '2' &&
+            isFocusableChartInput(input)
+          ) {
+            nextTarget = input
+            break
+          }
+        }
+      }
+
+      // Third priority: go to previous section, rightmost tooth, site 2
+      if (!nextTarget && currentSection) {
+        const prevSection = getPrevSection(currentSection)
+        for (let i = allInputs.length - 1; i >= 0; i -= 1) {
+          const input = allInputs[i]
+          if (
+            input.getAttribute('data-field') === currentField &&
+            input.getAttribute('data-section') === prevSection &&
+            input.getAttribute('data-site') === '2' &&
+            isFocusableChartInput(input)
+          ) {
+            nextTarget = input
+            break
+          }
         }
       }
     }
