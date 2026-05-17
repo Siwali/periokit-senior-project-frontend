@@ -57,7 +57,7 @@ const getToothColumnStyle = (id: ToothId) => {
 const isFocusableChartInput = (input: HTMLElement) => {
   if (input.offsetParent === null) return false
   if (input.getAttribute('aria-disabled') === 'true') return false
-  if (input instanceof HTMLInputElement && input.disabled) return false
+  if (input instanceof HTMLInputElement && (input.disabled || input.readOnly)) return false
   return true
 }
 
