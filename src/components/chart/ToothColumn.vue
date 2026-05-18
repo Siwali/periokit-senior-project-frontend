@@ -59,7 +59,9 @@ const getToothColumnStyle = (id: ToothId) => {
     </div>
 
     <template v-if="order === 'standard'">
-      <div class="h-6 border-b border-slate-400 flex items-center justify-center"><input v-model="toothData.implant" type="checkbox" :disabled="toothData.extracted" class="w-3.5 h-3.5 accent-slate-800 disabled:opacity-30" /></div>
+      <div class="h-6 border-b border-slate-400 flex items-center justify-center cursor-pointer" :class="{ 'pointer-events-none opacity-30': toothData.extracted }" @click.stop="toothData.implant = !toothData.implant">
+        <input v-model="toothData.implant" type="checkbox" :disabled="toothData.extracted" class="w-3.5 h-3.5 accent-slate-800 disabled:opacity-30 pointer-events-none" />
+      </div>
       <div class="flex h-6 border-b border-slate-400">
         <ClinicalInputCell
           :section="section"
@@ -92,8 +94,8 @@ const getToothColumnStyle = (id: ToothId) => {
           @validate="state => validateField('ktw', site, state)"
         />
       </div>
-      <div class="h-6 border-b border-slate-400 flex items-center justify-center gap-1 cursor-pointer select-none text-slate-800" :class="{ 'pointer-events-none opacity-30': toothData.extracted || toothData.implant }">
-        <div v-for="(grade, fIdx) in toothData.fur[surface]" :key="fIdx" class="flex items-center justify-center w-4 h-4 cursor-pointer" @click.stop="emit('toggleFur', id, surface, fIdx)">
+      <div class="h-6 border-b border-slate-400 flex items-center justify-center select-none text-slate-800" :class="{ 'pointer-events-none opacity-30': toothData.extracted || toothData.implant }">
+        <div v-for="(grade, fIdx) in toothData.fur[surface]" :key="fIdx" class="flex-1 h-full flex items-center justify-center cursor-pointer" @click.stop="emit('toggleFur', id, surface, fIdx)">
           <img v-if="grade > 0" :src="getFurImage(grade)" class="w-3.5 h-3.5 object-contain" />
           <div v-else class="w-3 h-3 border border-slate-400 rounded-full bg-white/50"></div>
         </div>
@@ -264,8 +266,8 @@ const getToothColumnStyle = (id: ToothId) => {
         />
       </div>
       <!-- Furcation - 3 cells per tooth -->
-      <div class="h-6 border-b border-slate-400 flex items-center justify-center gap-1 cursor-pointer select-none text-slate-800" :class="{ 'pointer-events-none opacity-30': toothData.extracted || toothData.implant }">
-        <div v-for="(grade, fIdx) in toothData.fur[surface]" :key="fIdx" class="flex items-center justify-center w-4 h-4 cursor-pointer" @click.stop="emit('toggleFur', id, surface, fIdx)">
+      <div class="h-6 border-b border-slate-400 flex items-center justify-center select-none text-slate-800" :class="{ 'pointer-events-none opacity-30': toothData.extracted || toothData.implant }">
+        <div v-for="(grade, fIdx) in toothData.fur[surface]" :key="fIdx" class="flex-1 h-full flex items-center justify-center cursor-pointer" @click.stop="emit('toggleFur', id, surface, fIdx)">
           <img v-if="grade > 0" :src="getFurImage(grade)" class="w-3.5 h-3.5 object-contain" />
           <div v-else class="w-3 h-3 border border-slate-400 rounded-full bg-white/50"></div>
         </div>
@@ -311,8 +313,8 @@ const getToothColumnStyle = (id: ToothId) => {
         />
       </div>
       <!-- Furcation - 3 cells per tooth -->
-      <div class="h-6 border-b border-slate-400 flex items-center justify-center gap-1 cursor-pointer select-none text-slate-800" :class="{ 'pointer-events-none opacity-30': toothData.extracted || toothData.implant }">
-        <div v-for="(grade, fIdx) in toothData.fur[surface]" :key="fIdx" class="flex items-center justify-center w-4 h-4 cursor-pointer" @click.stop="emit('toggleFur', id, surface, fIdx)">
+      <div class="h-6 border-b border-slate-400 flex items-center justify-center select-none text-slate-800" :class="{ 'pointer-events-none opacity-30': toothData.extracted || toothData.implant }">
+        <div v-for="(grade, fIdx) in toothData.fur[surface]" :key="fIdx" class="flex-1 h-full flex items-center justify-center cursor-pointer" @click.stop="emit('toggleFur', id, surface, fIdx)">
           <img v-if="grade > 0" :src="getFurImage(grade)" class="w-3.5 h-3.5 object-contain" />
           <div v-else class="w-3 h-3 border border-slate-400 rounded-full bg-white/50"></div>
         </div>
@@ -482,8 +484,8 @@ const getToothColumnStyle = (id: ToothId) => {
           @change="emit('toggleBop', id, surface, site)"
         />
       </div>
-      <div class="h-6 border-b border-slate-400 flex items-center justify-center gap-1 cursor-pointer select-none text-slate-800" :class="{ 'pointer-events-none opacity-30': toothData.extracted || toothData.implant }">
-        <div v-for="(grade, fIdx) in toothData.fur[surface]" :key="fIdx" class="flex items-center justify-center w-4 h-4 cursor-pointer" @click.stop="emit('toggleFur', id, surface, fIdx)">
+      <div class="h-6 border-b border-slate-400 flex items-center justify-center select-none text-slate-800" :class="{ 'pointer-events-none opacity-30': toothData.extracted || toothData.implant }">
+        <div v-for="(grade, fIdx) in toothData.fur[surface]" :key="fIdx" class="flex-1 h-full flex items-center justify-center cursor-pointer" @click.stop="emit('toggleFur', id, surface, fIdx)">
           <img v-if="grade > 0" :src="getFurImage(grade)" class="w-3.5 h-3.5 object-contain" />
           <div v-else class="w-3 h-3 border border-slate-400 rounded-full bg-white/50"></div>
         </div>
@@ -520,7 +522,9 @@ const getToothColumnStyle = (id: ToothId) => {
           @validate="state => validateField('mo', 0, state)"
         />
       </div>
-      <div class="h-6 flex items-center justify-center"><input v-model="toothData.implant" type="checkbox" :disabled="toothData.extracted" class="w-3.5 h-3.5 accent-slate-800 disabled:opacity-30" /></div>
+      <div class="h-6 flex items-center justify-center cursor-pointer" :class="{ 'pointer-events-none opacity-30': toothData.extracted }" @click.stop="toothData.implant = !toothData.implant">
+        <input v-model="toothData.implant" type="checkbox" :disabled="toothData.extracted" class="w-3.5 h-3.5 accent-slate-800 disabled:opacity-30 pointer-events-none" />
+      </div>
     </template>
 
     <div
