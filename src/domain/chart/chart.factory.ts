@@ -8,7 +8,7 @@ const createSurfaceData = () => ({
   rec: ['', '', ''],
   pd: ['', '', ''],
   cal: ['', '', ''],
-  ktw: ['', '', '']
+  ktw: ''
 })
 
 const createToothData = (id: number): ToothData => {

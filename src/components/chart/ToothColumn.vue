@@ -24,7 +24,7 @@ const emit = defineEmits<{
   updatePd: [id: ToothId, surface: Surface, site: SiteIndex, value: string]
   updateRec: [id: ToothId, surface: Surface, site: SiteIndex, value: string]
   updateMobility: [id: ToothId, value: string]
-  updateKtw: [id: ToothId, surface: Surface, site: SiteIndex, value: string]
+  updateKtw: [id: ToothId, surface: Surface, value: string]
   validateField: [id: ToothId, surface: Surface, field: string, site: number, state: 'valid' | 'invalid' | 'none']
 }>()
 
@@ -79,19 +79,17 @@ const getToothColumnStyle = (id: ToothId) => {
       </div>
       <div class="flex h-6 border-b border-slate-400">
         <ClinicalInputCell
-          v-for="site in SITE_INDEXES"
-          :key="site"
           :section="section"
           :tooth-number="id"
-          :site-position="site"
+          :site-position="0"
           field-name="ktw"
           :surface="surface"
           input-type="numeric"
-          :value="toothData[surface].ktw[site]"
-          :validation-state="getFieldValidation(id, surface, 'ktw', site)"
+          :value="toothData[surface].ktw"
+          :validation-state="getFieldValidation(id, surface, 'ktw', 0)"
           :disabled="toothData.extracted"
-          @change="value => emit('updateKtw', id, surface, site, String(value))"
-          @validate="state => validateField('ktw', site, state)"
+          @change="value => emit('updateKtw', id, surface, String(value))"
+          @validate="state => validateField('ktw', 0, state)"
         />
       </div>
       <div class="h-6 border-b border-slate-400 flex items-center justify-center select-none text-slate-800" :class="{ 'pointer-events-none opacity-30': toothData.extracted || toothData.implant }">
@@ -275,19 +273,17 @@ const getToothColumnStyle = (id: ToothId) => {
       <!-- KTW - 3 cells -->
       <div class="flex h-6 border-b border-slate-400">
         <ClinicalInputCell
-          v-for="site in SITE_INDEXES"
-          :key="site"
           :section="section"
           :tooth-number="id"
-          :site-position="site"
+          :site-position="0"
           field-name="ktw"
           :surface="surface"
           input-type="numeric"
-          :value="toothData[surface].ktw[site]"
-          :validation-state="getFieldValidation(id, surface, 'ktw', site)"
+          :value="toothData[surface].ktw"
+          :validation-state="getFieldValidation(id, surface, 'ktw', 0)"
           :disabled="toothData.extracted"
-          @change="value => emit('updateKtw', id, surface, site, String(value))"
-          @validate="state => validateField('ktw', site, state)"
+          @change="value => emit('updateKtw', id, surface, String(value))"
+          @validate="state => validateField('ktw', 0, state)"
         />
       </div>
     </template>
@@ -297,19 +293,17 @@ const getToothColumnStyle = (id: ToothId) => {
       <!-- KTW - 3 cells -->
       <div class="flex h-6 border-b border-slate-400">
         <ClinicalInputCell
-          v-for="site in SITE_INDEXES"
-          :key="site"
           :section="section"
           :tooth-number="id"
-          :site-position="site"
+          :site-position="0"
           field-name="ktw"
           :surface="surface"
           input-type="numeric"
-          :value="toothData[surface].ktw[site]"
-          :validation-state="getFieldValidation(id, surface, 'ktw', site)"
+          :value="toothData[surface].ktw"
+          :validation-state="getFieldValidation(id, surface, 'ktw', 0)"
           :disabled="toothData.extracted"
-          @change="value => emit('updateKtw', id, surface, site, String(value))"
-          @validate="state => validateField('ktw', site, state)"
+          @change="value => emit('updateKtw', id, surface, String(value))"
+          @validate="state => validateField('ktw', 0, state)"
         />
       </div>
       <!-- Furcation - 3 cells per tooth -->
@@ -492,19 +486,17 @@ const getToothColumnStyle = (id: ToothId) => {
       </div>
       <div class="flex h-6 border-b border-slate-400">
         <ClinicalInputCell
-          v-for="site in SITE_INDEXES"
-          :key="site"
           :section="section"
           :tooth-number="id"
-          :site-position="site"
+          :site-position="0"
           field-name="ktw"
           :surface="surface"
           input-type="numeric"
-          :value="toothData[surface].ktw[site]"
-          :validation-state="getFieldValidation(id, surface, 'ktw', site)"
+          :value="toothData[surface].ktw"
+          :validation-state="getFieldValidation(id, surface, 'ktw', 0)"
           :disabled="toothData.extracted"
-          @change="value => emit('updateKtw', id, surface, site, String(value))"
-          @validate="state => validateField('ktw', site, state)"
+          @change="value => emit('updateKtw', id, surface, String(value))"
+          @validate="state => validateField('ktw', 0, state)"
         />
       </div>
       <div class="flex h-6 border-b border-slate-400">

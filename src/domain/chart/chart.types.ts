@@ -8,7 +8,7 @@ export interface ToothSurfaceData {
   rec: string[]
   pd: string[]
   cal: string[]
-  ktw: string[]
+  ktw: string
 }
 
 export interface ToothData {

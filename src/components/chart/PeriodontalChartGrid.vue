@@ -2,7 +2,7 @@
 import { ref } from 'vue'
 import ToothColumn from './ToothColumn.vue'
 import ToothImageRow from './ToothImageRow.vue'
-import { BUCCAL_ROWS, INNER_SURFACE_ROWS, LINGUAL_ROWS, LOWER_ARCH, UPPER_ARCH } from '@/domain/chart/chart.constants'
+import { BUCCAL_ROWS, INNER_SURFACE_ROWS, LINGUAL_ROWS, LOWER_ARCH, PALATAL_ROWS, UPPER_ARCH } from '@/domain/chart/chart.constants'
 import { getToothColumnWidth } from '@/domain/chart/chart.image'
 import type { ChartData, SiteIndex, Surface, ToothId } from '@/domain/chart/chart.types'
 
@@ -20,7 +20,7 @@ const emit = defineEmits<{
   updatePd: [id: ToothId, surface: Surface, site: SiteIndex, value: string]
   updateRec: [id: ToothId, surface: Surface, site: SiteIndex, value: string]
   updateMobility: [id: ToothId, value: string]
-  updateKtw: [id: ToothId, surface: Surface, site: SiteIndex, value: string]
+  updateKtw: [id: ToothId, surface: Surface, value: string]
   validateField: [id: ToothId, surface: Surface, field: string, site: number, state: 'valid' | 'invalid' | 'none']
   toggleExtracted: [id: ToothId]
 }>()
@@ -354,14 +354,14 @@ const handleKeyDown = (event: KeyboardEvent) => {
 
         <!-- Upper Arch - Images -->
         <div class="flex flex-col gap-6 mb-4">
-          <ToothImageRow label="BUCCAL" :arch="UPPER_ARCH" :chart-data="chartData" surface="buccal" :selected-tooth-id="selectedToothId" grid-class="clinical-grid-bg" group-gap-class="w-4" label-position="top" :baseline-y="100" />
-          <ToothImageRow label="PALATAL" :arch="UPPER_ARCH" :chart-data="chartData" surface="lingual" :selected-tooth-id="selectedToothId" grid-class="clinical-grid-bg-inf" group-gap-class="w-4" label-position="top" :baseline-y="60" />
+          <ToothImageRow label="BUCCAL" :arch="UPPER_ARCH" :chart-data="chartData" surface="buccal" :selected-tooth-id="selectedToothId" grid-class="clinical-grid-bg" group-gap-class="w-4" label-position="top" :baseline-y="99" />
+          <ToothImageRow label="PALATAL" :arch="UPPER_ARCH" :chart-data="chartData" surface="lingual" :selected-tooth-id="selectedToothId" grid-class="clinical-grid-bg-inf" group-gap-class="w-4" label-position="top" :baseline-y="62" />
         </div>
 
         <!-- Upper Arch Palatal -->
         <div class="flex mt-4 mb-10" data-section="upper-palatal">
           <div class="flex flex-col bg-white border-l border-y border-slate-400 text-[9px] font-bold text-slate-500 w-20 sticky left-0 z-20">
-            <div v-for="row in LINGUAL_ROWS" :key="row" class="h-6 flex items-center px-2 border-b border-r border-slate-300 last:border-b-0">{{ row }}</div>
+            <div v-for="row in PALATAL_ROWS" :key="row" class="h-6 flex items-center px-2 border-b border-r border-slate-300 last:border-b-0">{{ row }}</div>
           </div>
           <div class="flex">
             <template v-for="(group, gIdx) in UPPER_ARCH" :key="gIdx">
@@ -446,8 +446,8 @@ const handleKeyDown = (event: KeyboardEvent) => {
         </div>
 
         <div class="flex flex-col gap-6 mb-4">
-          <ToothImageRow label="LINGUAL" :arch="LOWER_ARCH" :chart-data="chartData" surface="lingual" :selected-tooth-id="selectedToothId" grid-class="clinical-grid-bg" group-gap-class="w-6" label-position="bottom" :baseline-y="20" />
-          <ToothImageRow label="BUCCAL" :arch="LOWER_ARCH" :chart-data="chartData" surface="buccal" :selected-tooth-id="selectedToothId" grid-class="clinical-grid-bg-inf" group-gap-class="w-6" label-position="bottom" :baseline-y="60" />
+          <ToothImageRow label="LINGUAL" :arch="LOWER_ARCH" :chart-data="chartData" surface="lingual" :selected-tooth-id="selectedToothId" grid-class="clinical-grid-bg" group-gap-class="w-6" label-position="bottom" :baseline-y="99" />
+          <ToothImageRow label="BUCCAL" :arch="LOWER_ARCH" :chart-data="chartData" surface="buccal" :selected-tooth-id="selectedToothId" grid-class="clinical-grid-bg-inf" group-gap-class="w-6" label-position="bottom" :baseline-y="62" />
         </div>
 
         <!-- Lower Arch Buccal -->

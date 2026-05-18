@@ -95,8 +95,8 @@ const analysisData = computed(() => {
   return {
     prognosisKC: calculatePrognosisKC(props.toothData),
     prognosisMN: calculatePrognosisMN(props.toothData),
-    buccalKTW: props.toothData.ktw || "0",
-    innerSurfaceKTW: props.toothData.ktw || "0",
+    buccalKTW: props.toothData.buccal?.ktw || "0",
+    innerSurfaceKTW: props.toothData.lingual?.ktw || "0",
     mobility: props.toothData.mo || "0",
     furcation: maxFur,
     buccalPD: getSafePDValues(props.toothData.buccal?.pd),

@@ -157,11 +157,11 @@ export const usePeriodontalChartStore = defineStore('periodontalChart', {
       tooth.mo = value
     },
 
-    updateKtw(id: ToothId, surface: Surface, site: SiteIndex, value: string) {
+    updateKtw(id: ToothId, surface: Surface, value: string) {
       const chart = getActiveChart(this)
       const tooth = chart.teethData[id]
       if (!tooth || tooth.extracted) return
-      tooth[surface].ktw[site] = value
+      tooth[surface].ktw = value
     },
 
     updateCal(id: ToothId, surface: Surface, site: SiteIndex) {
