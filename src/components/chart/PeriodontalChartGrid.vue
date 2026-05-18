@@ -2,7 +2,7 @@
 import { ref } from 'vue'
 import ToothColumn from './ToothColumn.vue'
 import ToothImageRow from './ToothImageRow.vue'
-import { BUCCAL_ROWS, INNER_SURFACE_ROWS, LINGUAL_ROWS, LOWER_ARCH, UPPER_ARCH } from '@/domain/chart/chart.constants'
+import { BUCCAL_ROWS, INNER_SURFACE_ROWS, LINGUAL_ROWS, LOWER_ARCH, PALATAL_ROWS, UPPER_ARCH } from '@/domain/chart/chart.constants'
 import { getToothColumnWidth } from '@/domain/chart/chart.image'
 import type { ChartData, SiteIndex, Surface, ToothId } from '@/domain/chart/chart.types'
 
@@ -20,7 +20,7 @@ const emit = defineEmits<{
   updatePd: [id: ToothId, surface: Surface, site: SiteIndex, value: string]
   updateRec: [id: ToothId, surface: Surface, site: SiteIndex, value: string]
   updateMobility: [id: ToothId, value: string]
-  updateKtw: [id: ToothId, value: string]
+  updateKtw: [id: ToothId, surface: Surface, value: string]
   validateField: [id: ToothId, surface: Surface, field: string, site: number, state: 'valid' | 'invalid' | 'none']
   toggleExtracted: [id: ToothId]
 }>()
@@ -62,7 +62,7 @@ const isFocusableChartInput = (input: HTMLElement) => {
 }
 
 // Single-cell fields: only one value per tooth (no site navigation)
-const SINGLE_CELL_FIELDS = ['mo', 'ktw'] as const
+const SINGLE_CELL_FIELDS = ['mo'] as const
 const isSingleCellField = (field: string | null) => field && SINGLE_CELL_FIELDS.includes(field as any)
 
 // Mirrors the legacy PeriodontalChartView keyboard navigation, but keeps
@@ -92,10 +92,15 @@ const handleKeyDown = (event: KeyboardEvent) => {
   if (key === 'ArrowDown') {
     for (let i = currentIndex + 1; i < allInputs.length; i += 1) {
       const input = allInputs[i]
+      const targetField = input.getAttribute('data-field')
+      const isTargetSingleCell = isSingleCellField(targetField)
+
       if (
         input.getAttribute('data-tooth') === currentTooth &&
-        input.getAttribute('data-site') === currentSite &&
+        // Skip site check for single-cell fields (mo, ktw), but enforce it for multi-site fields
+        (isTargetSingleCell || input.getAttribute('data-site') === currentSite) &&
         (input.getAttribute('data-surface') || '') === currentSurface &&
+        (input.getAttribute('data-section') || '') === currentSection &&
         isFocusableChartInput(input)
       ) {
         nextTarget = input
@@ -105,10 +110,15 @@ const handleKeyDown = (event: KeyboardEvent) => {
   } else if (key === 'ArrowUp') {
     for (let i = currentIndex - 1; i >= 0; i -= 1) {
       const input = allInputs[i]
+      const targetField = input.getAttribute('data-field')
+      const isTargetSingleCell = isSingleCellField(targetField)
+
       if (
         input.getAttribute('data-tooth') === currentTooth &&
-        input.getAttribute('data-site') === currentSite &&
+        // Skip site check for single-cell fields (mo, ktw), but enforce it for multi-site fields
+        (isTargetSingleCell || input.getAttribute('data-site') === currentSite) &&
         (input.getAttribute('data-surface') || '') === currentSurface &&
+        (input.getAttribute('data-section') || '') === currentSection &&
         isFocusableChartInput(input)
       ) {
         nextTarget = input
@@ -344,8 +354,8 @@ const handleKeyDown = (event: KeyboardEvent) => {
 
         <!-- Upper Arch - Images -->
         <div class="flex flex-col gap-6 mb-4">
-          <ToothImageRow label="BUCCAL" :arch="UPPER_ARCH" :chart-data="chartData" surface="buccal" :selected-tooth-id="selectedToothId" grid-class="clinical-grid-bg" group-gap-class="w-4" label-position="top" />
-          <ToothImageRow label="PALATAL" :arch="UPPER_ARCH" :chart-data="chartData" surface="lingual" :selected-tooth-id="selectedToothId" grid-class="clinical-grid-bg-inf" group-gap-class="w-4" label-position="top" />
+          <ToothImageRow label="BUCCAL" :arch="UPPER_ARCH" :chart-data="chartData" surface="buccal" :selected-tooth-id="selectedToothId" grid-class="clinical-grid-bg" group-gap-class="w-4" label-position="top" :baseline-y="99" />
+          <ToothImageRow label="PALATAL" :arch="UPPER_ARCH" :chart-data="chartData" surface="lingual" :selected-tooth-id="selectedToothId" grid-class="clinical-grid-bg-inf" group-gap-class="w-4" label-position="top" :baseline-y="62" />
         </div>
 
         <!-- Upper Arch Palatal -->
@@ -399,7 +409,7 @@ const handleKeyDown = (event: KeyboardEvent) => {
                   :tooth-data="chartData[id]"
                   surface="lingual"
                   section="lower-lingual"
-                  order="palatal"
+                  order="lingual"
                   header-position="none"
                   :midline="gIdx === 1 && idx === 3"
                   :selected="selectedToothId === id"
@@ -436,8 +446,8 @@ const handleKeyDown = (event: KeyboardEvent) => {
         </div>
 
         <div class="flex flex-col gap-6 mb-4">
-          <ToothImageRow label="LINGUAL" :arch="LOWER_ARCH" :chart-data="chartData" surface="lingual" :selected-tooth-id="selectedToothId" grid-class="clinical-grid-bg" group-gap-class="w-6" label-position="bottom" />
-          <ToothImageRow label="BUCCAL" :arch="LOWER_ARCH" :chart-data="chartData" surface="buccal" :selected-tooth-id="selectedToothId" grid-class="clinical-grid-bg-inf" group-gap-class="w-6" label-position="bottom" />
+          <ToothImageRow label="LINGUAL" :arch="LOWER_ARCH" :chart-data="chartData" surface="lingual" :selected-tooth-id="selectedToothId" grid-class="clinical-grid-bg" group-gap-class="w-6" label-position="bottom" :baseline-y="99" />
+          <ToothImageRow label="BUCCAL" :arch="LOWER_ARCH" :chart-data="chartData" surface="buccal" :selected-tooth-id="selectedToothId" grid-class="clinical-grid-bg-inf" group-gap-class="w-6" label-position="bottom" :baseline-y="62" />
         </div>
 
         <!-- Lower Arch Buccal -->

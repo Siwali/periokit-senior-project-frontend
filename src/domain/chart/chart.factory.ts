@@ -7,7 +7,8 @@ const createSurfaceData = () => ({
   pi: [false, false, false],
   rec: ['', '', ''],
   pd: ['', '', ''],
-  cal: ['', '', '']
+  cal: ['', '', ''],
+  ktw: ''
 })
 
 const createToothData = (id: number): ToothData => {
@@ -17,7 +18,6 @@ const createToothData = (id: number): ToothData => {
   return {
     implant: false,
     mo: '',
-    ktw: '',
     fur: {
       buccal: new Array(furConfig.buccal).fill(0),
       lingual: new Array(innerSurfaceFurSites).fill(0)

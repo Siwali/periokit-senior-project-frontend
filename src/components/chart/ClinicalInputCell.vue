@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import { filterNumericInput, getFieldKey, isAbnormalValue, exceedsAbsoluteLimit, getFieldDisplayName } from "../../utils/validation";
+import { filterNumericInput, getFieldKey, isAbnormalValue, exceedsAbsoluteLimit, getFieldDisplayName, MOBILITY_VALID_VALUES } from "../../utils/validation";
 
 interface Props {
   toothNumber: number | string;
@@ -60,9 +60,22 @@ const handleInput = (event: Event) => {
     const allowNegative = fieldKeyInfo === "cal";
     let filteredValue = filterNumericInput(inputValue, allowNegative);
 
+    // Special validation for Mobility (Miller's Classification: 0-3 only)
+    if (fieldKeyInfo === "mo" && filteredValue !== "") {
+      const numVal = parseInt(filteredValue);
+      if (!MOBILITY_VALID_VALUES.includes(numVal)) {
+        filteredValue = "";
+        target.value = "";
+        warningMessage.value = `Mobility: 0-3 only`;
+        showWarning.value = true;
+        clearWarning();
+        return;
+      }
+    }
+
     // Block values exceeding absolute limit (obviously wrong)
     if (filteredValue !== "" && exceedsAbsoluteLimit(filteredValue, props.fieldName)) {
-      const absLimit = { pd: 99, rec: 99, cal: 99, mo: 9, ktw: 20, furcation: 3 };
+      const absLimit = { pd: 99, rec: 99, cal: 99, mo: 3, ktw: 20, furcation: 3 };
       const limit = absLimit[fieldKeyInfo as keyof typeof absLimit] || 99;
 
       filteredValue = "";

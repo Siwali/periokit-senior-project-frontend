@@ -9,6 +9,7 @@ import ToothSidebarOverlay from '@/components/chart/ToothSidebarOverlay.vue'
 import { usePeriodontalChartStore } from '@/stores/periodontal-chart'
 import { useClinicalValidationStore } from '@/stores/clinical-validation'
 import type { ToothId } from '@/domain/chart/chart.types'
+import { ref } from 'vue'
 
 const chartStore = usePeriodontalChartStore()
 chartStore.initializeChart()
@@ -20,11 +21,58 @@ const {
   selectedToothId,
   selectedToothData,
   activeSubNav,
-  summary
+  summary,
+  charts,
+  activeChartId
 } = storeToRefs(chartStore)
+
+const editingChartId = ref<string | null>(null)
+const editingChartName = ref('')
 
 const handleUpdateNote = ({ id, note }: { id: string | number; note: string }) => {
   chartStore.updateNote(Number(id) as ToothId, note)
+}
+
+const handleNewChart = () => {
+  chartStore.createNewChart()
+}
+
+const handleSwitchChart = (chartId: string) => {
+  chartStore.switchChart(chartId)
+}
+
+const handleDeleteChart = (chartId: string, event: Event) => {
+  event.stopPropagation()
+  if (charts.value.length <= 1) return
+  if (confirm('Delete this chart?')) {
+    chartStore.deleteChart(chartId)
+  }
+}
+
+const startEditingChartName = (chart: { id: string; name: string }) => {
+  editingChartId.value = chart.id
+  editingChartName.value = chart.name
+}
+
+const finishEditingChartName = () => {
+  if (editingChartId.value && editingChartName.value.trim()) {
+    chartStore.updateChartName(editingChartId.value, editingChartName.value.trim())
+  }
+  editingChartId.value = null
+  editingChartName.value = ''
+}
+
+const cancelEditingChartName = () => {
+  editingChartId.value = null
+  editingChartName.value = ''
+}
+
+const handleChartNameKeydown = (e: KeyboardEvent) => {
+  if (e.key === 'Enter') {
+    finishEditingChartName()
+  } else if (e.key === 'Escape') {
+    cancelEditingChartName()
+  }
 }
 
 </script>
@@ -77,7 +125,7 @@ const handleUpdateNote = ({ id, note }: { id: string | number; note: string }) =
           <button class="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-[#9333ea]/30 text-[#9333ea] rounded-lg font-bold text-[11px] shadow-sm hover:bg-purple-50 transition-colors">
             <Stethoscope class="w-3.5 h-3.5" /> Diagnosis
           </button>
-          <button class="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 text-slate-700 rounded-lg font-bold text-[11px] shadow-sm hover:bg-slate-50 transition-colors" @click="chartStore.resetChart">
+          <button class="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 text-slate-700 rounded-lg font-bold text-[11px] shadow-sm hover:bg-slate-50 transition-colors" @click="handleNewChart">
             <Plus class="w-3.5 h-3.5" /> New Chart
           </button>
           <button class="flex items-center gap-1.5 px-3 py-1.5 bg-[#7aa4f0] text-white rounded-lg font-bold text-[11px] shadow-md hover:bg-[#6b94e0] transition-colors">
@@ -90,12 +138,46 @@ const handleUpdateNote = ({ id, note }: { id: string | number; note: string }) =
         <ChartLegend :is-sidebar-open="selectedToothId !== null" />
 
         <div class="w-255 max-w-full shrink-0 flex flex-col gap-0 transition-all duration-500">
+          <!-- Chart Tabs -->
           <div class="flex items-center gap-0 relative z-10">
-            <div class="bg-white px-4 py-1.5 rounded-t-xl border-t border-l border-r border-slate-200 text-[10px] font-black text-[#0052ff] flex items-center gap-2 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] -mb-px">
-              CHART 1
-              <X class="w-3 h-3 cursor-pointer hover:text-red-500 transition-colors" />
+            <div
+              v-for="chart in charts"
+              :key="chart.id"
+              class="relative group"
+              @click="editingChartId !== chart.id && handleSwitchChart(chart.id)"
+            >
+              <div
+                class="px-4 py-1.5 rounded-t-xl border-t border-l border-r text-[10px] font-black flex items-center gap-2 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] -mb-px transition-all cursor-pointer"
+                :class="chart.id === activeChartId
+                  ? 'bg-white border-slate-200 text-[#0052ff]'
+                  : 'bg-slate-100 border-transparent text-slate-400 hover:text-slate-600'"
+              >
+                <template v-if="editingChartId === chart.id">
+                  <input
+                    v-model="editingChartName"
+                    @blur="finishEditingChartName"
+                    @keydown="handleChartNameKeydown"
+                    @click.stop
+                    class="w-24 bg-slate-100 text-[10px] font-black outline-none px-1 rounded"
+                    ref="chartNameInput"
+                  >
+                </template>
+                <template v-else>
+                  <span @dblclick="startEditingChartName(chart)" class="max-w-20 truncate">{{ chart.name }}</span>
+                </template>
+                <X
+                  v-if="charts.length > 1"
+                  class="w-3 h-3 opacity-0 group-hover:opacity-100 hover:text-red-500 transition-all"
+                  @click="handleDeleteChart(chart.id, $event)"
+                />
+              </div>
             </div>
-            <button class="p-1.5 text-slate-400 hover:text-[#0052ff] transition-colors"><Plus class="w-4 h-4" /></button>
+            <button
+              class="p-1.5 text-slate-400 hover:text-[#0052ff] transition-colors"
+              @click="handleNewChart"
+            >
+              <Plus class="w-4 h-4" />
+            </button>
           </div>
 
           <PatientChartHeader :patient-info="patientInfo" :summary="summary" />
