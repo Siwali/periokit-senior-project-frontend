@@ -20,7 +20,7 @@ const emit = defineEmits<{
   updatePd: [id: ToothId, surface: Surface, site: SiteIndex, value: string]
   updateRec: [id: ToothId, surface: Surface, site: SiteIndex, value: string]
   updateMobility: [id: ToothId, value: string]
-  updateKtw: [id: ToothId, value: string]
+  updateKtw: [id: ToothId, surface: Surface, site: SiteIndex, value: string]
   validateField: [id: ToothId, surface: Surface, field: string, site: number, state: 'valid' | 'invalid' | 'none']
   toggleExtracted: [id: ToothId]
 }>()
@@ -62,7 +62,7 @@ const isFocusableChartInput = (input: HTMLElement) => {
 }
 
 // Single-cell fields: only one value per tooth (no site navigation)
-const SINGLE_CELL_FIELDS = ['mo', 'ktw'] as const
+const SINGLE_CELL_FIELDS = ['mo'] as const
 const isSingleCellField = (field: string | null) => field && SINGLE_CELL_FIELDS.includes(field as any)
 
 // Mirrors the legacy PeriodontalChartView keyboard navigation, but keeps
@@ -409,7 +409,7 @@ const handleKeyDown = (event: KeyboardEvent) => {
                   :tooth-data="chartData[id]"
                   surface="lingual"
                   section="lower-lingual"
-                  order="palatal"
+                  order="lingual"
                   header-position="none"
                   :midline="gIdx === 1 && idx === 3"
                   :selected="selectedToothId === id"

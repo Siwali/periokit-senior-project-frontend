@@ -8,12 +8,12 @@ export interface ToothSurfaceData {
   rec: string[]
   pd: string[]
   cal: string[]
+  ktw: string[]
 }
 
 export interface ToothData {
   implant: boolean
   mo: string
-  ktw: string
   fur: Record<Surface, number[]>
   extracted: boolean
   prognosisKC: string
