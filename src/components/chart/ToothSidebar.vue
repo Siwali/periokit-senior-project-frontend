@@ -443,23 +443,23 @@ const analysisData = computed(() => {
                   <tbody class="text-[11px] font-medium text-slate-600">
                     <tr class="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
                       <td class="px-4 py-4 font-black text-green-600 bg-green-50/30">Good</td>
-                      <td class="px-4 py-4 leading-relaxed italic">Control of etiologic factors and enough support to enable the tooth to be maintained by the patient and clinician.</td>
+                      <td class="px-4 py-4 leading-relaxed">Control of etiologic factors and enough support to enable the tooth to be maintained by the patient and clinician.</td>
                     </tr>
                     <tr class="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
                       <td class="px-4 py-4 font-black text-blue-600 bg-blue-50/30">Fair</td>
-                      <td class="px-4 py-4 leading-relaxed italic">~25% attachment loss, Class I furcation. Adequate maintenance possible.</td>
+                      <td class="px-4 py-4 leading-relaxed">~25% attachment loss, Class I furcation. Adequate maintenance possible.</td>
                     </tr>
                     <tr class="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
                       <td class="px-4 py-4 font-black text-yellow-600 bg-yellow-50/30">Poor</td>
-                      <td class="px-4 py-4 leading-relaxed italic">50% attachment loss, Class II furcation. Maintenance difficult.</td>
+                      <td class="px-4 py-4 leading-relaxed">50% attachment loss, Class II furcation. Maintenance difficult.</td>
                     </tr>
                     <tr class="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
                       <td class="px-4 py-4 font-black text-orange-600 bg-orange-50/30">Questionable</td>
-                      <td class="px-4 py-4 leading-relaxed italic">> 50% attachment loss, Class II/III furcation, Class II mobility, poor crown/root ratio.</td>
+                      <td class="px-4 py-4 leading-relaxed">> 50% attachment loss, Class II/III furcation, Class II mobility, poor crown/root ratio.</td>
                     </tr>
                     <tr class="hover:bg-slate-50/50 transition-colors">
                       <td class="px-4 py-4 font-black text-red-600 bg-red-50/30">Hopeless</td>
-                      <td class="px-4 py-4 leading-relaxed italic">Severe attachment loss; extraction suggested.</td>
+                      <td class="px-4 py-4 leading-relaxed">Severe attachment loss; extraction suggested.</td>
                     </tr>
                   </tbody>
                 </table>
@@ -483,19 +483,19 @@ const analysisData = computed(() => {
                   <tbody class="text-[11px] font-medium text-slate-600">
                     <tr class="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
                       <td class="px-4 py-4 font-black text-green-600 bg-green-50/30">Favorable</td>
-                      <td class="px-4 py-4 leading-relaxed italic">Can be stabilized with treatment/maintenance; less chance of breakdown.</td>
+                      <td class="px-4 py-4 leading-relaxed">Can be stabilized with treatment/maintenance; less chance of breakdown.</td>
                     </tr>
                     <tr class="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
                       <td class="px-4 py-4 font-black text-orange-600 bg-orange-50/30">Questionable</td>
-                      <td class="px-4 py-4 leading-relaxed italic">Influenced by local/systemic factors that may or may not be controlled.</td>
+                      <td class="px-4 py-4 leading-relaxed">Influenced by local/systemic factors that may or may not be controlled.</td>
                     </tr>
                     <tr class="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
                       <td class="px-4 py-4 font-black text-red-600 bg-red-50/30">Unfavorable</td>
-                      <td class="px-4 py-4 leading-relaxed italic">Influenced by factors that cannot be controlled; maintenance unlikely.</td>
+                      <td class="px-4 py-4 leading-relaxed">Influenced by factors that cannot be controlled; maintenance unlikely.</td>
                     </tr>
                     <tr class="hover:bg-slate-50/50 transition-colors">
                       <td class="px-4 py-4 font-black text-black bg-slate-50/30">Hopeless</td>
-                      <td class="px-4 py-4 leading-relaxed italic">Must be extracted.</td>
+                      <td class="px-4 py-4 leading-relaxed">Must be extracted.</td>
                     </tr>
                   </tbody>
                 </table>
