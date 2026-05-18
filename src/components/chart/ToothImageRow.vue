@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { getFurImage, getFurMarkerStyle, getToothColumnWidth, getToothImage, getToothImageTopOffset } from '@/domain/chart/chart.image'
+import PdLineChartLayer from './PdLineChartLayer.vue'
 import type { ChartData, Surface, ToothId } from '@/domain/chart/chart.types'
 
 const getToothColumnStyle = (id: ToothId) => {
@@ -29,6 +30,7 @@ defineProps<{
   groupGapClass: string
   imageClass?: string
   labelPosition: 'top' | 'bottom'
+  baselineY?: number  // Custom baseline position for PD graph
 }>()
 
 </script>
@@ -38,7 +40,10 @@ defineProps<{
     <div class="w-20 flex flex-col items-center justify-center text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] space-y-1 py-4">
       <span v-for="letter in label.split('')" :key="letter">{{ letter }}</span>
     </div>
-    <div class="flex-1 flex">
+    <div class="flex-1 flex relative">
+      <!-- PD Line Chart Overlay (spans entire arch) -->
+      <PdLineChartLayer :arch="arch" :chart-data="chartData" :surface="surface" :group-gap-class="groupGapClass" :baseline-y="baselineY" />
+
       <template v-for="(group, gIdx) in arch" :key="gIdx">
         <div class="flex h-38.75 relative">
           <div class="absolute inset-0 z-30 pointer-events-none" :class="gridClass"></div>
