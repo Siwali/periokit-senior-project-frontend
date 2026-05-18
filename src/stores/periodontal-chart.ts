@@ -4,6 +4,16 @@ import { createInitialChartData } from '@/domain/chart/chart.factory'
 import type { ChartData, PatientInfo, SiteIndex, Surface, ToothId } from '@/domain/chart/chart.types'
 import { useAuthStore } from './auth'
 
+type ChartId = string
+
+interface Chart {
+  id: ChartId
+  name: string
+  patientInfo: PatientInfo
+  teethData: ChartData
+  createdAt: string
+}
+
 const createDefaultPatientInfo = (): PatientInfo => {
   const authStore = useAuthStore()
   const user = authStore.user
@@ -20,30 +30,90 @@ const createDefaultPatientInfo = (): PatientInfo => {
   }
 }
 
+const createNewChart = (): Chart => {
+  return {
+    id: crypto.randomUUID(),
+    name: 'New Chart',
+    patientInfo: createDefaultPatientInfo(),
+    teethData: createInitialChartData(),
+    createdAt: new Date().toISOString()
+  }
+}
+
+// Helper function to get active chart from state
+const getActiveChart = (state: { charts: Chart[]; activeChartId: ChartId | null }): Chart => {
+  if (state.activeChartId === null) return state.charts[0]
+  return state.charts.find(c => c.id === state.activeChartId) ?? state.charts[0]
+}
+
 export const usePeriodontalChartStore = defineStore('periodontalChart', {
   state: () => ({
-    patientInfo: createDefaultPatientInfo(),
-    teethData: {} as ChartData,
+    charts: [createNewChart()] as Chart[],
+    activeChartId: null as ChartId | null,
     selectedToothId: null as ToothId | null,
     activeSubNav: 'chart'
   }),
 
   getters: {
+    activeChart: state => getActiveChart(state),
+
+    patientInfo: state => getActiveChart(state).patientInfo,
+
+    teethData: state => getActiveChart(state).teethData,
+
     selectedToothData: state => {
       if (state.selectedToothId === null) return null
-      return state.teethData[state.selectedToothId] ?? null
+      return getActiveChart(state).teethData[state.selectedToothId] ?? null
     },
-    bopPercentage: state => calculateBopPercentage(state.teethData),
-    piPercentage: state => calculatePiPercentage(state.teethData),
-    pdCategories: state => calculatePdCategories(state.teethData),
-    summary: state => calculateChartSummary(state.teethData)
+
+    bopPercentage: state => calculateBopPercentage(getActiveChart(state).teethData),
+
+    piPercentage: state => calculatePiPercentage(getActiveChart(state).teethData),
+
+    pdCategories: state => calculatePdCategories(getActiveChart(state).teethData),
+
+    summary: state => calculateChartSummary(getActiveChart(state).teethData)
   },
 
   actions: {
+    // Chart management
+    createNewChart() {
+      const newChart = createNewChart()
+      this.charts.push(newChart)
+      this.activeChartId = newChart.id
+      this.selectedToothId = null
+    },
+
+    switchChart(chartId: ChartId) {
+      this.activeChartId = chartId
+      this.selectedToothId = null
+    },
+
+    deleteChart(chartId: ChartId) {
+      if (this.charts.length <= 1) return // Cannot delete last chart
+      const index = this.charts.findIndex(c => c.id === chartId)
+      if (index === -1) return
+
+      this.charts.splice(index, 1)
+
+      // If deleted chart was active, switch to another
+      if (this.activeChartId === chartId) {
+        this.activeChartId = this.charts[0]?.id ?? null
+      }
+      this.selectedToothId = null
+    },
+
+    updateChartName(chartId: ChartId, name: string) {
+      const chart = this.charts.find(c => c.id === chartId)
+      if (chart) chart.name = name
+    },
+
+    // Original chart data methods (now work on active chart)
     initializeChart() {
-      if (Object.keys(this.teethData).length > 0) return
-      this.patientInfo = createDefaultPatientInfo()
-      this.teethData = createInitialChartData()
+      const chart = getActiveChart(this)
+      if (Object.keys(chart.teethData).length > 0) return
+      chart.patientInfo = createDefaultPatientInfo()
+      chart.teethData = createInitialChartData()
     },
 
     selectTooth(id: ToothId) {
@@ -51,70 +121,81 @@ export const usePeriodontalChartStore = defineStore('periodontalChart', {
     },
 
     toggleBop(id: ToothId, surface: Surface, site: SiteIndex) {
-      const tooth = this.teethData[id]
+      const chart = getActiveChart(this)
+      const tooth = chart.teethData[id]
       if (!tooth || tooth.extracted) return
       tooth[surface].bop[site] = !tooth[surface].bop[site]
     },
 
     togglePi(id: ToothId, surface: Surface, site: SiteIndex) {
-      const tooth = this.teethData[id]
+      const chart = getActiveChart(this)
+      const tooth = chart.teethData[id]
       if (!tooth || tooth.extracted) return
       tooth[surface].pi[site] = !tooth[surface].pi[site]
     },
 
     updatePd(id: ToothId, surface: Surface, site: SiteIndex, value: string) {
-      const tooth = this.teethData[id]
+      const chart = getActiveChart(this)
+      const tooth = chart.teethData[id]
       if (!tooth || tooth.extracted) return
       tooth[surface].pd[site] = value
       this.updateCal(id, surface, site)
     },
 
     updateRec(id: ToothId, surface: Surface, site: SiteIndex, value: string) {
-      const tooth = this.teethData[id]
+      const chart = getActiveChart(this)
+      const tooth = chart.teethData[id]
       if (!tooth || tooth.extracted) return
       tooth[surface].rec[site] = value
       this.updateCal(id, surface, site)
     },
 
     updateMobility(id: ToothId, value: string) {
-      const tooth = this.teethData[id]
+      const chart = getActiveChart(this)
+      const tooth = chart.teethData[id]
       if (!tooth || tooth.extracted || tooth.implant) return
       tooth.mo = value
     },
 
     updateKtw(id: ToothId, value: string) {
-      const tooth = this.teethData[id]
+      const chart = getActiveChart(this)
+      const tooth = chart.teethData[id]
       if (!tooth || tooth.extracted) return
       tooth.ktw = value
     },
 
     updateCal(id: ToothId, surface: Surface, site: SiteIndex) {
-      const tooth = this.teethData[id]
+      const chart = getActiveChart(this)
+      const tooth = chart.teethData[id]
       if (!tooth || tooth.extracted) return
       tooth[surface].cal[site] = calculateCal(tooth[surface].pd[site], tooth[surface].rec[site])
     },
 
     toggleFur(id: ToothId, surface: Surface, index: number) {
-      const tooth = this.teethData[id]
+      const chart = getActiveChart(this)
+      const tooth = chart.teethData[id]
       if (!tooth || tooth.extracted || tooth.implant) return
       tooth.fur[surface][index] = (tooth.fur[surface][index] + 1) % 4
     },
 
     toggleExtracted(id: ToothId) {
-      const tooth = this.teethData[id]
+      const chart = getActiveChart(this)
+      const tooth = chart.teethData[id]
       if (!tooth) return
       tooth.extracted = !tooth.extracted
     },
 
     updateNote(id: ToothId, note: string) {
-      const tooth = this.teethData[id]
+      const chart = getActiveChart(this)
+      const tooth = chart.teethData[id]
       if (!tooth) return
       tooth.note = note
     },
 
     resetChart() {
-      this.patientInfo = createDefaultPatientInfo()
-      this.teethData = createInitialChartData()
+      const chart = getActiveChart(this)
+      chart.patientInfo = createDefaultPatientInfo()
+      chart.teethData = createInitialChartData()
       this.selectedToothId = null
       this.activeSubNav = 'chart'
     }
