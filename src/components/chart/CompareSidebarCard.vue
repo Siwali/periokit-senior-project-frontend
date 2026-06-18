@@ -1,14 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { X } from 'lucide-vue-next'
-import {
-  getSafePDValues,
-  getSafeCALValues,
-  calculateToothBopPercentage,
-  calculateToothPiPercentage,
-  calculatePrognosisMN,
-  calculatePrognosisKC,
-} from '@/utils/calculations'
+import { buildToothAnalysis } from '@/domain/chart/tooth.analysis'
 import { isUpperTooth } from '@/domain/chart/chart.rules'
 import type { ToothData, ToothId } from '@/domain/chart/chart.types'
 
@@ -27,32 +20,8 @@ const innerSurfaceLabel = computed(() =>
   props.toothId && isUpperTooth(props.toothId) ? 'Palatal' : 'Lingual'
 )
 
-function buildAnalysis(data: ToothData | null) {
-  if (!data) return null
-  const allFur = [...(data.fur?.buccal || []), ...(data.fur?.lingual || [])].map(v => parseInt(String(v)) || 0)
-  const maxFur = allFur.length > 0 ? Math.max(0, ...allFur) : 0
-  const furLabel = maxFur === 0 ? '-' : `Grade ${['I', 'II', 'III'][maxFur - 1] ?? maxFur}`
-  return {
-    buccalPD: getSafePDValues(data.buccal?.pd),
-    innerPD: getSafePDValues(data.lingual?.pd),
-    buccalCAL: getSafeCALValues(data.buccal?.cal),
-    innerCAL: getSafeCALValues(data.lingual?.cal),
-    bop: calculateToothBopPercentage(data),
-    pi: calculateToothPiPercentage(data),
-    mobility: data.mo || '0',
-    ktwBuccal: data.buccal?.ktw || '0',
-    ktwInner: data.lingual?.ktw || '0',
-    furcation: furLabel,
-    prognosisMN: calculatePrognosisMN(data),
-    prognosisKC: calculatePrognosisKC(data),
-    note: data.note || '',
-    extracted: data.extracted,
-    implant: data.implant,
-  }
-}
-
-const analysisA = computed(() => buildAnalysis(props.toothDataA))
-const analysisB = computed(() => buildAnalysis(props.toothDataB))
+const analysisA = computed(() => buildToothAnalysis(props.toothDataA))
+const analysisB = computed(() => buildToothAnalysis(props.toothDataB))
 
 const prognosisModalType = ref<'MN' | 'KC' | null>(null)
 
@@ -144,7 +113,7 @@ const getPrognosisColorKC = (val?: string) => {
                 </div>
                 <div class="bg-white border border-slate-100 rounded-2xl p-3 shadow-sm text-center">
                   <div v-if="analysisA" class="text-xl font-black mb-1 flex items-center justify-center gap-0.5">
-                    <span v-for="(val, i) in analysisA.innerPD" :key="i" :class="pdColorClass(val)">{{ val }}{{ i < 2 ? '-' : '' }}</span>
+                    <span v-for="(val, i) in analysisA.innerSurfacePD" :key="i" :class="pdColorClass(val)">{{ val }}{{ i < 2 ? '-' : '' }}</span>
                   </div>
                   <div v-else class="text-xl font-black mb-1 text-slate-300">—</div>
                   <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">{{ innerSurfaceLabel }}</p>
@@ -161,7 +130,7 @@ const getPrognosisColorKC = (val?: string) => {
                 </div>
                 <div class="bg-white border border-slate-100 rounded-2xl p-3 shadow-sm text-center">
                   <div v-if="analysisB" class="text-xl font-black mb-1 flex items-center justify-center gap-0.5">
-                    <span v-for="(val, i) in analysisB.innerPD" :key="i" :class="pdColorClass(val)">{{ val }}{{ i < 2 ? '-' : '' }}</span>
+                    <span v-for="(val, i) in analysisB.innerSurfacePD" :key="i" :class="pdColorClass(val)">{{ val }}{{ i < 2 ? '-' : '' }}</span>
                   </div>
                   <div v-else class="text-xl font-black mb-1 text-slate-300">—</div>
                   <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">{{ innerSurfaceLabel }}</p>
@@ -185,7 +154,7 @@ const getPrognosisColorKC = (val?: string) => {
                 </div>
                 <div class="bg-white border border-slate-100 rounded-2xl p-3 shadow-sm text-center">
                   <div v-if="analysisA" class="text-xl font-black mb-1 flex items-center justify-center gap-0.5 text-[#0052ff]">
-                    <span v-for="(val, i) in analysisA.innerCAL" :key="i">{{ val }}{{ i < 2 ? '-' : '' }}</span>
+                    <span v-for="(val, i) in analysisA.innerSurfaceCAL" :key="i">{{ val }}{{ i < 2 ? '-' : '' }}</span>
                   </div>
                   <div v-else class="text-xl font-black mb-1 text-slate-300">—</div>
                   <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">{{ innerSurfaceLabel }}</p>
@@ -202,7 +171,7 @@ const getPrognosisColorKC = (val?: string) => {
                 </div>
                 <div class="bg-white border border-slate-100 rounded-2xl p-3 shadow-sm text-center">
                   <div v-if="analysisB" class="text-xl font-black mb-1 flex items-center justify-center gap-0.5 text-[#0052ff]">
-                    <span v-for="(val, i) in analysisB.innerCAL" :key="i">{{ val }}{{ i < 2 ? '-' : '' }}</span>
+                    <span v-for="(val, i) in analysisB.innerSurfaceCAL" :key="i">{{ val }}{{ i < 2 ? '-' : '' }}</span>
                   </div>
                   <div v-else class="text-xl font-black mb-1 text-slate-300">—</div>
                   <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">{{ innerSurfaceLabel }}</p>
@@ -217,7 +186,7 @@ const getPrognosisColorKC = (val?: string) => {
             <div class="grid grid-cols-2 gap-4">
               <!-- A -->
               <div class="relative bg-slate-50/50 border border-slate-100 rounded-2xl p-4 flex flex-col items-center" :class="{ 'opacity-50 pointer-events-none': toothDataA?.extracted }">
-                <div v-if="analysisA?.bop !== '0%' && analysisA" class="absolute top-2 right-2 px-1.5 py-0.5 bg-red-50 text-red-500 text-[8px] font-black rounded border border-red-100 shadow-sm">{{ analysisA.bop }}</div>
+                <div v-if="analysisA?.bopPercentage !== '0%' && analysisA" class="absolute top-2 right-2 px-1.5 py-0.5 bg-red-50 text-red-500 text-[8px] font-black rounded border border-red-100 shadow-sm">{{ analysisA.bopPercentage }}</div>
                 <div class="relative w-16 h-16 mb-2">
                   <svg v-if="toothDataA" viewBox="0 0 100 100" class="w-full h-full">
                     <defs>
@@ -253,7 +222,7 @@ const getPrognosisColorKC = (val?: string) => {
               </div>
               <!-- B -->
               <div class="relative bg-slate-50/50 border border-slate-100 rounded-2xl p-4 flex flex-col items-center" :class="{ 'opacity-50 pointer-events-none': toothDataB?.extracted }">
-                <div v-if="analysisB?.bop !== '0%' && analysisB" class="absolute top-2 right-2 px-1.5 py-0.5 bg-red-50 text-red-500 text-[8px] font-black rounded border border-red-100 shadow-sm">{{ analysisB.bop }}</div>
+                <div v-if="analysisB?.bopPercentage !== '0%' && analysisB" class="absolute top-2 right-2 px-1.5 py-0.5 bg-red-50 text-red-500 text-[8px] font-black rounded border border-red-100 shadow-sm">{{ analysisB.bopPercentage }}</div>
                 <div class="relative w-16 h-16 mb-2">
                   <svg v-if="toothDataB" viewBox="0 0 100 100" class="w-full h-full">
                     <defs>
@@ -293,7 +262,7 @@ const getPrognosisColorKC = (val?: string) => {
             <div class="grid grid-cols-2 gap-4">
               <!-- A -->
               <div class="relative bg-slate-50/50 border border-slate-100 rounded-2xl p-4 flex flex-col items-center" :class="{ 'opacity-50 pointer-events-none': toothDataA?.extracted }">
-                <div v-if="analysisA?.pi !== '0%' && analysisA" class="absolute top-2 right-2 px-1.5 py-0.5 bg-blue-50 text-blue-500 text-[8px] font-black rounded border border-blue-100 shadow-sm">{{ analysisA.pi }}</div>
+                <div v-if="analysisA?.piPercentage !== '0%' && analysisA" class="absolute top-2 right-2 px-1.5 py-0.5 bg-blue-50 text-blue-500 text-[8px] font-black rounded border border-blue-100 shadow-sm">{{ analysisA.piPercentage }}</div>
                 <div class="relative w-16 h-16 mb-2">
                   <svg v-if="toothDataA" viewBox="0 0 100 100" class="w-full h-full">
                     <defs>
@@ -329,7 +298,7 @@ const getPrognosisColorKC = (val?: string) => {
               </div>
               <!-- B -->
               <div class="relative bg-slate-50/50 border border-slate-100 rounded-2xl p-4 flex flex-col items-center" :class="{ 'opacity-50 pointer-events-none': toothDataB?.extracted }">
-                <div v-if="analysisB?.pi !== '0%' && analysisB" class="absolute top-2 right-2 px-1.5 py-0.5 bg-blue-50 text-blue-500 text-[8px] font-black rounded border border-blue-100 shadow-sm">{{ analysisB.pi }}</div>
+                <div v-if="analysisB?.piPercentage !== '0%' && analysisB" class="absolute top-2 right-2 px-1.5 py-0.5 bg-blue-50 text-blue-500 text-[8px] font-black rounded border border-blue-100 shadow-sm">{{ analysisB.piPercentage }}</div>
                 <div class="relative w-16 h-16 mb-2">
                   <svg v-if="toothDataB" viewBox="0 0 100 100" class="w-full h-full">
                     <defs>
@@ -389,11 +358,11 @@ const getPrognosisColorKC = (val?: string) => {
                   </div>
                   <div class="flex justify-between items-center pt-1 border-t border-slate-50">
                     <span class="text-[10px] font-bold text-slate-400">Buccal KTW</span>
-                    <span class="text-[10px] font-black text-slate-700">{{ analysisA?.ktwBuccal }} mm</span>
+                    <span class="text-[10px] font-black text-slate-700">{{ analysisA?.buccalKTW }} mm</span>
                   </div>
                   <div class="flex justify-between items-center">
                     <span class="text-[10px] font-bold text-slate-400">{{ innerSurfaceLabel }} KTW</span>
-                    <span class="text-[10px] font-black text-slate-700">{{ analysisA?.ktwInner }} mm</span>
+                    <span class="text-[10px] font-black text-slate-700">{{ analysisA?.innerSurfaceKTW }} mm</span>
                   </div>
                   <div class="flex justify-between items-center pt-1 border-t border-slate-50">
                     <span class="text-[10px] font-bold text-slate-400">Mobility</span>
@@ -401,7 +370,7 @@ const getPrognosisColorKC = (val?: string) => {
                   </div>
                   <div v-if="!toothDataA?.implant" class="flex justify-between items-center">
                     <span class="text-[10px] font-bold text-slate-400">Furcation</span>
-                    <span class="text-[10px] font-black text-slate-700">{{ analysisA?.furcation ?? '-' }}</span>
+                    <span class="text-[10px] font-black text-slate-700">{{ analysisA?.furcationLabel ?? '-' }}</span>
                   </div>
                 </div>
               </div>
@@ -425,11 +394,11 @@ const getPrognosisColorKC = (val?: string) => {
                   </div>
                   <div class="flex justify-between items-center pt-1 border-t border-slate-50">
                     <span class="text-[10px] font-bold text-slate-400">Buccal KTW</span>
-                    <span class="text-[10px] font-black text-slate-700">{{ analysisB?.ktwBuccal }} mm</span>
+                    <span class="text-[10px] font-black text-slate-700">{{ analysisB?.buccalKTW }} mm</span>
                   </div>
                   <div class="flex justify-between items-center">
                     <span class="text-[10px] font-bold text-slate-400">{{ innerSurfaceLabel }} KTW</span>
-                    <span class="text-[10px] font-black text-slate-700">{{ analysisB?.ktwInner }} mm</span>
+                    <span class="text-[10px] font-black text-slate-700">{{ analysisB?.innerSurfaceKTW }} mm</span>
                   </div>
                   <div class="flex justify-between items-center pt-1 border-t border-slate-50">
                     <span class="text-[10px] font-bold text-slate-400">Mobility</span>
@@ -437,7 +406,7 @@ const getPrognosisColorKC = (val?: string) => {
                   </div>
                   <div v-if="!toothDataB?.implant" class="flex justify-between items-center">
                     <span class="text-[10px] font-bold text-slate-400">Furcation</span>
-                    <span class="text-[10px] font-black text-slate-700">{{ analysisB?.furcation ?? '-' }}</span>
+                    <span class="text-[10px] font-black text-slate-700">{{ analysisB?.furcationLabel ?? '-' }}</span>
                   </div>
                 </div>
               </div>

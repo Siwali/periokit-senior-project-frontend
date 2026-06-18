@@ -1,12 +1,14 @@
 <script setup lang="ts">
+import type { PrognosisKC, PrognosisMN } from '@/domain/chart/tooth.analysis'
+
 type PrognosisType = 'MN' | 'KC'
 
 defineProps<{
   extracted: boolean
   implant: boolean
   innerSurfaceLabel: string
-  prognosisKC?: string
-  prognosisMN?: string
+  prognosisKC?: PrognosisKC
+  prognosisMN?: PrognosisMN
   buccalKTW?: string
   innerSurfaceKTW?: string
   mobility?: string

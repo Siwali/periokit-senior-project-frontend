@@ -5,6 +5,7 @@ import PrognosisReferenceModal from '@/components/chart/PrognosisReferenceModal.
 import ToothClinicalNote from '@/components/chart/ToothClinicalNote.vue'
 import ToothAnalysisSummary from '@/components/chart/ToothAnalysisSummary.vue'
 import SiteStatusDiagram from '@/components/chart/SiteStatusDiagram.vue'
+import ToothMeasurementCards from '@/components/chart/ToothMeasurementCards.vue'
 import { useToothAnalysis } from '@/composables/chart/useToothAnalysis'
 import type { ToothData, ToothId } from '@/domain/chart/chart.types'
 
@@ -54,59 +55,14 @@ const handleUpdateNote = (note: string) => {
     <!-- Content -->
     <div class="flex-1 overflow-y-auto p-6 space-y-8 scrollbar-hide">
 
-      <!-- PD Section -->
-      <section :class="{ 'bg-slate-800/30 opacity-70 pointer-events-none': toothData.extracted }">
-        <h3 class="text-[11px] font-black text-slate-400 uppercase tracking-[0.15em] mb-4">PD</h3>
-        <div class="grid grid-cols-2 gap-4">
-          <!-- Buccal Card -->
-          <div class="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm text-center group hover:border-[#0052ff]/20 transition-all">
-            <div class="text-2xl font-black mb-1 flex items-center justify-center gap-0.5">
-              <span v-for="(val, i) in analysisData?.buccalPD" :key="i"
-                :class="parseInt(val) > 4 ? 'text-red-500' : 'text-[#0052ff]'">
-                {{ val }}{{ Number(i) < 2 ? '-' : '' }}
-              </span>
-            </div>
-            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Buccal (mm)</p>
-          </div>
-          <!-- Inner surface card -->
-          <div class="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm text-center group hover:border-[#0052ff]/20 transition-all">
-            <div class="text-2xl font-black mb-1 flex items-center justify-center gap-0.5">
-              <span v-for="(val, i) in analysisData?.innerSurfacePD" :key="i"
-                :class="parseInt(val) > 4 ? 'text-red-500' : 'text-[#0052ff]'">
-                {{ val }}{{ Number(i) < 2 ? '-' : '' }}
-              </span>
-            </div>
-            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{{ innerSurfaceLabel }} (mm)</p>
-          </div>
-        </div>
-
-      </section>
-
-      <!-- CAL Section -->
-      <section :class="{ 'bg-slate-800/30 opacity-70 pointer-events-none': toothData.extracted }">
-        <h3 class="text-[11px] font-black text-slate-400 uppercase tracking-[0.15em] mb-4">CAL</h3>
-        <div class="grid grid-cols-2 gap-4">
-          <!-- Buccal Card -->
-          <div class="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm text-center group hover:border-[#0052ff]/20 transition-all">
-            <div class="text-2xl font-black mb-1 flex items-center justify-center gap-0.5">
-              <span v-for="(val, i) in analysisData?.buccalCAL" :key="i" class="text-[#0052ff]">
-                {{ val }}{{ Number(i) < 2 ? '-' : '' }}
-              </span>
-            </div>
-            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Buccal (mm)</p>
-          </div>
-          <!-- Inner surface card -->
-          <div class="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm text-center group hover:border-[#0052ff]/20 transition-all">
-            <div class="text-2xl font-black mb-1 flex items-center justify-center gap-0.5">
-              <span v-for="(val, i) in analysisData?.innerSurfaceCAL" :key="i" class="text-[#0052ff]">
-                {{ val }}{{ Number(i) < 2 ? '-' : '' }}
-              </span>
-            </div>
-            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{{ innerSurfaceLabel }} (mm)</p>
-          </div>
-        </div>
-
-      </section>
+      <ToothMeasurementCards
+        :buccal-p-d="analysisData?.buccalPD"
+        :inner-surface-p-d="analysisData?.innerSurfacePD"
+        :buccal-c-a-l="analysisData?.buccalCAL"
+        :inner-surface-c-a-l="analysisData?.innerSurfaceCAL"
+        :inner-surface-label="innerSurfaceLabel"
+        :extracted="toothData.extracted"
+      />
 
       <!-- Visual Indicators Section (Standard 6-Site Hexagonal Diagrams) -->
       <section class="grid grid-cols-2 gap-4" :class="{ 'bg-slate-900/5 opacity-60 pointer-events-none': toothData.extracted }">
