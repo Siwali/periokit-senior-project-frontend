@@ -1,20 +1,11 @@
 <script setup lang="ts">
 import { X } from 'lucide-vue-next'
-import { computed, ref } from 'vue'
+import { ref, toRef } from 'vue'
 import PrognosisReferenceModal from '@/components/chart/PrognosisReferenceModal.vue'
 import ToothClinicalNote from '@/components/chart/ToothClinicalNote.vue'
 import ToothAnalysisSummary from '@/components/chart/ToothAnalysisSummary.vue'
 import SiteStatusDiagram from '@/components/chart/SiteStatusDiagram.vue'
-
-import {
-  calculatePrognosisKC,
-  calculatePrognosisMN,
-  getSafePDValues,
-  getSafeCALValues,
-  calculateToothBopPercentage,
-  calculateToothPiPercentage
-} from '../../utils/calculations'
-import { isUpperTooth } from '@/domain/chart/chart.rules'
+import { useToothAnalysis } from '@/composables/chart/useToothAnalysis'
 import type { ToothData, ToothId } from '@/domain/chart/chart.types'
 
 
@@ -31,35 +22,9 @@ const emit = defineEmits<{
   'update-note': [value: { id: ToothId; note: string }]
 }>()
 
-const innerSurfaceLabel = computed(() => {
-  if (!props.toothId) return 'Palatal'
-  return isUpperTooth(props.toothId) ? 'Palatal' : 'Lingual'
-})
-
-const analysisData = computed(() => {
-  if (!props.toothData) return null
-
-  const allFur = [
-    ...(props.toothData.fur?.buccal || []),
-    ...(props.toothData.fur?.lingual || [])
-  ].map(v => Number(v) || 0)
-
-  const maxFur = allFur.length > 0 ? Math.max(0, ...allFur) : 0
-
-  return {
-    prognosisKC: calculatePrognosisKC(props.toothData),
-    prognosisMN: calculatePrognosisMN(props.toothData),
-    buccalKTW: props.toothData.buccal?.ktw || "0",
-    innerSurfaceKTW: props.toothData.lingual?.ktw || "0",
-    mobility: props.toothData.mo || "0",
-    furcation: maxFur,
-    buccalPD: getSafePDValues(props.toothData.buccal?.pd),
-    innerSurfacePD: getSafePDValues(props.toothData.lingual?.pd),
-    buccalCAL: getSafeCALValues(props.toothData.buccal?.cal),
-    innerSurfaceCAL: getSafeCALValues(props.toothData.lingual?.cal),
-    bopPercentage: calculateToothBopPercentage(props.toothData),
-    piPercentage: calculateToothPiPercentage(props.toothData)
-  }
+const { innerSurfaceLabel, analysisData } = useToothAnalysis({
+  toothId: toRef(props, 'toothId'),
+  toothData: toRef(props, 'toothData'),
 })
 
 const handleUpdateNote = (note: string) => {
