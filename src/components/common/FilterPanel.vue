@@ -1,50 +1,36 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
-import { ListFilter, ChevronLeft, ChevronRight, X } from 'lucide-vue-next'
+import { computed, ref, watch } from 'vue'
+import { ListFilter, ChevronLeft, ChevronRight } from 'lucide-vue-next'
+import type {
+  CombinedDateSortValue,
+  DateRangeValue,
+  DateSortValue,
+  FilterConfig,
+  FilterType,
+  FilterValue,
+  FilterValues,
+} from '@/components/common/filter.types'
 
-export type FilterType = 'phase' | 'date' | 'doctor' | 'gender' | 'age' | 'name' | 'sort'
-
-export interface FilterOption {
-  value: string
-  label: string
-}
-
-export interface FilterConfig {
-  type: FilterType
-  label: string
-  icon: any
-  color: 'blue' | 'rose' | 'emerald' | 'purple'
-  options?: FilterOption[]
-  isSearch?: boolean
-  isDateRange?: boolean
-  isSort?: boolean
-  sortLabels?: { asc: string; desc: string }
-}
+export type {
+  FilterConfig,
+  FilterType,
+  FilterValue,
+  FilterValues,
+} from '@/components/common/filter.types'
 
 const props = defineProps<{
   configs: FilterConfig[]
-  modelValue: Record<string, any>
+  modelValue: FilterValues
 }>()
 
 const emit = defineEmits<{
-  'update:modelValue': [value: Record<string, any>]
+  'update:modelValue': [value: FilterValues]
   'apply': []
 }>()
 
 // Local state
 const activePopover = ref<'main' | FilterType | null>(null)
-const tempValues = ref<Record<string, any>>({})
-
-// Chips are teleported into a slot the parent owns (full-width row below the
-// header). Only enable the teleport once mounted so the target exists. If the
-// host page provides no #active-filter-chips slot, fall back to rendering the
-// chips in place so the component stays self-contained.
-const isReady = ref(false)
-const hasChipsSlot = ref(false)
-onMounted(() => {
-  isReady.value = true
-  hasChipsSlot.value = !!document.getElementById('active-filter-chips')
-})
+const tempValues = ref<FilterValues>({})
 
 // Initialize temp values from modelValue
 watch(() => props.modelValue, (newVal) => {
@@ -59,10 +45,13 @@ const getCurrentKey = (): FilterType => {
 // Helper to set date value
 const setDateValue = (field: 'from' | 'to', value: string) => {
   const key = getCurrentKey()
-  if (!tempValues.value[key]) {
-    tempValues.value[key] = {}
-  }
-  tempValues.value[key][field] = value
+  const current = toObjectValue(tempValues.value[key])
+  tempValues.value[key] = { ...current, [field]: value } as DateRangeValue | CombinedDateSortValue
+}
+
+const setDateValueFromEvent = (field: 'from' | 'to', event: Event) => {
+  const target = event.target as HTMLInputElement | null
+  setDateValue(field, target?.value ?? '')
 }
 
 // Computed helpers
@@ -72,15 +61,12 @@ const hasActiveFilters = computed(() => {
 
 const activeFilterCount = computed(() => {
   let count = 0
-  Object.entries(props.modelValue).forEach(([, value]) => {
-    if (value === null || value === undefined || value === '') return
-    if (typeof value === 'object') {
-      Object.values(value).forEach(v => {
-        if (v !== null && v !== undefined && v !== '') count++
-      })
-    } else {
-      count++
-    }
+  Object.values(props.modelValue).forEach(value => {
+    if (isEmptyFilterValue(value)) return
+    if (isObjectValue(value)) return Object.values(value).forEach(v => {
+      if (v !== null && v !== undefined && v !== '') count++
+    })
+    count++
   })
   return count
 })
@@ -93,28 +79,34 @@ const getFilterValue = (type: FilterType) => {
   return props.modelValue[type]
 }
 
-// A filter counts as "active" only when it holds a real value.
-// Object-typed values (date range / sort) are always truthy, so we must
-// inspect their inner values instead of relying on truthiness.
+const isObjectValue = (value: FilterValue): value is DateRangeValue | CombinedDateSortValue => {
+  return typeof value === 'object' && value !== null
+}
+
+const toObjectValue = (value: FilterValue): Partial<DateRangeValue & CombinedDateSortValue> => {
+  return isObjectValue(value) ? value : {}
+}
+
+const isEmptyFilterValue = (value: FilterValue) => {
+  if (value === null || value === undefined || value === '') return true
+  if (isObjectValue(value)) return !Object.values(value).some(v => v !== null && v !== undefined && v !== '')
+  return false
+}
+
 const isFilterActive = (type: FilterType) => {
-  const value = props.modelValue[type]
-  if (value === null || value === undefined || value === '') return false
-  if (typeof value === 'object') {
-    return Object.values(value).some(v => v !== null && v !== undefined && v !== '')
-  }
-  return true
+  return !isEmptyFilterValue(props.modelValue[type])
 }
 
 const getFilterDisplay = (type: FilterType) => {
   const value = getFilterValue(type)
   const config = getConfig(type)
 
-  if (!value) return config?.label || type
+  if (isEmptyFilterValue(value)) return config?.label || type
 
   // Handle combined sort + date range
-  if (config?.isSort && config?.isDateRange && typeof value === 'object') {
+  if (config?.isSort && config?.isDateRange && isObjectValue(value)) {
     const parts = []
-    if (value.sort) {
+    if ('sort' in value && value.sort) {
       if (value.sort === 'date_asc') parts.push('Oldest')
       if (value.sort === 'date_desc') parts.push('Latest')
     }
@@ -127,7 +119,7 @@ const getFilterDisplay = (type: FilterType) => {
   }
 
   // Handle date range only
-  if (config?.isDateRange && !config?.isSort) {
+  if (config?.isDateRange && !config?.isSort && isObjectValue(value)) {
     if (value.from || value.to) {
       const from = value.from || '...'
       const to = value.to || '...'
@@ -138,29 +130,30 @@ const getFilterDisplay = (type: FilterType) => {
 
   // Handle sort only
   if (config?.isSort && !config?.isDateRange) {
+    const sortValue = String(value)
     if (config.sortLabels) {
-      if (value === 'asc' || value?.includes('asc')) return config.sortLabels.asc
-      if (value === 'desc' || value?.includes('desc')) return config.sortLabels.desc
+      if (sortValue === 'asc' || sortValue.includes('asc')) return config.sortLabels.asc
+      if (sortValue === 'desc' || sortValue.includes('desc')) return config.sortLabels.desc
     }
-    if (value === 'asc') return `${config.label} (A-Z)`
-    if (value === 'desc') return `${config.label} (Z-A)`
-    if (value?.includes('asc')) return 'A-Z'
-    if (value?.includes('desc')) return 'Z-A'
+    if (sortValue === 'asc') return `${config.label} (A-Z)`
+    if (sortValue === 'desc') return `${config.label} (Z-A)`
+    if (sortValue.includes('asc')) return 'A-Z'
+    if (sortValue.includes('desc')) return 'Z-A'
     return config.label
   }
 
   // Handle select options
   if (config?.options) {
-    const option = config.options.find(o => o.value === value)
-    return option?.label || value
+    const option = config.options.find(o => o.value === String(value))
+    return option?.label || String(value)
   }
 
   // Handle search
   if (config?.isSearch) {
-    return value
+    return String(value)
   }
 
-  return value
+  return String(value)
 }
 
 const openMain = () => {
@@ -201,7 +194,7 @@ const applyFilter = () => {
 
 const toggleSort = (type: FilterType, value: string) => {
   const currentValue = tempValues.value[type]
-  tempValues.value[type] = currentValue === value ? null : value
+  tempValues.value[type] = currentValue === value ? null : value as DateSortValue
 }
 
 const toggleOption = (type: FilterType, value: string) => {
@@ -211,14 +204,22 @@ const toggleOption = (type: FilterType, value: string) => {
 
 const setSortValue = (value: string) => {
   const key = getCurrentKey()
-  if (!tempValues.value[key]) {
-    tempValues.value[key] = {}
-  }
-  const currentSort = tempValues.value[key]?.sort
-  tempValues.value[key] = { ...tempValues.value[key], sort: currentSort === value ? null : value }
+  const current = toObjectValue(tempValues.value[key])
+  const currentSort = 'sort' in current ? current.sort : null
+  tempValues.value[key] = { ...current, sort: currentSort === value ? null : value as DateSortValue } as CombinedDateSortValue
 }
 
-const getColorClasses = (color: string) => {
+const getTempDateValue = (field: 'from' | 'to') => {
+  const current = toObjectValue(tempValues.value[getCurrentKey()])
+  return current[field] || ''
+}
+
+const isTempSortSelected = (value: string) => {
+  const current = toObjectValue(tempValues.value[getCurrentKey()])
+  return 'sort' in current && current.sort === value
+}
+
+const getColorClasses = (color: FilterConfig['color']) => {
   const colors = {
     blue: { text: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-100' },
     rose: { text: 'text-rose-600', bg: 'bg-rose-50', border: 'border-rose-100' },
@@ -227,6 +228,7 @@ const getColorClasses = (color: string) => {
   }
   return colors[color as keyof typeof colors] || colors.blue
 }
+
 </script>
 
 <template>
@@ -258,6 +260,7 @@ const getColorClasses = (color: string) => {
             v-for="config in configs"
             :key="config.type"
             @click="openSub(config.type)"
+            :title="isFilterActive(config.type) ? getFilterDisplay(config.type) : config.label"
             class="w-full text-left px-4 py-2 text-sm hover:bg-slate-50 flex items-center justify-between transition-colors"
             :class="[
               modelValue[config.type] ? getColorClasses(config.color).text + ' font-medium' : 'text-slate-700'
@@ -325,25 +328,25 @@ const getColorClasses = (color: string) => {
                   @click="setSortValue(activePopover + '_desc')"
                   class="w-full px-3 py-2 text-sm text-left hover:bg-slate-50 rounded flex items-center justify-between transition-colors"
                   :class="[
-                    tempValues[activePopover]?.sort === (activePopover + '_desc')
+                    isTempSortSelected(activePopover + '_desc')
                       ? getColorClasses(getConfig(activePopover as FilterType)?.color || 'blue').text + ' ' + getColorClasses(getConfig(activePopover as FilterType)?.color || 'blue').bg + ' font-medium'
                       : 'text-slate-700'
                   ]"
                 >
                   {{ getConfig(activePopover as FilterType)?.sortLabels?.desc ?? 'Latest' }}
-                  <div v-if="tempValues[activePopover]?.sort === (activePopover + '_desc')" class="w-1.5 h-1.5 rounded-full bg-current"></div>
+                  <div v-if="isTempSortSelected(activePopover + '_desc')" class="w-1.5 h-1.5 rounded-full bg-current"></div>
                 </button>
                 <button
                   @click="setSortValue(activePopover + '_asc')"
                   class="w-full px-3 py-2 text-sm text-left hover:bg-slate-50 rounded flex items-center justify-between transition-colors"
                   :class="[
-                    tempValues[activePopover]?.sort === (activePopover + '_asc')
+                    isTempSortSelected(activePopover + '_asc')
                       ? getColorClasses(getConfig(activePopover as FilterType)?.color || 'blue').text + ' ' + getColorClasses(getConfig(activePopover as FilterType)?.color || 'blue').bg + ' font-medium'
                       : 'text-slate-700'
                   ]"
                 >
                   {{ getConfig(activePopover as FilterType)?.sortLabels?.asc ?? 'Oldest' }}
-                  <div v-if="tempValues[activePopover]?.sort === (activePopover + '_asc')" class="w-1.5 h-1.5 rounded-full bg-current"></div>
+                  <div v-if="isTempSortSelected(activePopover + '_asc')" class="w-1.5 h-1.5 rounded-full bg-current"></div>
                 </button>
               </div>
             </template>
@@ -356,8 +359,8 @@ const getColorClasses = (color: string) => {
                   <label class="text-xs text-slate-500 px-1">From</label>
                   <input
                     type="date"
-                    :value="tempValues[activePopover]?.from || ''"
-                    @input="(e: any) => setDateValue('from', e.target.value)"
+                    :value="getTempDateValue('from')"
+                    @input="setDateValueFromEvent('from', $event)"
                     @click.stop
                     class="w-full px-2 py-1.5 text-xs border border-slate-200 rounded-md focus:outline-none focus:ring-1 focus:ring-emerald-400 text-slate-700"
                   />
@@ -366,8 +369,8 @@ const getColorClasses = (color: string) => {
                   <label class="text-xs text-slate-500 px-1">To</label>
                   <input
                     type="date"
-                    :value="tempValues[activePopover]?.to || ''"
-                    @input="(e: any) => setDateValue('to', e.target.value)"
+                    :value="getTempDateValue('to')"
+                    @input="setDateValueFromEvent('to', $event)"
                     @click.stop
                     class="w-full px-2 py-1.5 text-xs border border-slate-200 rounded-md focus:outline-none focus:ring-1 focus:ring-emerald-400 text-slate-700"
                   />
@@ -407,7 +410,14 @@ const getColorClasses = (color: string) => {
         </div>
 
         <!-- Global Apply Button -->
-        <div class="p-2 border-t border-slate-100 bg-white">
+        <div class="p-2 border-t border-slate-100 bg-white space-y-2">
+          <button
+            v-if="activePopover !== 'main' && isFilterActive(activePopover as FilterType)"
+            @click="removeFilter(activePopover as FilterType)"
+            class="w-full py-1.5 text-sm font-medium text-slate-500 bg-slate-50 hover:bg-slate-100 rounded-md transition-colors"
+          >
+            Clear Filter
+          </button>
           <button @click="applyFilter" class="w-full py-1.5 text-sm font-medium text-white bg-[#0052ff] hover:bg-blue-700 rounded-md transition-colors shadow-sm">
             Apply Filters
           </button>
@@ -415,32 +425,5 @@ const getColorClasses = (color: string) => {
       </div>
     </div>
 
-    <!-- Active Filter Chips (rendered into the parent-owned full-width row) -->
-    <Teleport to="#active-filter-chips" :disabled="!hasChipsSlot" v-if="isReady">
-      <div v-if="hasActiveFilters" class="flex flex-wrap items-center gap-2">
-        <template v-for="config in configs" :key="config.type">
-          <div
-            v-if="isFilterActive(config.type)"
-            class="flex items-center rounded-full pl-3 pr-1 py-1 shadow-sm border relative"
-            :class="getColorClasses(config.color).bg + ' ' + getColorClasses(config.color).border"
-          >
-            <span
-              class="text-xs font-medium cursor-pointer"
-              :class="getColorClasses(config.color).text"
-              @click="openSub(config.type)"
-            >
-              {{ config.label }}: <span class="text-slate-900">{{ getFilterDisplay(config.type) }}</span>
-            </span>
-            <button
-              @click="removeFilter(config.type)"
-              class="ml-1.5 p-1 rounded-full transition-colors"
-              :class="getColorClasses(config.color).text.replace('600', '400') + ' hover:' + getColorClasses(config.color).text.replace('600', '600') + ' hover:' + getColorClasses(config.color).bg.replace('50', '100')"
-            >
-              <X class="w-3 h-3"/>
-            </button>
-          </div>
-        </template>
-      </div>
-    </Teleport>
   </div>
 </template>

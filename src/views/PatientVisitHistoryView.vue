@@ -5,12 +5,15 @@ import { patientApi, type Patient } from '../services/api/patient.api'
 import { visitApi, type Visit } from '../services/api/visit.api'
 import Navbar from '../components/layout/Navbar.vue'
 import FilterPanel from '../components/common/FilterPanel.vue'
+import FilterChips from '../components/common/FilterChips.vue'
 import PatientDrawer from '../components/patients/VisitListPanel.vue'
-import type { FilterConfig } from '../components/common/FilterPanel.vue'
+import type { FilterConfig, FilterValues } from '../components/common/FilterPanel.vue'
 import { Search, Plus, Calendar, ChevronLeft, ChevronRight, X, AlertCircle, User, ArrowLeft } from 'lucide-vue-next'
 import { usePeriodontalChartStore } from '@/stores/periodontal-chart'
 import { useVisitStore } from '@/stores/visit'
 import Skeleton from '../components/common/Skeleton.vue'
+import { usePagination } from '@/composables/usePagination'
+import { useVisitFilters } from '@/composables/visits/useVisitFilters'
 
 const route = useRoute()
 const router = useRouter()
@@ -28,8 +31,6 @@ const isLoading = ref(true)
 const searchInput = ref('')
 const compareAnchorVisitId = ref<string | null>(null)
 const compareSecondVisitId = ref<string | null>(null)
-const page = ref(1)
-const pageSize = ref(10)
 
 // Filter configs
 const filterConfigs: FilterConfig[] = [
@@ -55,10 +56,23 @@ const filterConfigs: FilterConfig[] = [
 ]
 
 // Filter values
-const filterValues = ref<Record<string, any>>({
+const filterValues = ref<FilterValues>({
   phase: '',
   date: null
 })
+
+const { filteredVisits } = useVisitFilters({
+  visits,
+  searchInput,
+  filterValues,
+})
+
+const {
+  page,
+  totalPages,
+  paginatedItems: paginatedVisits,
+  resetPage,
+} = usePagination(filteredVisits, 10)
 
 const fetchPatientAndVisits = async () => {
   isLoading.value = true
@@ -179,58 +193,9 @@ const formatDate = (dateString: string) => {
   return `${day} ${month} ${year}`
 }
 
-const totalPages = computed(() => Math.ceil(filteredVisits.value.length / pageSize.value))
-
-const paginatedVisits = computed(() => {
-  const start = (page.value - 1) * pageSize.value
-  const end = start + pageSize.value
-  return filteredVisits.value.slice(start, end)
-})
-
-// Filter Logic
-const filteredVisits = computed(() => {
-  let result = [...visits.value]
-
-  // Filter by phase
-  if (filterValues.value.phase) {
-    result = result.filter(v => v.phase === filterValues.value.phase)
-  }
-
-  // Filter by search input (visit number or date)
-  if (searchInput.value) {
-    const search = searchInput.value.toLowerCase()
-    result = result.filter(v =>
-      v.visitDate.toLowerCase().includes(search) ||
-      v.phase.toLowerCase().includes(search) ||
-      v.doctorName?.toLowerCase().includes(search)
-    )
-  }
-
-  // Sort by date
-  const sortOrder = filterValues.value.date
-  if (sortOrder === 'date_asc') {
-    result.sort(
-      (a, b) =>
-        new Date(a.visitDate).getTime() - new Date(b.visitDate).getTime() ||
-        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime() ||
-        a.id.localeCompare(b.id)
-    )
-  } else {
-    // Default is desc
-    result.sort(
-      (a, b) =>
-        new Date(b.visitDate).getTime() - new Date(a.visitDate).getTime() ||
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime() ||
-        b.id.localeCompare(a.id)
-    )
-  }
-
-  return result
-})
-
 // Reset page when filters change
 watch(() => filterValues.value, () => {
-  page.value = 1
+  resetPage()
 }, { deep: true })
 
 const goBack = () => {
@@ -303,8 +268,7 @@ onUnmounted(() => {
         </div>
       </div>
 
-      <!-- Active filter chips (populated by FilterPanel via teleport) -->
-      <div id="active-filter-chips" class="empty:mb-0 mb-6"></div>
+      <FilterChips v-model="filterValues" :configs="filterConfigs" class="empty:mb-0 mb-6" />
 
       <!-- Compare Mode Banner -->
       <div v-if="compareAnchorVisitId" class="mb-6 bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-center justify-between shadow-sm animate-in fade-in slide-in-from-top-4 duration-300">
