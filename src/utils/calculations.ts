@@ -2,6 +2,7 @@
  * Periodontal Calculation Utilities
  * Centralized logic for clinical measurements and prognosis
  */
+import type { ToothData } from "@/domain/chart/chart.types";
 
 /**
  * Calculates Clinical Attachment Level (CAL)
@@ -19,8 +20,8 @@ export const calculateCALValue = (
 /**
  * Calculates McGuire and Nunn (M&N) Prognosis
  */
-export const calculatePrognosisMN = (data: any): string => {
-  if (!data || data.cut || data.extracted) return "N/A";
+export const calculatePrognosisMN = (data: ToothData | null | undefined): string => {
+  if (!data || data.extracted) return "N/A";
   if (data.implant) return "Good (Fixed)";
 
   // Get all CAL values
@@ -53,8 +54,8 @@ export const calculatePrognosisMN = (data: any): string => {
 /**
  * Calculates Kwok and Caton (K&C) Prognosis
  */
-export const calculatePrognosisKC = (data: any): string => {
-  if (!data || data.cut || data.extracted) return "N/A";
+export const calculatePrognosisKC = (data: ToothData | null | undefined): string => {
+  if (!data || data.extracted) return "N/A";
   if (data.implant) return "Favorable"; // Implants are generally considered favorable if stable
 
   const mn = calculatePrognosisMN(data);
@@ -85,8 +86,8 @@ export const calculatePercentage = (active: number, total: number): string => {
 /**
  * Calculates BOP percentage for a single tooth (6 sites)
  */
-export const calculateToothBopPercentage = (data: any): string => {
-  if (!data || data.cut || data.extracted) return "0%";
+export const calculateToothBopPercentage = (data: ToothData | null | undefined): string => {
+  if (!data || data.extracted) return "0%";
   const buccalBop = data.buccal?.bop || [];
   const lingualBop = data.lingual?.bop || [];
   const activeCount = [...buccalBop, ...lingualBop].filter(
@@ -98,8 +99,8 @@ export const calculateToothBopPercentage = (data: any): string => {
 /**
  * Calculates PI percentage for a single tooth (6 sites)
  */
-export const calculateToothPiPercentage = (data: any): string => {
-  if (!data || data.cut || data.extracted) return "0%";
+export const calculateToothPiPercentage = (data: ToothData | null | undefined): string => {
+  if (!data || data.extracted) return "0%";
   const buccalPi = data.buccal?.pi || [];
   const lingualPi = data.lingual?.pi || [];
   const activeCount = [...buccalPi, ...lingualPi].filter(
@@ -111,7 +112,7 @@ export const calculateToothPiPercentage = (data: any): string => {
 /**
  * Safely parses PD values for display
  */
-export const getSafePDValues = (pdArray: any[]): string[] => {
+export const getSafePDValues = (pdArray: unknown[] | undefined): string[] => {
   if (!Array.isArray(pdArray)) return ["0", "0", "0"];
   return pdArray.map((v) =>
     v !== null && v !== undefined && v !== "" ? String(v) : "0",
@@ -121,7 +122,7 @@ export const getSafePDValues = (pdArray: any[]): string[] => {
 /**
  * Safely parses CAL values for display
  */
-export const getSafeCALValues = (calArray: any[]): string[] => {
+export const getSafeCALValues = (calArray: unknown[] | undefined): string[] => {
   if (!Array.isArray(calArray)) return ["0", "0", "0"];
   return calArray.map((v) =>
     v !== null && v !== undefined && v !== "" ? String(v) : "0",

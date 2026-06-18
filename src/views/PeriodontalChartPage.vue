@@ -15,8 +15,10 @@ import { usePeriodontalChartStore } from '@/stores/periodontal-chart'
 import { useClinicalValidationStore } from '@/stores/clinical-validation'
 import { useVisitStore } from '@/stores/visit'
 import { useNotificationStore } from '@/stores/notification'
+import { useChartRouteState } from '@/composables/chart/useChartRouteState'
+import { useDraftRecovery } from '@/composables/chart/useDraftRecovery'
 import type { ToothId } from '@/domain/chart/chart.types'
-import { ref, watch, onMounted, onUnmounted, computed } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import draggable from 'vuedraggable'
 
@@ -29,186 +31,6 @@ const visitStore = useVisitStore()
 const notifStore = useNotificationStore()
 
 const drawerOpen = ref(false)
-const urlVisitId = ref<string | null>(null)
-
-// Put the page into "new visit" draft mode. The backend has no standalone
-// create-visit mutation: a visit is persisted only when its chart is saved
-// (saveChart with no visitId). So a new visit is a local draft — a blank chart
-// that keeps the current patient's identity — until the user hits Save.
-async function enterNewVisitState() {
-  // Use only the URL param — never chartStore.currentPatientId, which may still
-  // hold a previous patient's id before resetChart() has cleared it.
-  const patientId = route.query.patientId as string | undefined
-  const today = new Date().toISOString().split('T')[0]
-  chartStore.resetChart()
-  if (patientId) {
-    await chartStore.loadPatientById(patientId)
-  }
-  chartStore.patientInfo.date = today
-  chartStore.patientInfo.visitPhase = 'before_hygienic'
-  visitStore.addDraftVisit(patientId || '', today, 'before_hygienic')
-}
-
-onMounted(async () => {
-  const visitId = route.query.visitId as string | undefined
-  const patientId = route.query.patientId as string | undefined
-
-  // Capture persisted state before any mutations so we can detect a page reload
-  // where the user had an unsaved draft for this patient.
-  const hadDirtyWork = chartStore.isDirty
-  const persistedPatientId = chartStore.currentPatientId
-
-  if (patientId && visitId) {
-    urlVisitId.value = visitId
-    // Null out currentPatientId before loadPatientById so that if Pinia's
-    // persisted state has a different (non-null) patient, the
-    // currentPatientId watcher fires with oldPatientId===null and skips,
-    // avoiding a race where it clears our visits mid-setup.
-    chartStore.currentPatientId = null
-    try {
-      await chartStore.loadPatientById(patientId)
-      const fetchedVisits = await visitStore.loadVisits(patientId)
-      visitStore.setActiveVisit(visitId)
-      if (visitId !== 'new') {
-        const selectedVisit = fetchedVisits.find(v => v.id === visitId)
-        if (selectedVisit) {
-          visitStore.visits = [selectedVisit]
-        } else {
-          visitStore.visits = []
-        }
-        await chartStore.loadFromBackend(visitId)
-      } else if (hadDirtyWork && persistedPatientId === patientId) {
-        // Page reload with an unsaved draft for this patient — keep teethData
-        // intact (restored from sessionStorage) but re-add the draft tab to the
-        // visit strip, since the visit store isn't persisted and loadVisits above
-        // only returns backend visits.
-        visitStore.visits = []
-        visitStore.addDraftVisit(
-          patientId,
-          chartStore.patientInfo.date || new Date().toISOString().split('T')[0],
-          chartStore.patientInfo.visitPhase || 'before_hygienic',
-        )
-      } else {
-        visitStore.visits = []
-        await enterNewVisitState()
-      }
-    } catch (error) {
-      console.error('Failed to load chart:', error)
-    }
-  } else if (patientId) {
-    visitStore.setActiveVisit(null)
-    chartStore.resetChart()
-    try {
-      await chartStore.loadPatientById(patientId)
-      const fetchedVisits = await visitStore.loadVisits(patientId)
-      // Patient has no visits yet — auto-open a blank draft so the tab row shows immediately
-      if (fetchedVisits.length === 0) {
-        visitStore.visits = []
-        await enterNewVisitState()
-        router.replace({ name: 'chart', query: { patientId, visitId: 'new' } })
-      } else {
-        // Redirect to the latest visit's chart (sorted by visitNumber)
-        const sorted = [...fetchedVisits].sort((a, b) => (a.visitNumber ?? 0) - (b.visitNumber ?? 0))
-        const latest = sorted[sorted.length - 1]
-        visitStore.visits = [latest]
-        router.replace({ name: 'chart', query: { patientId, visitId: latest.id } })
-      }
-    } catch (error) {
-      console.error('Failed to load patient:', error)
-    }
-  } else if (visitId) {
-    urlVisitId.value = visitId
-    chartStore.currentPatientId = null
-    visitStore.setActiveVisit(visitId)
-    if (visitId !== 'new') {
-      try {
-        await chartStore.loadFromBackend(visitId)
-        if (chartStore.currentPatientId) {
-          const fetchedVisits = await visitStore.loadVisits(chartStore.currentPatientId)
-          const selectedVisit = fetchedVisits.find(v => v.id === visitId)
-          if (selectedVisit) {
-            visitStore.visits = [selectedVisit]
-          }
-        }
-      } catch (error) {
-        console.error('Failed to load chart:', error)
-      }
-    } else {
-      visitStore.visits = []
-      await enterNewVisitState()
-    }
-  } else {
-    visitStore.visits = []
-    await enterNewVisitState()
-  }
-})
-
-// Watch for visitId changes (when user navigates to different visit)
-watch(() => route.query.visitId, async (newVisitId) => {
-  if (newVisitId && typeof newVisitId === 'string') {
-    urlVisitId.value = newVisitId
-    visitStore.setActiveVisit(newVisitId)
-    if (newVisitId !== 'new') {
-      // Ensure this visit is in visitStore.visits (our opened tabs)
-      const existing = visitStore.visits.find(v => v.id === newVisitId)
-      if (!existing) {
-        const selectedVisit = visitStore.patientVisits.find(v => v.id === newVisitId)
-        if (selectedVisit) {
-          visitStore.visits.push(selectedVisit)
-        } else {
-          // Fallback: load patient visits and find it
-          const patientId = route.query.patientId as string || chartStore.currentPatientId
-          if (patientId) {
-            const fetchedVisits = await visitStore.loadVisits(patientId)
-            const updatedVisit = fetchedVisits.find(v => v.id === newVisitId)
-            if (updatedVisit) {
-              visitStore.visits.push(updatedVisit)
-            }
-          }
-        }
-      }
-      try {
-        await chartStore.loadFromBackend(newVisitId)
-      } catch (error) {
-        console.error('Failed to load chart:', error)
-      }
-    } else {
-      await enterNewVisitState()
-    }
-  } else if (newVisitId === undefined && route.query.patientId === undefined) {
-    visitStore.clearVisits()
-    chartStore.resetChart()
-  }
-})
-
-// When patientId is removed from the URL without a visitId change (e.g. navigating
-// to /chart from a patient-specific chart), enter new-patient mode.
-watch(() => route.query.patientId, (newPatientId, oldPatientId) => {
-  if (newPatientId === undefined && oldPatientId !== undefined && route.query.visitId === undefined) {
-    visitStore.clearVisits()
-    chartStore.resetChart()
-  }
-})
-
-// Watch for patient changes - reset visits when switching patients.
-// Skip the initial mount transition (oldPatientId === null): onMounted already
-// loads the visits, so re-loading here would double-fetch and clobber the
-// active visit via clearVisits().
-watch(() => chartStore.currentPatientId, async (newPatientId, oldPatientId) => {
-  if (!newPatientId || newPatientId === oldPatientId || oldPatientId === null) return
-  visitStore.clearVisits()
-  const fetchedVisits = await visitStore.loadVisits(newPatientId)
-  if (fetchedVisits.length > 0) {
-    // Open the latest visit as a tab by default
-    const sorted = [...fetchedVisits].sort((a, b) => (a.visitNumber ?? 0) - (b.visitNumber ?? 0))
-    const latest = sorted[sorted.length - 1]
-    visitStore.visits = [latest]
-    await handleSwitchVisit(latest.id)
-  } else {
-    chartStore.resetChart()
-    await chartStore.loadPatientById(newPatientId)
-  }
-})
 
 const {
   patientInfo,
@@ -222,117 +44,45 @@ const {
 
 const { visits, activeVisitId } = storeToRefs(visitStore)
 
-// Edit mode for saved visits (read-only by default — see computeds below).
 const editMode = ref(false)
-
 const showOverviewModal = ref(false)
 const showSaveConfirmModal = ref(false)
 const showCloseTabWarningModal = ref(false)
 const showDraftRecoveryModal = ref(false)
 const showValidation = ref(false)
 const showCancelEditConfirmModal = ref(false)
-
-// ID of the visit tab the user is trying to close (pending confirmation)
-let pendingCloseVisitId: string | null = null
-
-// Auto-fit scale toggle
 const enableAutoFit = ref(false)
-
+const isSaving = ref(false)
 const isTouchDevice = ref(false)
+
+const {
+  hasPatient,
+  isNewPatientMode,
+  handleSwitchVisit,
+  handleCloseVisit,
+  confirmCloseTab,
+  handleNewVisit,
+} = useChartRouteState({
+  chartStore,
+  visitStore,
+  notifStore,
+  route,
+  router,
+  activeVisitId,
+  currentPatientId,
+  visitCount: computed(() => visits.value.length),
+  showCloseTabWarningModal,
+})
+
+const { discardDraft } = useDraftRecovery({
+  chartStore,
+  route,
+  showDraftRecoveryModal,
+})
+
 onMounted(() => {
   isTouchDevice.value = 'ontouchstart' in window || navigator.maxTouchPoints > 0
 })
-
-// Switch to a different visit (tab click)
-const handleSwitchVisit = async (visitId: string) => {
-  if (visitId === activeVisitId.value) return
-
-  visitStore.setActiveVisit(visitId)
-
-  router.replace({
-    name: 'chart',
-    query: { ...route.query, visitId }
-  })
-
-  // The route watcher handles 'new' (draft) tabs — skip loadFromBackend for them.
-  if (visitId === 'new') return
-
-  try {
-    await chartStore.loadFromBackend(visitId)
-  } catch (error) {
-    console.error('Failed to load chart for visit:', error)
-  }
-}
-
-// Close a visit tab. If the visit has unsaved changes, show a warning first.
-const handleCloseVisit = async (visitId: string) => {
-  if (visits.value.length <= 1) return
-  // Only warn for the draft (id='new') or a visit with dirty unsaved edits
-  const isDirtyTab = visitId === 'new' && chartStore.isDirty
-  if (isDirtyTab && visitId === activeVisitId.value) {
-    pendingCloseVisitId = visitId
-    showCloseTabWarningModal.value = true
-    return
-  }
-  await doCloseVisit(visitId)
-}
-
-const confirmCloseTab = async () => {
-  showCloseTabWarningModal.value = false
-  if (pendingCloseVisitId) {
-    await doCloseVisit(pendingCloseVisitId)
-    pendingCloseVisitId = null
-  }
-}
-
-const doCloseVisit = async (visitId: string) => {
-  const wasActive = visitId === activeVisitId.value
-  const nextActiveId = visitStore.removeVisit(visitId)
-
-  if (!wasActive) return
-
-  if (nextActiveId) {
-    router.replace({ name: 'chart', query: { ...route.query, visitId: nextActiveId } })
-    try {
-      await chartStore.loadFromBackend(nextActiveId)
-    } catch (error) {
-      console.error('Failed to load chart for visit:', error)
-    }
-  } else {
-    // No tabs left — clear the visit from the URL and blank the chart.
-    const query = { ...route.query }
-    delete query.visitId
-    router.replace({ name: 'chart', query })
-    chartStore.resetChart()
-    const patientId = currentPatientId.value
-    if (patientId) await chartStore.loadPatientById(patientId)
-  }
-}
-
-// Start a new visit for the current patient. The visit is only persisted on
-// the backend once its chart is saved (saveChart with no visitId creates it),
-// so here we just enter the local 'new' draft state.
-const handleNewVisit = async () => {
-  const patientId = currentPatientId.value || route.query.patientId as string | undefined
-
-  if (!patientId) {
-    notifStore.error('Please select a patient first')
-    return
-  }
-
-  // Already drafting a new visit — just give a fresh blank chart.
-  if (route.query.visitId === 'new') {
-    await enterNewVisitState()
-    return
-  }
-
-  // Navigating to the 'new' sentinel triggers the route watcher, which puts the
-  // page into draft mode (blank chart, same patient).
-  visitStore.setActiveVisit('new')
-  router.replace({ name: 'chart', query: { patientId, visitId: 'new' } })
-}
-
-const isSaving = ref(false)
 
 const validateBeforeSave = () => {
   showValidation.value = true
@@ -360,11 +110,12 @@ const handleSaveClick = () => {
 const confirmSaveChart = async () => {
   showSaveConfirmModal.value = false
   if (isSaving.value) return
+
   isSaving.value = true
   const wasNewPatient = isNewPatientMode.value
+
   try {
     await chartStore.saveToBackend(true)
-
     editMode.value = false
 
     const activeVisit = activeVisitId.value
@@ -391,42 +142,21 @@ const confirmSaveChart = async () => {
   }
 }
 
-// Format date for display
 const formatDate = (dateStr: string) => {
   if (!dateStr) return ''
   const date = new Date(dateStr)
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
-// Computed: show empty state only if we have no patient and no query params (i.e., user just clicked a drawer item but patient isn't loaded yet)
-// If there are no query params at all, we're in "new patient" mode - show the blank chart
-const hasPatient = computed(() => {
-  // If there are no query params at all, we're in blank chart mode (new patient flow)
-  const hasNoQueryParams = !route.query.patientId && !route.query.visitId
-  return hasNoQueryParams || Boolean(currentPatientId.value || route.query.patientId)
-})
-
-// Computed: true if we're in blank chart mode (creating new patient from scratch)
-const isNewPatientMode = computed(() => {
-  return !route.query.patientId && !route.query.visitId && !currentPatientId.value
-})
-
-// --- Read-only / edit mode for saved visits ---
-// - id='new' (unsaved draft): always editable, no Edit button needed
-// - existing draft/completed: read-only by default, Edit button unlocks
 const isExistingVisit = computed(
-  () => activeVisitId.value !== 'new' && activeVisitId.value !== null
+  () => activeVisitId.value !== 'new' && activeVisitId.value !== null,
 )
-// Editable when: new unsaved visit OR (existing visit AND editMode is on)
 const chartEditable = computed(
-  () => !isExistingVisit.value || editMode.value
+  () => !isExistingVisit.value || editMode.value,
 )
-// Patient-identity fields stay locked on existing visits
 const patientFieldsEditable = computed(() => !isExistingVisit.value)
 
-// Keep the store's read-only guard in sync with the editable state.
 watch(chartEditable, value => { chartStore.readonly = !value }, { immediate: true })
-// Reset edit mode whenever the active visit changes.
 watch(activeVisitId, () => { editMode.value = false })
 
 const handleEditVisit = () => { editMode.value = true }
@@ -442,41 +172,21 @@ const handleCancelEditClick = () => {
 const confirmCancelEdit = async () => {
   showCancelEditConfirmModal.value = false
   editMode.value = false
-  // Discard unsaved edits by reloading from backend
+
   const visitId = activeVisitId.value
   if (visitId && visitId !== 'new') {
-    try { await chartStore.loadFromBackend(visitId) } catch (e) { console.error(e) }
+    try {
+      await chartStore.loadFromBackend(visitId)
+    } catch (error) {
+      console.error(error)
+    }
   }
-}
-
-// --- beforeunload guard (crash/accidental tab close protection) ---
-const beforeUnloadHandler = (e: BeforeUnloadEvent) => {
-  if (chartStore.isDirty) {
-    e.preventDefault()
-  }
-}
-onMounted(() => { window.addEventListener('beforeunload', beforeUnloadHandler) })
-onUnmounted(() => { window.removeEventListener('beforeunload', beforeUnloadHandler) })
-
-// --- Draft Recovery ---
-// On mount, if localStorage has isDirty=true (restored by Pinia persist) and the
-// current session has no active visit, offer to restore the draft.
-onMounted(() => {
-  if (chartStore.isDirty && !route.query.visitId) {
-    showDraftRecoveryModal.value = true
-  }
-})
-
-const discardDraft = () => {
-  showDraftRecoveryModal.value = false
-  chartStore.resetChart()
 }
 
 const handleUpdateNote = ({ id, note }: { id: string | number; note: string }) => {
   chartStore.updateNote(Number(id) as ToothId, note)
 }
 </script>
-
 <template>
   <div class="min-h-screen bg-[#f1f5f9] font-sans text-[#1e293b]">
     <Navbar @toggle-drawer="drawerOpen = !drawerOpen" />

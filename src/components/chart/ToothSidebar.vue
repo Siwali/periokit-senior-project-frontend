@@ -12,6 +12,7 @@ import {
   calculateToothPiPercentage
 } from '../../utils/calculations'
 import { isUpperTooth } from '@/domain/chart/chart.rules'
+import type { ToothData, ToothId } from '@/domain/chart/chart.types'
 
 
 const prognosisModalType = ref<'MN' | 'KC' | null>(null)
@@ -20,12 +21,15 @@ const noteInput = ref('')
 const showCancelNoteConfirmModal = ref(false)
 
 const props = defineProps<{
-  toothId: number | string | null
-  toothData: any
+  toothId: ToothId | null
+  toothData: ToothData | null
   readonly?: boolean
 }>()
 
-const emit = defineEmits(['close', 'update-note'])
+const emit = defineEmits<{
+  close: []
+  'update-note': [value: { id: ToothId; note: string }]
+}>()
 
 // Reset editing state when switching teeth
 watch(() => props.toothId, () => {
@@ -35,16 +39,19 @@ watch(() => props.toothId, () => {
 
 // Initialize note input when tooth changes or editing starts
 const startEditing = () => {
+  if (!props.toothData) return
   noteInput.value = props.toothData.note || ''
   isEditingNote.value = true
 }
 
 const saveNote = () => {
+  if (props.toothId === null) return
   emit('update-note', { id: props.toothId, note: noteInput.value })
   isEditingNote.value = false
 }
 
 const deleteNote = () => {
+  if (props.toothId === null) return
   emit('update-note', { id: props.toothId, note: '' })
   isEditingNote.value = false
   noteInput.value = ''
@@ -102,7 +109,7 @@ const analysisData = computed(() => {
   const allFur = [
     ...(props.toothData.fur?.buccal || []),
     ...(props.toothData.fur?.lingual || [])
-  ].map(v => parseInt(v) || 0)
+  ].map(v => Number(v) || 0)
 
   const maxFur = allFur.length > 0 ? Math.max(0, ...allFur) : 0
 
