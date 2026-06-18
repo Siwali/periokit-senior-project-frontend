@@ -2,6 +2,7 @@
 import { X, Trash2 } from 'lucide-vue-next'
 import { computed, ref, watch } from 'vue'
 import ConfirmModal from '@/components/common/ConfirmModal.vue'
+import SiteStatusDiagram from '@/components/chart/SiteStatusDiagram.vue'
 
 import {
   calculatePrognosisKC,
@@ -208,119 +209,27 @@ const analysisData = computed(() => {
 
       <!-- Visual Indicators Section (Standard 6-Site Hexagonal Diagrams) -->
       <section class="grid grid-cols-2 gap-4" :class="{ 'bg-slate-900/5 opacity-60 pointer-events-none': toothData.extracted }">
-        <!-- BoP Diagram -->
-        <div class="relative bg-slate-50/50 border border-slate-100 rounded-2xl p-5 flex flex-col items-center group/bop">
-          <!-- Percentage Badge -->
-          <div
-            v-if="analysisData?.bopPercentage !== '0%'"
-            class="absolute top-2.5 right-2.5 px-2 py-0.5 bg-red-50 text-red-500 text-[9px] font-black rounded-lg border border-red-100 shadow-sm animate-in fade-in zoom-in duration-300"
-          >
-            {{ analysisData?.bopPercentage }}
-          </div>
+        <SiteStatusDiagram
+          :tooth-id="toothId"
+          :tooth-data="toothData"
+          field="bop"
+          label="BOP (6 Sites)"
+          :percentage="analysisData?.bopPercentage"
+          active-fill="#ef4444"
+          badge-class="bg-red-50 text-red-500 border-red-100"
+          clip-id-prefix="squircle-clip-bop"
+        />
 
-
-          <div class="relative w-20 h-20 mb-2">
-            <svg viewBox="0 0 100 100" class="w-full h-full">
-              <defs>
-                <clipPath :id="`squircle-clip-bop-${toothId}`">
-                  <rect x="4" y="4" width="92" height="92" rx="26" />
-                </clipPath>
-              </defs>
-              <g :clip-path="`url(#squircle-clip-bop-${toothId})`">
-                <rect x="4" y="4" width="92" height="92" rx="26" fill="white" />
-                
-                <!-- Top Half -->
-                <template v-if="isUpperTooth(toothId)">
-                  <path v-if="toothData.buccal.bop[0]" d="M50 50 L0 50 L0 0 Z" fill="#ef4444" />
-                  <path v-if="toothData.buccal.bop[1]" d="M50 50 L0 0 L100 0 Z" fill="#ef4444" />
-                  <path v-if="toothData.buccal.bop[2]" d="M50 50 L100 0 L100 50 Z" fill="#ef4444" />
-                </template>
-                <template v-else>
-                  <path v-if="toothData.lingual.bop[0]" d="M50 50 L0 50 L0 0 Z" fill="#ef4444" />
-                  <path v-if="toothData.lingual.bop[1]" d="M50 50 L0 0 L100 0 Z" fill="#ef4444" />
-                  <path v-if="toothData.lingual.bop[2]" d="M50 50 L100 0 L100 50 Z" fill="#ef4444" />
-                </template>
-
-                <!-- Bottom Half -->
-                <template v-if="isUpperTooth(toothId)">
-                  <path v-if="toothData.lingual.bop[0]" d="M50 50 L0 50 L0 100 Z" fill="#ef4444" />
-                  <path v-if="toothData.lingual.bop[1]" d="M50 50 L0 100 L100 100 Z" fill="#ef4444" />
-                  <path v-if="toothData.lingual.bop[2]" d="M50 50 L100 100 L100 50 Z" fill="#ef4444" />
-                </template>
-                <template v-else>
-                  <path v-if="toothData.buccal.bop[0]" d="M50 50 L0 50 L0 100 Z" fill="#ef4444" />
-                  <path v-if="toothData.buccal.bop[1]" d="M50 50 L0 100 L100 100 Z" fill="#ef4444" />
-                  <path v-if="toothData.buccal.bop[2]" d="M50 50 L100 100 L100 50 Z" fill="#ef4444" />
-                </template>
-
-                <!-- Divider Lines -->
-                <line x1="0" y1="0" x2="100" y2="100" stroke="#e2e8f0" stroke-width="1.5" />
-                <line x1="100" y1="0" x2="0" y2="100" stroke="#e2e8f0" stroke-width="1.5" />
-                <line x1="0" y1="50" x2="100" y2="50" stroke="#e2e8f0" stroke-width="1.5" />
-              </g>
-              <rect x="4" y="4" width="92" height="92" rx="26" fill="none" stroke="#e2e8f0" stroke-width="2" />
-            </svg>
-          </div>
-          <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest">BOP (6 Sites)</p>
-        </div>
-
-        <!-- Plaque Diagram -->
-        <div class="relative bg-slate-50/50 border border-slate-100 rounded-2xl p-5 flex flex-col items-center group/pi">
-          <!-- Percentage Badge -->
-          <div
-            v-if="analysisData?.piPercentage !== '0%'"
-            class="absolute top-2.5 right-2.5 px-2 py-0.5 bg-blue-50 text-blue-500 text-[9px] font-black rounded-lg border border-blue-100 shadow-sm animate-in fade-in zoom-in duration-300"
-          >
-            {{ analysisData?.piPercentage }}
-          </div>
-
-
-          <div class="relative w-20 h-20 mb-2">
-            <svg viewBox="0 0 100 100" class="w-full h-full">
-              <defs>
-                <clipPath :id="`squircle-clip-pi-${toothId}`">
-                  <rect x="4" y="4" width="92" height="92" rx="26" />
-                </clipPath>
-              </defs>
-              <g :clip-path="`url(#squircle-clip-pi-${toothId})`">
-                <rect x="4" y="4" width="92" height="92" rx="26" fill="white" />
-                
-                <!-- Top Half -->
-                <template v-if="isUpperTooth(toothId)">
-                  <path v-if="toothData.buccal.pi[0]" d="M50 50 L0 50 L0 0 Z" fill="#3b82f6" />
-                  <path v-if="toothData.buccal.pi[1]" d="M50 50 L0 0 L100 0 Z" fill="#3b82f6" />
-                  <path v-if="toothData.buccal.pi[2]" d="M50 50 L100 0 L100 50 Z" fill="#3b82f6" />
-                </template>
-                <template v-else>
-                  <path v-if="toothData.lingual.pi[0]" d="M50 50 L0 50 L0 0 Z" fill="#3b82f6" />
-                  <path v-if="toothData.lingual.pi[1]" d="M50 50 L0 0 L100 0 Z" fill="#3b82f6" />
-                  <path v-if="toothData.lingual.pi[2]" d="M50 50 L100 0 L100 50 Z" fill="#3b82f6" />
-                </template>
-
-                <!-- Bottom Half -->
-                <template v-if="isUpperTooth(toothId)">
-                  <path v-if="toothData.lingual.pi[0]" d="M50 50 L0 50 L0 100 Z" fill="#3b82f6" />
-                  <path v-if="toothData.lingual.pi[1]" d="M50 50 L0 100 L100 100 Z" fill="#3b82f6" />
-                  <path v-if="toothData.lingual.pi[2]" d="M50 50 L100 100 L100 50 Z" fill="#3b82f6" />
-                </template>
-                <template v-else>
-                  <path v-if="toothData.buccal.pi[0]" d="M50 50 L0 50 L0 100 Z" fill="#3b82f6" />
-                  <path v-if="toothData.buccal.pi[1]" d="M50 50 L0 100 L100 100 Z" fill="#3b82f6" />
-                  <path v-if="toothData.buccal.pi[2]" d="M50 50 L100 100 L100 50 Z" fill="#3b82f6" />
-                </template>
-
-                <!-- Divider Lines -->
-                <line x1="0" y1="0" x2="100" y2="100" stroke="#e2e8f0" stroke-width="1.5" />
-                <line x1="100" y1="0" x2="0" y2="100" stroke="#e2e8f0" stroke-width="1.5" />
-                <line x1="0" y1="50" x2="100" y2="50" stroke="#e2e8f0" stroke-width="1.5" />
-              </g>
-              <rect x="4" y="4" width="92" height="92" rx="26" fill="none" stroke="#e2e8f0" stroke-width="2" />
-            </svg>
-          </div>
-          <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest">PI (6 Sites)</p>
-        </div>
-
-
+        <SiteStatusDiagram
+          :tooth-id="toothId"
+          :tooth-data="toothData"
+          field="pi"
+          label="PI (6 Sites)"
+          :percentage="analysisData?.piPercentage"
+          active-fill="#3b82f6"
+          badge-class="bg-blue-50 text-blue-500 border-blue-100"
+          clip-id-prefix="squircle-clip-pi"
+        />
       </section>
 
       <!-- Analysis Summary -->
