@@ -6,35 +6,42 @@ import ConfirmModal from '@/components/common/ConfirmModal.vue'
 const props = defineProps<{
   note: string
   readonly?: boolean
+  isEditing: boolean
 }>()
 
 const emit = defineEmits<{
   'update-note': [note: string]
+  'update:isEditing': [value: boolean]
 }>()
 
-const isEditing = ref(false)
 const noteInput = ref('')
 const showCancelConfirmModal = ref(false)
 
 watch(() => props.note, () => {
-  if (!isEditing.value) {
+  if (!props.isEditing) {
     noteInput.value = ''
+  }
+})
+
+watch(() => props.isEditing, (newVal) => {
+  if (newVal) {
+    noteInput.value = props.note || ''
   }
 })
 
 const startEditing = () => {
   noteInput.value = props.note || ''
-  isEditing.value = true
+  emit('update:isEditing', true)
 }
 
 const saveNote = () => {
   emit('update-note', noteInput.value)
-  isEditing.value = false
+  emit('update:isEditing', false)
 }
 
 const deleteNote = () => {
   emit('update-note', '')
-  isEditing.value = false
+  emit('update:isEditing', false)
   noteInput.value = ''
 }
 
@@ -45,13 +52,13 @@ const cancelEditing = () => {
     return
   }
 
-  isEditing.value = false
+  emit('update:isEditing', false)
   noteInput.value = ''
 }
 
 const confirmCancelNote = () => {
   showCancelConfirmModal.value = false
-  isEditing.value = false
+  emit('update:isEditing', false)
   noteInput.value = ''
 }
 </script>
@@ -103,17 +110,6 @@ const confirmCancelNote = () => {
       </button>
     </div>
   </section>
-
-  <div class="p-6 bg-white border-t border-slate-50 mt-auto">
-    <button
-      v-if="!isEditing && !readonly"
-      @click="startEditing"
-      class="w-full py-4 bg-slate-50 hover:bg-blue-50 border border-slate-100 hover:border-blue-200 rounded-2xl text-[11px] font-black text-slate-400 hover:text-blue-600 uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-2"
-    >
-      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-      {{ note ? 'Edit Clinical Note' : 'Add Clinical Note' }}
-    </button>
-  </div>
 
   <ConfirmModal
     :show="showCancelConfirmModal"

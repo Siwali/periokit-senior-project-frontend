@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { X } from 'lucide-vue-next'
-import { ref, toRef } from 'vue'
+import { ref, toRef, watch } from 'vue'
 import PrognosisReferenceModal from '@/components/chart/PrognosisReferenceModal.vue'
 import ToothClinicalNote from '@/components/chart/ToothClinicalNote.vue'
 import ToothAnalysisSummary from '@/components/chart/ToothAnalysisSummary.vue'
@@ -11,6 +11,7 @@ import type { ToothData, ToothId } from '@/domain/chart/chart.types'
 
 
 const prognosisModalType = ref<'MN' | 'KC' | null>(null)
+const isEditingNote = ref(false)
 
 const props = defineProps<{
   toothId: ToothId | null
@@ -26,6 +27,11 @@ const emit = defineEmits<{
 const { innerSurfaceLabel, analysisData } = useToothAnalysis({
   toothId: toRef(props, 'toothId'),
   toothData: toRef(props, 'toothData'),
+})
+
+// Reset editing state when switching teeth
+watch(() => props.toothId, () => {
+  isEditingNote.value = false
 })
 
 const handleUpdateNote = (note: string) => {
@@ -106,9 +112,21 @@ const handleUpdateNote = (note: string) => {
       <ToothClinicalNote
         :note="toothData.note"
         :readonly="props.readonly"
+        v-model:is-editing="isEditingNote"
         @update-note="handleUpdateNote"
       />
 
+    </div>
+
+    <!-- Fixed Footer Action at the bottom of the card -->
+    <div v-if="!isEditingNote && !props.readonly" class="p-6 bg-white border-t border-slate-50 mt-auto">
+      <button
+        @click="isEditingNote = true"
+        class="w-full py-4 bg-slate-50 hover:bg-blue-50 border border-slate-100 hover:border-blue-200 rounded-2xl text-[11px] font-black text-slate-400 hover:text-blue-600 uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-2"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        {{ toothData.note ? 'Edit Clinical Note' : 'Add Clinical Note' }}
+      </button>
     </div>
   </div>
 
@@ -116,4 +134,3 @@ const handleUpdateNote = (note: string) => {
   <PrognosisReferenceModal v-model="prognosisModalType" />
 
 </template>
-
