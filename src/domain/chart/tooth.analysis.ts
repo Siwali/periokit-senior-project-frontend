@@ -28,7 +28,7 @@ export const calculateCALValue = (
 ): number => {
   const p = Number.parseInt(String(pd), 10) || 0
   const r = Number.parseInt(String(rec), 10) || 0
-  return p + r
+  return Math.max(0, p + r)
 }
 
 export const calculatePrognosisMN = (data: ToothData | null | undefined): PrognosisMN => {
