@@ -3,10 +3,7 @@ import { calculateBopPercentage, calculateCal, calculateChartSummary, calculateP
 import { createInitialChartData } from '@/domain/chart/chart.factory'
 import type { PatientInfo, SiteIndex, Surface, ToothId } from '@/domain/chart/chart.types'
 import { useAuthStore } from './auth'
-import { useVisitStore } from './visit'
-import { useNotificationStore } from './notification'
-import { mapChartToPayload, mapPayloadToChart } from '@/domain/chart/chart.mapper'
-import { chartApi } from '@/services/api/chart.api'
+import { loadChartPatientWorkflow, loadChartWorkflow, saveChartWorkflow } from '@/services/chart-workflow'
 import { registerSessionClearListener } from '@/services/session'
 
 const createDefaultPatientInfo = (): PatientInfo => {
@@ -220,168 +217,15 @@ export const usePeriodontalChartStore = defineStore('periodontalChart', {
     },
 
     async saveToBackend(completeVisit = true) {
-      const visitStore = useVisitStore()
-      const notifStore = useNotificationStore()
-      const visitId = visitStore.activeVisitId === 'new' ? undefined : visitStore.activeVisitId
-
-      const { patientInfo } = this
-
-      // Validate patient info before save (HN and Patient Name are required)
-      if (!patientInfo.hn) {
-        notifStore.error('Please enter HN before saving')
-        throw new Error('HN is required')
-      }
-      if (!patientInfo.patientName) {
-        notifStore.error('Please enter patient name before saving')
-        throw new Error('Patient name is required')
-      }
-
-      const payload = mapChartToPayload({
-        name: this.chartName,
-        patientInfo: this.patientInfo,
-        teethData: this.teethData,
-      })
-
-      const names = patientInfo.patientName.trim().split(/\s+/)
-      const patientGender = patientInfo.gender?.trim().toLowerCase() || null
-      const patientNationality = patientInfo.nationality?.trim() || null
-
-      try {
-        const { data } = await chartApi.save({
-          visitId,
-          chartName: this.chartName,
-          teethData: payload,
-          patientHn: patientInfo.hn,
-          patientFirstName: names[0] ?? '',
-          patientLastName: names.length > 1 ? names.slice(1).join(' ') : '',
-          patientAge: patientInfo.age ?? null,
-          patientGender,
-          patientNationality,
-          visitDate: patientInfo.date,
-          visitPhase: patientInfo.visitPhase || 'before_hygienic',
-          completeVisit,
-        })
-
-        const savedChart = data?.saveChart
-        if (savedChart?.visitId) {
-          visitStore.setActiveVisit(savedChart.visitId)
-        }
-        // A brand-new patient/visit (saved with no visitId) has no
-        // currentPatientId yet — adopt the one the backend resolved so the
-        // chart page recognises the patient and stays open (instead of falling
-        // back to the "select a patient" empty state).
-        if (savedChart?.patientId) {
-          this.currentPatientId = savedChart.patientId
-        }
-
-        this.isDirty = false
-        notifStore.success('Chart saved successfully')
-
-        // Refresh the visit tab strip so a newly-created visit (or the
-        // hasChart flag of an existing one) shows up immediately.
-        if (this.currentPatientId) {
-          const fetchedVisits = await visitStore.loadVisits(this.currentPatientId)
-          if (savedChart?.visitId) {
-            const newRealVisit = fetchedVisits.find(v => v.id === savedChart.visitId)
-            if (newRealVisit) {
-              const newIdx = visitStore.visits.findIndex(v => v.id === 'new')
-              if (newIdx !== -1) {
-                visitStore.visits[newIdx] = newRealVisit
-              } else {
-                const existingIdx = visitStore.visits.findIndex(v => v.id === savedChart.visitId)
-                if (existingIdx !== -1) {
-                  visitStore.visits[existingIdx] = newRealVisit
-                } else {
-                  visitStore.visits.push(newRealVisit)
-                }
-              }
-            }
-          }
-        }
-      } catch (err) {
-        console.error('Save chart error:', err)
-        notifStore.error('Failed to save chart, please try again')
-        throw err
-      }
+      await saveChartWorkflow(this, completeVisit)
     },
 
     async loadFromBackend(visitId: string) {
-      try {
-        const { data } = await chartApi.getByVisit(visitId)
-        const chartData = data?.chartByVisit
-
-        // Keep the current patient in sync — covers the post-save reload where
-        // the chart page navigates by visitId alone and would otherwise lose
-        // track of which patient this visit belongs to.
-        if (chartData?.patientId) {
-          this.currentPatientId = chartData.patientId
-        }
-
-        if (!chartData || !chartData.teethData) {
-          // New/empty visit: blank the chart but keep the current patient's
-          // header info (same patient — don't wipe HN/name).
-          this.chartName = 'New Chart'
-          this.teethData = createInitialChartData()
-          this.selectedToothId = null
-          this.isDirty = false
-          return
-        }
-
-        const chartPayload = {
-          chart_name: chartData.chartName || 'Chart',
-          patient_info: chartData.patientInfo || this.patientInfo,
-          teeth: chartData.teethData,
-          summary: chartData.summary || undefined
-        }
-
-        const rehydrated = mapPayloadToChart(chartPayload)
-
-        this.chartName = chartData.chartName || rehydrated.name || this.chartName
-        this.teethData = rehydrated.teethData || this.teethData
-
-        if (chartData.patientInfo) {
-          const pi = chartData.patientInfo
-          this.patientInfo = {
-            hn: pi.hn || '',
-            patientName: pi.patientName || '',
-            age: pi.age ?? null,
-            gender: pi.gender || '',
-            nationality: pi.nationality || '',
-            date: pi.date || new Date().toISOString().split('T')[0],
-            doctor: pi.doctor || '',
-            studentId: pi.studentId || '',
-            visitPhase: pi.visitPhase || 'before_hygienic',
-          }
-        } else {
-          this.patientInfo = rehydrated.patientInfo || this.patientInfo
-        }
-
-        this.isDirty = false
-
-      } catch (error) {
-        console.error('Failed to load chart from backend:', error)
-        throw error
-      }
+      await loadChartWorkflow(this, visitId)
     },
 
     async loadPatientById(id: string) {
-      this.currentPatientId = id
-      const { patientApi } = await import('@/services/api/patient.api')
-      const patient = await patientApi.getById(id)
-      if (patient) {
-        const genderRaw = patient.gender || ''
-        this.patientInfo = {
-          hn: patient.hn || '',
-          doctor: this.patientInfo.doctor,
-          studentId: this.patientInfo.studentId,
-          patientName: `${patient.firstName || ''} ${patient.lastName || ''}`.trim(),
-          age: patient.age ?? null,
-          nationality: patient.nationality || '',
-          gender: genderRaw ? genderRaw.charAt(0).toUpperCase() + genderRaw.slice(1) : '',
-          date: patient.lastVisitDate ? patient.lastVisitDate.split('T')[0] : new Date().toISOString().split('T')[0],
-          visitPhase: this.patientInfo.visitPhase || 'before_hygienic',
-        }
-      }
+      await loadChartPatientWorkflow(this, id)
     }
   },
 

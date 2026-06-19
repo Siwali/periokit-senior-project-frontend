@@ -1,5 +1,12 @@
-import { apolloClient } from '../apollo-client'
+import { apolloClient } from '@/services/apollo-client'
 import { gql } from '@apollo/client/core'
+import type {
+  ChartByVisitQueryData,
+  ChartByVisitQueryVariables,
+  SaveChartInput,
+  SaveChartMutationData,
+  SaveChartMutationVariables,
+} from '@/services/api/chart.api.types'
 
 const SAVE_CHART = gql`
   mutation SaveChart($input: SaveChartInput!) {
@@ -51,23 +58,15 @@ const CHART_BY_VISIT = gql`
 `
 
 export const chartApi = {
-  save: (input: {
-    visitId?: string | null
-    chartName?: string | null
-    teethData: unknown
-    // Patient info
-    patientHn?: string
-    patientFirstName: string
-    patientLastName: string
-    patientAge?: number | null
-    patientGender?: string | null
-    patientNationality?: string | null
-    // Visit info
-    visitDate: string
-    visitPhase?: string
-    completeVisit?: boolean
-  }) =>
-    apolloClient.mutate({ mutation: SAVE_CHART, variables: { input } }),
+  save: (input: SaveChartInput) =>
+    apolloClient.mutate<SaveChartMutationData, SaveChartMutationVariables>({
+      mutation: SAVE_CHART,
+      variables: { input },
+    }),
   getByVisit: (visitId: string) =>
-    apolloClient.query({ query: CHART_BY_VISIT, variables: { visitId }, fetchPolicy: 'network-only' }),
+    apolloClient.query<ChartByVisitQueryData, ChartByVisitQueryVariables>({
+      query: CHART_BY_VISIT,
+      variables: { visitId },
+      fetchPolicy: 'network-only',
+    }),
 }

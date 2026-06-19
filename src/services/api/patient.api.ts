@@ -1,42 +1,33 @@
-import { apolloClient } from '../apollo-client'
+import { apolloClient } from '@/services/apollo-client'
 import { gql } from '@apollo/client/core'
+import type {
+  MyPatientsQueryData,
+  MyPatientsQueryVariables,
+  Patient,
+  PatientByIdQueryData,
+  PatientByIdQueryVariables,
+  PatientListResponse,
+} from '@/services/api/patient.api.types'
 
-// Types
-export interface Visit {
-  id: string
-  patientId: string
-  visitDate: string
-  phase: string
-  doctorName: string | null
-  studentId: number | null
-  status: string
-  hasChart: boolean
-}
-
-export interface Patient {
-  id: string
-  hn: string
-  firstName: string
-  lastName: string
-  age: number | null
-  gender: string | null
-  nationality?: string | null
-  lastVisitDate: string | null
-  visitCount?: number
-  visits?: Visit[]
-}
-
-export interface PatientListResponse {
-  items: Patient[]
-  total: number
-  page: number
-  pageSize: number
-  totalPages: number
-}
+export type { Patient, PatientListResponse } from '@/services/api/patient.api.types'
 
 const MY_PATIENTS = gql`
-  query MyPatients($search: String, $dateFrom: String, $dateTo: String, $page: Int, $pageSize: Int) {
-    myPatients(search: $search, dateFrom: $dateFrom, dateTo: $dateTo, page: $page, pageSize: $pageSize) {
+  query MyPatients(
+    $search: String
+    $dateFrom: String
+    $dateTo: String
+    $sort: String
+    $page: Int
+    $pageSize: Int
+  ) {
+    myPatients(
+      search: $search
+      dateFrom: $dateFrom
+      dateTo: $dateTo
+      sort: $sort
+      page: $page
+      pageSize: $pageSize
+    ) {
       items {
         id
         hn
@@ -84,7 +75,7 @@ const PATIENT_BY_ID = gql`
 export const patientApi = {
   // Fetch a single patient by ID
   async getById(id: string): Promise<Patient | null> {
-    const { data } = await apolloClient.query({
+    const { data } = await apolloClient.query<PatientByIdQueryData, PatientByIdQueryVariables>({
       query: PATIENT_BY_ID,
       variables: { id },
       fetchPolicy: 'network-only',
@@ -98,14 +89,15 @@ export const patientApi = {
     pageSize: number = 10,
     search: string = '',
     dateFrom: string = '',
-    dateTo: string = ''
+    dateTo: string = '',
+    filters: Partial<Pick<MyPatientsQueryVariables, 'sort'>> = {}
   ): Promise<PatientListResponse> {
-    const variables: Record<string, any> = { page, pageSize }
+    const variables: MyPatientsQueryVariables = { page, pageSize, ...filters }
     if (search) variables.search = search
     if (dateFrom) variables.dateFrom = dateFrom
     if (dateTo) variables.dateTo = dateTo
 
-    const { data } = await apolloClient.query({
+    const { data } = await apolloClient.query<MyPatientsQueryData, MyPatientsQueryVariables>({
       query: MY_PATIENTS,
       variables,
       fetchPolicy: 'network-only',

@@ -1,13 +1,16 @@
 <script setup lang="ts">
-type PrognosisType = 'MN' | 'KC'
-
-defineProps<{
-  modelValue: PrognosisType | null
-}>()
+import { computed } from 'vue'
+import { PROGNOSIS_REFERENCES, type PrognosisReferenceType } from '@/domain/chart/prognosis.references'
 
 const emit = defineEmits<{
-  'update:modelValue': [value: PrognosisType | null]
+  'update:modelValue': [value: PrognosisReferenceType | null]
 }>()
+
+const props = defineProps<{
+  modelValue: PrognosisReferenceType | null
+}>()
+
+const activeReference = computed(() => props.modelValue ? PROGNOSIS_REFERENCES[props.modelValue] : null)
 
 const close = () => {
   emit('update:modelValue', null)
@@ -35,7 +38,7 @@ const close = () => {
         >
           <div class="sticky top-0 bg-white/80 backdrop-blur-md px-8 py-6 border-b border-slate-50 flex items-center justify-between z-10">
             <h2 class="text-lg font-black text-slate-800 tracking-tight">
-              {{ modelValue === 'MN' ? 'McGuire and Nunn (M&N)' : 'Kwok and Caton (K&C)' }}
+              {{ activeReference?.title }}
             </h2>
             <button @click="close" class="w-10 h-10 flex items-center justify-center rounded-full bg-slate-50 text-slate-400 hover:text-slate-600 transition-all">
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -43,9 +46,14 @@ const close = () => {
           </div>
 
           <div class="p-8 space-y-10">
-            <div v-if="modelValue === 'MN'">
+            <div v-if="activeReference">
               <div class="flex items-center gap-3 mb-5">
-                <span class="bg-red-500 text-white text-[10px] font-black px-2 py-1 rounded-md uppercase tracking-wider">Classification</span>
+                <span
+                  class="text-white text-[10px] font-black px-2 py-1 rounded-md uppercase tracking-wider"
+                  :class="activeReference.badgeClass"
+                >
+                  Classification
+                </span>
                 <h3 class="text-sm font-black text-slate-800 uppercase tracking-wide">Prognosis Criteria</h3>
               </div>
               <div class="overflow-hidden border border-slate-100 rounded-2xl shadow-sm">
@@ -53,64 +61,18 @@ const close = () => {
                   <thead>
                     <tr class="bg-slate-50">
                       <th class="px-4 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 w-32">Prognosis</th>
-                      <th class="px-4 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">Criteria</th>
+                      <th class="px-4 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">{{ activeReference.detailHeader }}</th>
                     </tr>
                   </thead>
                   <tbody class="text-[11px] font-medium text-slate-600">
-                    <tr class="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
-                      <td class="px-4 py-4 font-black text-green-600 bg-green-50/30">Good</td>
-                      <td class="px-4 py-4 leading-relaxed">Control of etiologic factors and enough support to enable the tooth to be maintained by the patient and clinician.</td>
-                    </tr>
-                    <tr class="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
-                      <td class="px-4 py-4 font-black text-blue-600 bg-blue-50/30">Fair</td>
-                      <td class="px-4 py-4 leading-relaxed">~25% attachment loss, Class I furcation. Adequate maintenance possible.</td>
-                    </tr>
-                    <tr class="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
-                      <td class="px-4 py-4 font-black text-yellow-600 bg-yellow-50/30">Poor</td>
-                      <td class="px-4 py-4 leading-relaxed">50% attachment loss, Class II furcation. Maintenance difficult.</td>
-                    </tr>
-                    <tr class="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
-                      <td class="px-4 py-4 font-black text-orange-600 bg-orange-50/30">Questionable</td>
-                      <td class="px-4 py-4 leading-relaxed">> 50% attachment loss, Class II/III furcation, Class II mobility, poor crown/root ratio.</td>
-                    </tr>
-                    <tr class="hover:bg-slate-50/50 transition-colors">
-                      <td class="px-4 py-4 font-black text-red-600 bg-red-50/30">Hopeless</td>
-                      <td class="px-4 py-4 leading-relaxed">Severe attachment loss; extraction suggested.</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            <div v-if="modelValue === 'KC'">
-              <div class="flex items-center gap-3 mb-5">
-                <span class="bg-blue-500 text-white text-[10px] font-black px-2 py-1 rounded-md uppercase tracking-wider">Classification</span>
-                <h3 class="text-sm font-black text-slate-800 uppercase tracking-wide">Prognosis Criteria</h3>
-              </div>
-              <div class="overflow-hidden border border-slate-100 rounded-2xl shadow-sm">
-                <table class="w-full text-left border-collapse">
-                  <thead>
-                    <tr class="bg-slate-50">
-                      <th class="px-4 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 w-32">Prognosis</th>
-                      <th class="px-4 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">Classification</th>
-                    </tr>
-                  </thead>
-                  <tbody class="text-[11px] font-medium text-slate-600">
-                    <tr class="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
-                      <td class="px-4 py-4 font-black text-green-600 bg-green-50/30">Favorable</td>
-                      <td class="px-4 py-4 leading-relaxed">Can be stabilized with treatment/maintenance; less chance of breakdown.</td>
-                    </tr>
-                    <tr class="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
-                      <td class="px-4 py-4 font-black text-orange-600 bg-orange-50/30">Questionable</td>
-                      <td class="px-4 py-4 leading-relaxed">Influenced by local/systemic factors that may or may not be controlled.</td>
-                    </tr>
-                    <tr class="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
-                      <td class="px-4 py-4 font-black text-red-600 bg-red-50/30">Unfavorable</td>
-                      <td class="px-4 py-4 leading-relaxed">Influenced by factors that cannot be controlled; maintenance unlikely.</td>
-                    </tr>
-                    <tr class="hover:bg-slate-50/50 transition-colors">
-                      <td class="px-4 py-4 font-black text-black bg-slate-50/30">Hopeless</td>
-                      <td class="px-4 py-4 leading-relaxed">Must be extracted.</td>
+                    <tr
+                      v-for="(row, index) in activeReference.rows"
+                      :key="row.prognosis"
+                      class="hover:bg-slate-50/50 transition-colors"
+                      :class="{ 'border-b border-slate-50': index < activeReference.rows.length - 1 }"
+                    >
+                      <td class="px-4 py-4 font-black" :class="row.prognosisClass">{{ row.prognosis }}</td>
+                      <td class="px-4 py-4 leading-relaxed">{{ row.description }}</td>
                     </tr>
                   </tbody>
                 </table>

@@ -9,14 +9,17 @@ import PatientDrawer from '../components/patients/VisitListPanel.vue'
 import type { FilterConfig, FilterValues } from '../components/common/FilterPanel.vue'
 import { Search, ChevronLeft, ChevronRight, Plus, Calendar, Type, User } from 'lucide-vue-next'
 import Skeleton from '../components/common/Skeleton.vue'
-import { usePagination } from '@/composables/usePagination'
-import { usePatientFilters } from '@/composables/patients/usePatientFilters'
+import type { MyPatientsQueryVariables } from '@/services/api/patient.api.types'
 
 const router = useRouter()
 const drawerOpen = ref(false)
 
 const allPatients = ref<Patient[]>([])
 const isLoading = ref(false)
+const page = ref(1)
+const pageSize = ref(10)
+const total = ref(0)
+const totalPages = ref(0)
 
 const searchInput = ref('')
 
@@ -46,29 +49,30 @@ const filterValues = ref<FilterValues>({
   name: null
 })
 
-const { sortedPatients } = usePatientFilters({
-  patients: allPatients,
-  filterValues,
-})
+const patients = allPatients
 
-const {
-  page,
-  pageSize,
-  total,
-  totalPages,
-  paginatedItems: patients,
-  resetPage,
-} = usePagination(sortedPatients, 10)
+const getBackendSort = (): MyPatientsQueryVariables['sort'] => {
+  const dateSort = filterValues.value.date
+  const nameSort = filterValues.value.name
+  if (dateSort === 'date_asc' || dateSort === 'date_desc') return dateSort
+  if (nameSort === 'name_asc' || nameSort === 'name_desc') return nameSort
+  return 'date_desc'
+}
 
 const fetchPatients = async () => {
   isLoading.value = true
   try {
     const res = await patientApi.getMyPatients(
-      1,
-      10000,
-      searchInput.value
+      page.value,
+      pageSize.value,
+      searchInput.value,
+      '',
+      '',
+      { sort: getBackendSort() }
     )
     allPatients.value = res.items
+    total.value = res.total
+    totalPages.value = res.totalPages
   } catch (error) {
     console.error('Failed to fetch patients', error)
   } finally {
@@ -84,15 +88,23 @@ let searchTimeout: ReturnType<typeof setTimeout> | null = null
 const handleSearch = () => {
   if (searchTimeout) clearTimeout(searchTimeout)
   searchTimeout = setTimeout(() => {
-    page.value = 1
-    fetchPatients()
+    if (page.value === 1) {
+      fetchPatients()
+    } else {
+      page.value = 1
+    }
   }, 400)
 }
 
 // Reset page when filters change
 watch(() => filterValues.value, () => {
-  resetPage()
+  page.value = 1
+  fetchPatients()
 }, { deep: true })
+
+watch(page, () => {
+  fetchPatients()
+})
 
 const formatDate = (dateString: string | null) => {
   if (!dateString) return '-'
@@ -134,7 +146,7 @@ const handleNewPatient = () => {
           </div>
 
           <!-- Filter Panel -->
-          <FilterPanel v-model="filterValues" :configs="filterConfigs" @apply="fetchPatients" />
+          <FilterPanel v-model="filterValues" :configs="filterConfigs" />
 
           <!-- New Patient Button -->
           <button
