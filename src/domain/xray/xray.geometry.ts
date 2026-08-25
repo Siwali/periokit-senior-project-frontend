@@ -1,4 +1,9 @@
-import { FMX_SLOTS, SLOT_PADDING, SLOT_SNAP_TOLERANCE } from './xray.constants'
+import {
+  FMX_SLOTS,
+  IMAGE_MAX_LONG_SIDE,
+  SLOT_PADDING,
+  SLOT_SNAP_TOLERANCE,
+} from './xray.constants'
 import type { Bounds, FmxSlot, XrayImageObject, XrayObject } from './xray.types'
 
 export const clamp = (value: number, min: number, max: number) =>
@@ -36,11 +41,11 @@ export function boardBounds(objects: XrayObject[], includeSlots: boolean): Bound
   }
 
   for (const object of objects) {
-    const cx = object.x + object.w / 2
-    const cy = object.y + object.h / 2
-    const angle = toRad(object.rot)
+    const cx = object.posX + object.width / 2
+    const cy = object.posY + object.height / 2
+    const angle = toRad(object.rotation)
     for (const [dx, dy] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) {
-      const corner = rotateVec((dx * object.w) / 2, (dy * object.h) / 2, angle)
+      const corner = rotateVec((dx * object.width) / 2, (dy * object.height) / 2, angle)
       bounds.minX = Math.min(bounds.minX, cx + corner.x)
       bounds.minY = Math.min(bounds.minY, cy + corner.y)
       bounds.maxX = Math.max(bounds.maxX, cx + corner.x)
@@ -60,20 +65,40 @@ export function findSlotAt(cx: number, cy: number): FmxSlot | undefined {
   )
 }
 
+/**
+ * The persisted identity of an FMX slot. `FmxSlot.label` is display text and may
+ * be reworded, so the stable numeric id is what a saved board points at.
+ */
+export const slotCodeOf = (slot: FmxSlot) => String(slot.id)
+
+/**
+ * On-board size a film gets the moment it is added (SRS-223, SRS-224). A sensor
+ * writes films thousands of pixels wide, so the long side is capped — both sides
+ * by the same factor, or the film comes out stretched.
+ */
+export function initialImageSize(naturalWidth: number, naturalHeight: number) {
+  const longSide = Math.max(naturalWidth, naturalHeight)
+  const scale = longSide > IMAGE_MAX_LONG_SIDE ? IMAGE_MAX_LONG_SIDE / longSide : 1
+  return {
+    width: Math.round(naturalWidth * scale),
+    height: Math.round(naturalHeight * scale),
+  }
+}
+
 /** Geometry a film takes once mounted in a slot — centred, upright, aspect kept. */
 export function fitIntoSlot(image: XrayImageObject, slot: FmxSlot) {
   const scale = Math.min(
-    (slot.w - SLOT_PADDING) / image.natW,
-    (slot.h - SLOT_PADDING) / image.natH,
+    (slot.w - SLOT_PADDING) / image.naturalWidth,
+    (slot.h - SLOT_PADDING) / image.naturalHeight,
   )
-  const w = Math.round(image.natW * scale)
-  const h = Math.round(image.natH * scale)
+  const width = Math.round(image.naturalWidth * scale)
+  const height = Math.round(image.naturalHeight * scale)
   return {
-    w,
-    h,
-    x: Math.round(slot.x - w / 2),
-    y: Math.round(slot.y - h / 2),
-    rot: 0,
-    slot: slot.id,
+    width,
+    height,
+    posX: Math.round(slot.x - width / 2),
+    posY: Math.round(slot.y - height / 2),
+    rotation: 0,
+    slotCode: slotCodeOf(slot),
   }
 }

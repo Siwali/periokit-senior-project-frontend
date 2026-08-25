@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
+import { ImageOff, RotateCw } from 'lucide-vue-next'
 import {
   FMX_SLOTS,
   GRID_SIZE,
@@ -9,12 +10,16 @@ import {
   MIN_SCALE,
 } from '@/domain/xray/xray.constants'
 import { clamp, rotateVec, toRad } from '@/domain/xray/xray.geometry'
-import type { FmxSlot, Viewport, XrayObject } from '@/domain/xray/xray.types'
+import type { FmxSlot, Viewport, XrayImageObject, XrayObject } from '@/domain/xray/xray.types'
 import { useNotificationStore } from '@/stores/notification'
 import { useXrayBoardStore } from '@/stores/xray-board'
 import { shortcutLabel } from '@/utils/keyboard'
 
-const emit = defineEmits<{ (event: 'request-upload'): void }>()
+const emit = defineEmits<{
+  (event: 'request-upload'): void
+  // Deleting a saved film asks first, and the panel is where the dialog lives.
+  (event: 'request-delete'): void
+}>()
 
 const pasteShortcut = shortcutLabel('V')
 
@@ -22,6 +27,7 @@ const board = useXrayBoardStore()
 const notifications = useNotificationStore()
 const {
   objects,
+  sortedObjects,
   layout,
   selectedId,
   editingNoteId,
@@ -30,7 +36,14 @@ const {
   editable,
   filledSlots,
   isEmpty,
+  failedAssets,
+  loadFailed,
 } = storeToRefs(board)
+
+/** A missing URL never fires `error`, so the placeholder can't rely on it. */
+function showsFilm(object: XrayImageObject) {
+  return Boolean(imageUrls.value[object.assetId]) && !failedAssets.value.has(object.assetId)
+}
 
 const HANDLES = ['nw', 'ne', 'sw', 'se', 'rot'] as const
 const RESIZE_DIRECTIONS = {
@@ -40,8 +53,22 @@ const RESIZE_DIRECTIONS = {
   se: [1, 1],
 } as const
 
+/** How far the pointer may travel and still count as a click, not a drag. */
+const CLICK_SLOP = 4
+
 type Drag =
-  | { mode: 'pan'; startX: number; startY: number; originX: number; originY: number }
+  | {
+      mode: 'pan'
+      startX: number
+      startY: number
+      originX: number
+      originY: number
+      moved: boolean
+      /** This pan started on empty board — a click here clears the selection. */
+      deselect: boolean
+      /** This pan started on an object nobody may move — say so once it moves. */
+      refused: boolean
+    }
   | { mode: 'move'; id: string; offsetX: number; offsetY: number; moved: boolean }
   | {
       mode: 'resize'
@@ -82,14 +109,17 @@ const worldStyle = computed<Record<string, string>>(() => ({
   '--inv': String(1 / viewport.value.scale),
 }))
 
+// The CSS layer comes from the position in the sorted list, not from
+// `object.zIndex` itself — a stored zIndex may be negative, which would drop the
+// object behind the board background.
 function objectStyle(object: XrayObject, index: number): Record<string, string> {
   const style: Record<string, string> = {
-    width: `${object.w}px`,
-    height: `${object.h}px`,
-    transform: `translate(${object.x}px, ${object.y}px) rotate(${object.rot}deg)`,
+    width: `${object.width}px`,
+    height: `${object.height}px`,
+    transform: `translate(${object.posX}px, ${object.posY}px) rotate(${object.rotation}deg)`,
     zIndex: String(index + 1),
   }
-  if (object.type === 'note') style.background = object.color
+  if (object.objectType === 'note') style.background = object.noteColor
   return style
 }
 
@@ -154,13 +184,16 @@ function capture(event: PointerEvent) {
   }
 }
 
-function startPan(event: PointerEvent) {
+function startPan(event: PointerEvent, deselect: boolean, refused = false) {
   drag = {
     mode: 'pan',
     startX: event.clientX,
     startY: event.clientY,
     originX: viewport.value.x,
     originY: viewport.value.y,
+    moved: false,
+    deselect,
+    refused,
   }
   isPanning.value = true
   capture(event)
@@ -184,25 +217,27 @@ function onPointerDown(event: PointerEvent) {
     if (touches.size > 2) return
   }
 
-  // Read-only board: pan and zoom only.
-  if (!editable.value) {
-    blurEditingNote()
-    startPan(event)
-    return
-  }
-
   const target = event.target as HTMLElement
   const handleEl = target.closest<HTMLElement>('[data-handle]')
   const objectEl = target.closest<HTMLElement>('[data-object-id]')
+  const object = objects.value.find(candidate => candidate.id === objectEl?.dataset.objectId)
 
-  if (event.button === 1 || spaceDown.value || (!objectEl && !handleEl)) {
+  // Read-only board: nothing may move, but picking a film is still allowed
+  // (SRS-257) — clicking the one you are reading is how a doctor keeps their
+  // place, and it changes nothing on the board.
+  if (!editable.value) {
     blurEditingNote()
-    if (!objectEl) board.select(null)
-    startPan(event)
+    if (object) board.select(object.id)
+    startPan(event, !object, Boolean(object))
     return
   }
 
-  const object = objects.value.find(candidate => candidate.id === objectEl?.dataset.objectId)
+  if (event.button === 1 || spaceDown.value || (!objectEl && !handleEl)) {
+    blurEditingNote()
+    startPan(event, !objectEl)
+    return
+  }
+
   if (!object) return
 
   if (handleEl) {
@@ -218,8 +253,8 @@ function onPointerDown(event: PointerEvent) {
   drag = {
     mode: 'move',
     id: object.id,
-    offsetX: point.x - object.x,
-    offsetY: point.y - object.y,
+    offsetX: point.x - object.posX,
+    offsetY: point.y - object.posY,
     moved: false,
   }
   capture(event)
@@ -227,19 +262,19 @@ function onPointerDown(event: PointerEvent) {
 }
 
 function startHandleDrag(event: PointerEvent, object: XrayObject, handle: string) {
-  const centerX = object.x + object.w / 2
-  const centerY = object.y + object.h / 2
+  const centerX = object.posX + object.width / 2
+  const centerY = object.posY + object.height / 2
 
   if (handle === 'rot') {
     drag = { mode: 'rotate', id: object.id, centerX, centerY, moved: false }
   } else {
     const direction = RESIZE_DIRECTIONS[handle as keyof typeof RESIZE_DIRECTIONS]
     if (!direction) return
-    const angle = toRad(object.rot)
+    const angle = toRad(object.rotation)
     // Resizing keeps the opposite corner pinned.
     const anchor = rotateVec(
-      (-direction[0] * object.w) / 2,
-      (-direction[1] * object.h) / 2,
+      (-direction[0] * object.width) / 2,
+      (-direction[1] * object.height) / 2,
       angle,
     )
     drag = {
@@ -248,8 +283,8 @@ function startHandleDrag(event: PointerEvent, object: XrayObject, handle: string
       dirX: direction[0],
       dirY: direction[1],
       angle,
-      startW: object.w,
-      startH: object.h,
+      startW: object.width,
+      startH: object.height,
       anchorX: centerX + anchor.x,
       anchorY: centerY + anchor.y,
       moved: false,
@@ -257,6 +292,28 @@ function startHandleDrag(event: PointerEvent, object: XrayObject, handle: string
   }
   capture(event)
   event.preventDefault()
+}
+
+type GeometryPatch = {
+  posX?: number
+  posY?: number
+  width?: number
+  height?: number
+  rotation?: number
+}
+
+/**
+ * Writes geometry only when every number in it is real, and reports whether it
+ * did. A film stored with a width of 0 divides into the resize scale as
+ * Infinity and comes back out as NaN, which drops the object off the board and
+ * would be refused by the xray_object CHECKs at save time — long after the
+ * doctor could tell what went wrong. Holding the last good geometry costs one
+ * skipped frame instead.
+ */
+function applyGeometry(object: XrayObject, patch: GeometryPatch) {
+  if (Object.values(patch).some(value => !Number.isFinite(value))) return false
+  Object.assign(object, patch)
+  return true
 }
 
 function onPointerMove(event: PointerEvent) {
@@ -272,10 +329,16 @@ function onPointerMove(event: PointerEvent) {
   if (!current) return
 
   if (current.mode === 'pan') {
-    board.setViewportOrigin(
-      current.originX + (event.clientX - current.startX),
-      current.originY + (event.clientY - current.startY),
-    )
+    const dx = event.clientX - current.startX
+    const dy = event.clientY - current.startY
+    if (!current.moved && (Math.abs(dx) > CLICK_SLOP || Math.abs(dy) > CLICK_SLOP)) {
+      current.moved = true
+      // Dragging a film on a board nobody may change: the board pans under it
+      // and the film stays put. Saying why beats letting the doctor drag at a
+      // picture that will never follow and decide the page has hung (A4).
+      if (current.refused) rejectChange()
+    }
+    board.setViewportOrigin(current.originX + dx, current.originY + dy)
     return
   }
 
@@ -284,9 +347,11 @@ function onPointerMove(event: PointerEvent) {
   const point = worldPoint(event)
 
   if (current.mode === 'move') {
-    object.x = Math.round(point.x - current.offsetX)
-    object.y = Math.round(point.y - current.offsetY)
-    current.moved = true
+    const written = applyGeometry(object, {
+      posX: Math.round(point.x - current.offsetX),
+      posY: Math.round(point.y - current.offsetY),
+    })
+    if (written) current.moved = true
     return
   }
 
@@ -298,29 +363,46 @@ function onPointerMove(event: PointerEvent) {
       MIN_OBJECT_SIZE / current.startW,
       MIN_OBJECT_SIZE / current.startH,
     )
-    const width = current.startW * scale
-    const height = current.startH * scale
+    // Whole units only, like every other write on the board: PER-233 types
+    // posX, posY, width and height as Int!, so a film left on a fraction of a
+    // unit would be refused by the scalar the first time a save reaches the API
+    // — long after the resize that caused it. Rounded before the centre is
+    // worked out, so the pinned corner follows the size the object really gets.
+    const width = Math.round(current.startW * scale)
+    const height = Math.round(current.startH * scale)
     const center = rotateVec((current.dirX * width) / 2, (current.dirY * height) / 2, current.angle)
-    object.w = width
-    object.h = height
-    object.x = current.anchorX + center.x - width / 2
-    object.y = current.anchorY + center.y - height / 2
-    current.moved = true
+    const written = applyGeometry(object, {
+      width,
+      height,
+      posX: Math.round(current.anchorX + center.x - width / 2),
+      posY: Math.round(current.anchorY + center.y - height / 2),
+    })
+    if (written) current.moved = true
     return
   }
 
   let angle =
     (Math.atan2(point.y - current.centerY, point.x - current.centerX) * 180) / Math.PI + 90
   if (event.shiftKey) angle = Math.round(angle / 15) * 15
-  object.rot = ((angle % 360) + 360) % 360
-  current.moved = true
+  // Normalised into [0, 360) to match the xray_object_rotation_valid CHECK (PER-231).
+  if (applyGeometry(object, { rotation: ((angle % 360) + 360) % 360 })) current.moved = true
 }
 
 function endDrag() {
   const current = drag
   drag = null
   isPanning.value = false
-  if (!current || current.mode === 'pan' || !current.moved) return
+  if (!current) return
+
+  // Only a pan that stayed put is a click on empty board (SRS-254). Judging it
+  // on release rather than on press is what keeps a film selected through a pan
+  // — the doctor is dragging the board, not throwing their choice away.
+  if (current.mode === 'pan') {
+    if (!current.moved && current.deselect) board.select(null)
+    return
+  }
+
+  if (!current.moved) return
 
   if (layout.value && current.mode === 'move') {
     if (board.snapToSlot(current.id) === 'occupied') {
@@ -374,7 +456,7 @@ function onDoubleClick(event: MouseEvent) {
   if (!editable.value) return
   const objectEl = (event.target as HTMLElement).closest<HTMLElement>('[data-object-id]')
   const object = objects.value.find(candidate => candidate.id === objectEl?.dataset.objectId)
-  if (object?.type !== 'note') return
+  if (object?.objectType !== 'note') return
   board.select(object.id)
   board.editingNoteId = object.id
 }
@@ -389,8 +471,15 @@ watch(editingNoteId, async id => {
 })
 
 /* ---------------- drop / paste ---------------- */
-function rejectReadOnly() {
-  notifications.warning('Board is read-only', 'Click Edit first to change it')
+// `editable` is false for three different reasons; saying "click Edit first"
+// when the board never loaded just sends the user after a button that is not
+// there.
+function rejectChange() {
+  if (loadFailed.value) {
+    notifications.warning('The board could not be loaded', 'Try loading it again first')
+  } else {
+    notifications.warning('Board is read-only', 'Click Edit first to change it')
+  }
 }
 
 function onDragEnter(event: DragEvent) {
@@ -417,7 +506,7 @@ function onDrop(event: DragEvent) {
   dropDepth = 0
   isDropping.value = false
   if (!editable.value) {
-    rejectReadOnly()
+    rejectChange()
     return
   }
   const files = event.dataTransfer?.files
@@ -436,7 +525,7 @@ function onPaste(event: ClipboardEvent) {
   if (!files.length) return
   event.preventDefault()
   if (!editable.value) {
-    rejectReadOnly()
+    rejectChange()
     return
   }
   const center = board.viewCenter()
@@ -470,9 +559,13 @@ function onKeyDown(event: KeyboardEvent) {
 
   if (typing) return
 
+  // Nothing selected is not an error, and the key keeps whatever meaning the
+  // browser gives it (A5).
   if (event.key === 'Delete' || event.key === 'Backspace') {
+    if (!editable.value || !selectedId.value) return
     event.preventDefault()
-    if (editable.value) board.removeSelected()
+    emit('request-delete')
+    return
   }
   if (event.key === 'f' || event.key === 'F') board.fit()
   if (event.key === '0') board.resetZoom()
@@ -529,7 +622,7 @@ onBeforeUnmount(() => {
           v-for="slot in FMX_SLOTS"
           :key="slot.id"
           class="xray-slot"
-          :class="{ 'is-filled': filledSlots.has(slot.id) }"
+          :class="{ 'is-filled': filledSlots.has(String(slot.id)) }"
           :style="slotStyle(slot)"
         >
           <span>{{ slot.label }}</span>
@@ -537,30 +630,47 @@ onBeforeUnmount(() => {
       </div>
 
       <div
-        v-for="(object, index) in objects"
+        v-for="(object, index) in sortedObjects"
         :key="object.id"
         :data-object-id="object.id"
         class="xray-object"
         :class="[
-          object.type === 'image' ? 'xray-image' : 'xray-note',
+          object.objectType === 'image' ? 'xray-image' : 'xray-note',
           { 'is-selected': object.id === selectedId },
         ]"
         :style="objectStyle(object, index)"
       >
-        <img
-          v-if="object.type === 'image'"
-          :src="imageUrls[object.imageId]"
-          class="block h-full w-full rounded bg-black"
-          draggable="false"
-          alt="Radiograph"
-        />
+        <template v-if="object.objectType === 'image'">
+          <img
+            v-if="showsFilm(object)"
+            :src="imageUrls[object.assetId]"
+            class="block h-full w-full rounded bg-black"
+            draggable="false"
+            alt="Radiograph"
+            @error="board.recoverAsset(object.assetId)"
+          />
+          <!-- Never an empty frame (SRS-190): a blank box reads as "deleted". -->
+          <div v-else class="xray-broken">
+            <ImageOff class="h-6 w-6 shrink-0" />
+            <span>Image failed to load</span>
+            <button
+              data-board-ui
+              class="xray-broken-btn"
+              title="Try loading this image again"
+              @click="board.reloadAsset(object.assetId)"
+            >
+              <RotateCw class="h-3.5 w-3.5" />
+              Reload
+            </button>
+          </div>
+        </template>
         <textarea
           v-else
           :ref="el => setNoteRef(object.id, el)"
           class="xray-note-text"
           :class="{ 'is-editing': editingNoteId === object.id }"
-          :style="{ fontSize: `${object.fontSize}px` }"
-          :value="object.text"
+          :style="{ fontSize: `${object.noteFontSize}px` }"
+          :value="object.noteText"
           :readonly="editingNoteId !== object.id"
           placeholder="Type a note…"
           @input="board.setNoteText(object.id, ($event.target as HTMLTextAreaElement).value)"
@@ -579,9 +689,11 @@ onBeforeUnmount(() => {
       </div>
     </div>
 
-    <!-- Layout mode already shows the slots, so the drop hint is redundant there -->
+    <!-- Layout mode already shows the slots, so the drop hint is redundant there.
+         Hidden after a failed load too: an empty board we could not read must
+         not invite the doctor to fill it in (SRS-193). -->
     <div
-      v-if="isEmpty && !layout"
+      v-if="isEmpty && !layout && !loadFailed"
       class="pointer-events-none absolute inset-0 grid place-items-center text-center"
       :style="{ color: 'var(--xray-empty-text)' }"
     >
@@ -622,6 +734,40 @@ onBeforeUnmount(() => {
     0 0 0 calc(1.5px * var(--inv)) #0052ff,
     0 6px 24px rgba(0, 0, 0, 0.55);
 }
+/* Keeps the film's own footprint so the board layout never shifts (SRS-191). */
+.xray-broken {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  overflow: hidden;
+  padding: 8px;
+  border-radius: 4px;
+  border: 1px dashed #94a3b8;
+  background: #e2e8f0;
+  color: #64748b;
+  font-size: 12px;
+  text-align: center;
+}
+.xray-broken-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 9px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #fff;
+  font-size: 11.5px;
+  color: #475569;
+}
+.xray-broken-btn:hover {
+  color: #0f172a;
+  border-color: #94a3b8;
+}
+
 .xray-note {
   color: #26303f;
   border-radius: 6px;
