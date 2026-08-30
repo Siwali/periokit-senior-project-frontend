@@ -15,6 +15,15 @@ import { useNotificationStore } from '@/stores/notification'
 import { useXrayBoardStore } from '@/stores/xray-board'
 import { shortcutLabel } from '@/utils/keyboard'
 
+const props = defineProps<{
+  /**
+   * A dialog is covering the board. Its backdrop stops every pointer, but these
+   * handlers sit on the document and would keep firing behind it — and a ⌘Z or
+   * a paste there changes the very board the dialog is asking about.
+   */
+  dialogOpen?: boolean
+}>()
+
 const emit = defineEmits<{
   (event: 'request-upload'): void
   // Deleting a saved film asks first, and the panel is where the dialog lives.
@@ -516,6 +525,7 @@ function onDrop(event: DragEvent) {
 }
 
 function onPaste(event: ClipboardEvent) {
+  if (props.dialogOpen) return
   const active = document.activeElement
   if (active instanceof HTMLTextAreaElement || active instanceof HTMLInputElement) return
   const files = Array.from(event.clipboardData?.items ?? [])
@@ -534,6 +544,10 @@ function onPaste(event: ClipboardEvent) {
 
 /* ---------------- keyboard ---------------- */
 function onKeyDown(event: KeyboardEvent) {
+  // Escape included: the dialog on top answers that one itself, and clearing
+  // the selection under it would be a change made by the button that promises
+  // to change nothing.
+  if (props.dialogOpen) return
   const active = document.activeElement
   const typing = active instanceof HTMLTextAreaElement || active instanceof HTMLInputElement
   const modifier = event.metaKey || event.ctrlKey
@@ -629,6 +643,11 @@ onBeforeUnmount(() => {
         </div>
       </div>
 
+      <!-- A read-only board draws no ring (PER-257 §1). Picking a film is still
+           allowed and still remembered — it is how a doctor keeps their place
+           (SRS-257) — but a board nothing can be done to should look like one,
+           and the ring only means anything next to the handles it normally
+           comes with. -->
       <div
         v-for="(object, index) in sortedObjects"
         :key="object.id"
@@ -636,7 +655,7 @@ onBeforeUnmount(() => {
         class="xray-object"
         :class="[
           object.objectType === 'image' ? 'xray-image' : 'xray-note',
-          { 'is-selected': object.id === selectedId },
+          { 'is-selected': object.id === selectedId && editable },
         ]"
         :style="objectStyle(object, index)"
       >

@@ -30,6 +30,8 @@ import {
 } from '@/domain/xray/xray.upload'
 import type {
   Viewport,
+  XrayBoardObjectInput,
+  XrayBoardResponse,
   XrayImageObject,
   XrayNoteObject,
   XrayObject,
@@ -37,8 +39,7 @@ import type {
   XrayUploadFailure,
   XrayUploadItem,
 } from '@/domain/xray/xray.types'
-import { toUploadFailure, xrayAssetApi } from '@/services/api/xray.api'
-import { xrayBoardStorage, type BoardImage } from '@/services/storage/xray-board.storage'
+import { toBoardFailure, toUploadFailure, xrayApi, xrayAssetApi } from '@/services/api/xray.api'
 import { useNotificationStore } from './notification'
 
 /**
@@ -71,8 +72,104 @@ function readImageSize(url: string): Promise<{ width: number; height: number }> 
  */
 function normalizeZIndex(boardObjects: XrayObject[]): XrayObject[] {
   return [...boardObjects]
-    .sort((a, b) => a.zIndex - b.zIndex)
+    // The id breaks a tie so the order is the board's and not the array's:
+    // without it, two objects sharing a zIndex would be flattened in whatever
+    // order they happen to sit in, and moving one of them within the array
+    // would read as an edit to a board that looks identical.
+    .sort((a, b) => a.zIndex - b.zIndex || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
     .map((object, index) => ({ ...object, zIndex: index }))
+}
+
+/**
+ * The API response, back into the board's own shape. Nothing is recomputed on
+ * the way in — SRS-169 forbids touching geometry on load, so every number is
+ * passed through as the server sent it, and the union is recovered from
+ * `objectType` alone.
+ *
+ * `naturalWidth`/`naturalHeight` live on the asset rather than the object, so
+ * they are looked up; a film whose asset did not come back (cleaned up, or a URL
+ * the server could not sign) falls back to its on-board size, which keeps the
+ * aspect ratio it is already drawn at rather than collapsing it.
+ */
+function fromResponse(board: XrayBoardResponse): XrayObject[] {
+  const assets = new Map(board.assets.map(asset => [asset.id, asset]))
+  return board.objects.map(object => {
+    const base = {
+      id: object.id,
+      zIndex: object.zIndex,
+      posX: object.posX,
+      posY: object.posY,
+      width: object.width,
+      height: object.height,
+      rotation: object.rotation,
+    }
+    if (object.objectType !== 'image') {
+      return {
+        ...base,
+        objectType: 'note',
+        noteText: object.noteText ?? '',
+        noteColor: object.noteColor ?? NOTE_DEFAULT_COLOR,
+        noteFontSize: object.noteFontSize ?? NOTE_FONT.default,
+      } satisfies XrayNoteObject
+    }
+    const asset = object.assetId ? assets.get(object.assetId) : undefined
+    return {
+      ...base,
+      objectType: 'image',
+      assetId: object.assetId ?? '',
+      naturalWidth: asset?.naturalWidth || object.width,
+      naturalHeight: asset?.naturalHeight || object.height,
+      slotCode: object.slotCode,
+    } satisfies XrayImageObject
+  })
+}
+
+/**
+ * One object, on its way to `saveXrayBoard`. The id is deliberately dropped: a
+ * save is replace-all, so the server has no old row to match it against and
+ * mints a fresh one (PER-233). A note must not carry `assetId` at all — the
+ * resolver refuses one that does — so the two branches send different fields
+ * rather than one shape with nulls in it.
+ */
+function toSaveInput(object: XrayObject): XrayBoardObjectInput {
+  const base = {
+    objectType: object.objectType,
+    zIndex: object.zIndex,
+    posX: object.posX,
+    posY: object.posY,
+    width: object.width,
+    height: object.height,
+    rotation: object.rotation,
+  }
+  return object.objectType === 'image'
+    ? { ...base, assetId: object.assetId, slotCode: object.slotCode }
+    : {
+        ...base,
+        noteText: object.noteText,
+        noteColor: object.noteColor,
+        noteFontSize: object.noteFontSize,
+      }
+}
+
+/**
+ * The board reduced to what a save would actually write down (PER-257 §3).
+ * Built from `toSaveInput` on purpose: the dirty check then compares the exact
+ * payload the mutation would send, and a field added to one is a field added to
+ * the other. Everything else is left out by construction — the id, the natural
+ * size, and above all the signed URL, which lives in `imageUrls` and would
+ * otherwise turn the board dirty every time it was refreshed.
+ *
+ * Rotation is the one saved number that is not an integer: it comes out of an
+ * `atan2` during a drag, so it is rounded here to keep 45 and 45.00000001 from
+ * reading as different boards. The value on the board is left alone.
+ */
+function fingerprint(boardObjects: XrayObject[]): string {
+  return JSON.stringify(
+    normalizeZIndex(boardObjects).map(object => ({
+      ...toSaveInput(object),
+      rotation: Math.round(object.rotation * 100) / 100,
+    })),
+  )
 }
 
 function readPref(key: string): string | null {
@@ -110,7 +207,14 @@ export const useXrayBoardStore = defineStore('xrayBoard', () => {
   // --- save state (Draft -> Saved -> Edit -> Saved) --------------------------
   const saved = ref(false)
   const savedAt = ref<Date | null>(null)
+  /**
+   * The board as it was last written down, in full — this is what Cancel puts
+   * back and what tells a saved object from one added since, so it keeps every
+   * field rather than only the saved ones.
+   */
   const savedSnapshot = ref<string | null>(null)
+  /** The same moment, reduced to what a save would write (PER-257 §3). */
+  const savedFingerprint = ref<string | null>(null)
   const editMode = ref(false)
   const isSaving = ref(false)
 
@@ -165,6 +269,12 @@ export const useXrayBoardStore = defineStore('xrayBoard', () => {
   let batchOrigin = { x: 0, y: 0 }
   let landed = 0
   let queueRunning = false
+  /**
+   * Calls off the film currently on its way up. Discarding an edit throws away
+   * the films it was adding, so the request in flight is one whose answer will
+   * be dropped the moment it lands (PER-258 §4).
+   */
+  let uploadAbort: AbortController | null = null
 
   const history = ref<string[]>([])
   const historyIndex = ref(-1)
@@ -226,8 +336,19 @@ export const useXrayBoardStore = defineStore('xrayBoard', () => {
     }
     return taken
   })
+  /**
+   * Whether a save would write anything different from what is already there.
+   *
+   * PER-257 §3 returns false outside edit mode; here a board that has never been
+   * written down at all counts its films instead. A Draft with films on it has
+   * unsaved work by definition, and it is what the route guard reads — a doctor
+   * closing the tab on films that were never saved has to be asked, and there is
+   * no edit mode to be in yet.
+   */
   const isDirty = computed(() =>
-    savedSnapshot.value === null ? objects.value.length > 0 : snapshot() !== savedSnapshot.value,
+    savedFingerprint.value === null
+      ? objects.value.length > 0
+      : fingerprint(objects.value) !== savedFingerprint.value,
   )
   const noteColors = computed(() => [...NOTE_COLORS, ...customNoteColors.value])
   const isAddingFiles = computed(() =>
@@ -249,6 +370,8 @@ export const useXrayBoardStore = defineStore('xrayBoard', () => {
     () =>
       loadState.value === 'loaded' &&
       editable.value &&
+      // A board belongs to a visit, and the draft tab has no visit to belong to.
+      canUpload.value &&
       objects.value.length > 0 &&
       // Saving mid-batch writes half the films and marks the board clean, which
       // is the same silent loss that blocking uploads during a save prevents.
@@ -256,17 +379,34 @@ export const useXrayBoardStore = defineStore('xrayBoard', () => {
   )
 
   /**
-   * What "the board" means to a dirty check and to undo: the objects and the
-   * layout toggle, and nothing else. The viewport is deliberately absent — pan
-   * and zoom are ways of looking, not edits, and counting them would ask the
-   * doctor to save a board they only scrolled past (SRS-300, SRS-301).
+   * A board this store can put back: what undo steps through, and what Cancel
+   * restores. Every field is kept, including the ones a save never sends — the
+   * id an object is selected by, and the natural size a slot is fitted from —
+   * because this is a restore point, not a comparison. `fingerprint` is the one
+   * that decides whether anything changed.
    *
-   * zIndex is normalised into the comparison so a stack that ends up back in the
-   * order it was saved in reads as unchanged, the same way a film dragged out
-   * and back does.
+   * The viewport is deliberately absent: pan and zoom are ways of looking, not
+   * edits, and stepping back through them would undo nothing the doctor did
+   * (SRS-300, SRS-301). The layout toggle is absent for the same reason — which
+   * film sits in which FMX slot travels in `slot_code`, but which mode you
+   * happen to be looking through is not part of the board.
+   *
+   * zIndex is normalised so a stack that ends up back in the order it was saved
+   * in reads as unchanged, the same way a film dragged out and back does.
    */
   function snapshot() {
-    return JSON.stringify({ objects: normalizeZIndex(objects.value), layout: layout.value })
+    return JSON.stringify({ objects: normalizeZIndex(objects.value) })
+  }
+
+  /**
+   * Pins the board as it stands now. PER-257 §5 allows exactly three callers —
+   * a board that has just been read, a board that has just been saved, and the
+   * moment Edit is pressed — and nothing else may move these, or Cancel would
+   * put back a board the doctor never agreed to.
+   */
+  function markSaved() {
+    savedSnapshot.value = snapshot()
+    savedFingerprint.value = fingerprint(objects.value)
   }
 
   /** Next free slot on top of the stack. An empty board starts at 0. */
@@ -289,9 +429,8 @@ export const useXrayBoardStore = defineStore('xrayBoard', () => {
   }
 
   function restore(snap: string) {
-    const parsed = JSON.parse(snap) as { objects: XrayObject[]; layout: boolean }
+    const parsed = JSON.parse(snap) as { objects: XrayObject[] }
     objects.value = parsed.objects
-    layout.value = parsed.layout
     if (!objects.value.some(object => object.id === selectedId.value)) selectedId.value = null
     editingNoteId.value = null
   }
@@ -485,7 +624,11 @@ export const useXrayBoardStore = defineStore('xrayBoard', () => {
     | { outcome: 'refused' }
     | { outcome: 'halted'; failure: XrayUploadFailure }
 
-  async function uploadOne(item: XrayUploadItem, file: File): Promise<UploadStep> {
+  async function uploadOne(
+    item: XrayUploadItem,
+    file: File,
+    signal: AbortSignal,
+  ): Promise<UploadStep> {
     try {
       const outcome = await xrayAssetApi.upload(
         visitId.value as string,
@@ -494,6 +637,7 @@ export const useXrayBoardStore = defineStore('xrayBoard', () => {
         percent => {
           item.progress = percent
         },
+        signal,
       )
 
       const rejection = outcome.rejected[0]
@@ -522,6 +666,10 @@ export const useXrayBoardStore = defineStore('xrayBoard', () => {
           : null
       return { outcome: 'uploaded', size }
     } catch (error) {
+      // Called off rather than failed. The row is about to be cleared with the
+      // rest of the discarded edit, and a message about a film nobody is
+      // waiting for would be the only trace left of a choice the doctor made.
+      if (signal.aborted) return { outcome: 'refused' }
       const failure = toUploadFailure(error)
       failItem(item, failure.title, failure.canRetry)
       return failure.stopsBatch ? { outcome: 'halted', failure } : { outcome: 'refused' }
@@ -606,14 +754,17 @@ export const useXrayBoardStore = defineStore('xrayBoard', () => {
     if (queueRunning) return
     queueRunning = true
     const key = boardKey.value
+    const abort = new AbortController()
+    uploadAbort = abort
     let added = 0
 
     try {
       for (const item of uploadQueue.value) {
         if (item.status !== 'pending') continue
         // Switching visits mid-batch abandons the rest: the films left in it
-        // were picked for a board that is no longer open.
-        if (boardKey.value !== key) break
+        // were picked for a board that is no longer open. Cancelling the edit
+        // abandons them for the same reason — nowhere left to land.
+        if (boardKey.value !== key || abort.signal.aborted) break
 
         const file = queued.get(item.uploadId)
         if (!file) {
@@ -631,7 +782,7 @@ export const useXrayBoardStore = defineStore('xrayBoard', () => {
           // because it passed the checks, or because the doctor asked for it to
           // go up in spite of them. Running the same check again would answer
           // the appeal with the opinion it was appealing against.
-          const step = await uploadOne(item, file)
+          const step = await uploadOne(item, file, abort.signal)
           if (step.outcome === 'halted') {
             haltQueue(step.failure)
             break
@@ -640,13 +791,32 @@ export const useXrayBoardStore = defineStore('xrayBoard', () => {
           naturalSize = step.size
         }
 
+        // Called off while this film was on its way. It has nowhere to go: the
+        // board it belonged to has already been put back.
+        if (abort.signal.aborted) break
+
+        // A film handed over from the draft board is already on screen: this
+        // trip was to give it a real asset id, not to put a second copy down.
+        const placed = objects.value.find(
+          (object): object is XrayImageObject =>
+            object.objectType === 'image' && object.assetId === item.uploadId,
+        )
+        if (placed) {
+          if (item.assetId) adoptAssetId(placed, item.assetId)
+          item.status = 'done'
+          item.progress = 100
+          item.canRetry = false
+          continue
+        }
+
         if (await placeFilm(item, file, naturalSize)) added += 1
       }
     } finally {
       queueRunning = false
+      if (uploadAbort === abort) uploadAbort = null
     }
 
-    if (added > 0 && boardKey.value === key) pushHistory()
+    if (added > 0 && boardKey.value === key && !abort.signal.aborted) pushHistory()
   }
 
   /**
@@ -700,10 +870,13 @@ export const useXrayBoardStore = defineStore('xrayBoard', () => {
 
   /**
    * The same, without the question: closing or swapping a board takes its films
-   * with it, so whatever the run was still holding has nowhere to go. Safe
-   * mid-flight because the run checks the board key between films.
+   * with it, and so does discarding the edit that was adding them, so whatever
+   * the run was still holding has nowhere to go. The film on its way up is
+   * called off rather than left to finish into a board that will not have it.
    */
   function resetUploadQueue() {
+    uploadAbort?.abort()
+    uploadAbort = null
     uploadQueue.value = []
     queued.clear()
     landed = 0
@@ -783,9 +956,12 @@ export const useXrayBoardStore = defineStore('xrayBoard', () => {
     pushHistory()
   }
 
+  /**
+   * Not an edit and not undoable: the mode is a way of looking at the board, and
+   * the slots a film is mounted in travel in `slot_code` either way.
+   */
   function toggleLayout() {
     layout.value = !layout.value
-    pushHistory()
     if (layout.value) fit()
   }
 
@@ -830,7 +1006,7 @@ export const useXrayBoardStore = defineStore('xrayBoard', () => {
 
   // --- film recovery --------------------------------------------------------
   /**
-   * Re-reads a film from storage after its <img> failed. Runs at most once per
+   * Gets a film back on screen after its <img> failed. Runs at most once per
    * asset; a second failure gives up and leaves the placeholder in place.
    */
   async function recoverAsset(assetId: string) {
@@ -840,19 +1016,31 @@ export const useXrayBoardStore = defineStore('xrayBoard', () => {
     }
     retriedAssets.add(assetId)
 
+    // A film added this session is still in memory — there is nothing to ask
+    // the server for, and asking would only be slower.
+    const blob = imageBlobs.get(assetId)
+    if (blob) {
+      const stale = imageUrls.value[assetId]
+      if (stale?.startsWith('blob:')) URL.revokeObjectURL(stale)
+      imageUrls.value[assetId] = URL.createObjectURL(blob)
+      failedAssets.value.delete(assetId)
+      return
+    }
+
     const key = boardKey.value
     try {
-      const blob = await xrayBoardStorage.getImage(assetId)
-      // The board was closed or swapped while we were reading.
+      // Signed URLs are minted per request and run out (SRS-185, SRS-187), so
+      // the usual reason a film stops loading on a board left open all morning
+      // is simply that its URL has expired.
+      const { data } = await xrayApi.refreshUrls([assetId])
+      // The board was closed or swapped while we were asking.
       if (boardKey.value !== key) return
-      if (!blob) {
+      const asset = data?.refreshXrayUrls?.find(candidate => candidate.id === assetId)
+      if (!asset?.signedUrl) {
         failedAssets.value.add(assetId)
         return
       }
-      const stale = imageUrls.value[assetId]
-      if (stale) URL.revokeObjectURL(stale)
-      imageBlobs.set(assetId, blob)
-      imageUrls.value[assetId] = URL.createObjectURL(blob)
+      imageUrls.value[assetId] = asset.signedUrl
       failedAssets.value.delete(assetId)
     } catch (error) {
       console.error('Failed to reload X-ray image:', error)
@@ -868,8 +1056,12 @@ export const useXrayBoardStore = defineStore('xrayBoard', () => {
   }
 
   // --- board lifecycle ------------------------------------------------------
+  // Only the object URLs are ours to revoke — a signed URL is the server's, and
+  // revoking one is a no-op that reads as if it were doing something.
   function releaseImages() {
-    for (const url of Object.values(imageUrls.value)) URL.revokeObjectURL(url)
+    for (const url of Object.values(imageUrls.value)) {
+      if (url.startsWith('blob:')) URL.revokeObjectURL(url)
+    }
     imageUrls.value = {}
     imageBlobs.clear()
     failedAssets.value.clear()
@@ -878,9 +1070,8 @@ export const useXrayBoardStore = defineStore('xrayBoard', () => {
 
   /**
    * Drops the films nothing on the board points at any more. Only ever safe
-   * where they cannot come back: `cancelEdit` clears the undo history along
-   * with them, whereas a save leaves the history intact, and a doctor who
-   * undoes past a deletion there must find the film, not a broken frame.
+   * where they cannot come back — `cancelEdit` clears the undo history along
+   * with them, so there is no state left that could ask for one.
    */
   function releaseUnreferencedImages() {
     const inUse = new Set(
@@ -905,43 +1096,66 @@ export const useXrayBoardStore = defineStore('xrayBoard', () => {
     saved.value = false
     savedAt.value = null
     savedSnapshot.value = null
+    savedFingerprint.value = null
     editMode.value = false
     history.value = []
     historyIndex.value = -1
   }
 
+  /**
+   * Puts a board the server just handed us on screen — used by the read and by
+   * the save, which answers with the same shape. Signed URLs go straight into
+   * `imageUrls`: they are minted per request and must never be stored (SRS-185).
+   *
+   * A film whose asset did not come back gets a placeholder rather than an empty
+   * frame, and is marked as already retried: the board we just read is the
+   * freshest answer there is, so asking for it again would only repeat it. The
+   * Reload button clears that budget when the doctor asks.
+   */
+  function applyBoard(board: XrayBoardResponse) {
+    releaseImages()
+    objects.value = fromResponse(board)
+    for (const asset of board.assets) {
+      if (asset.signedUrl) imageUrls.value[asset.id] = asset.signedUrl
+    }
+    for (const object of objects.value) {
+      if (object.objectType === 'image' && !imageUrls.value[object.assetId]) {
+        retriedAssets.add(object.assetId)
+        failedAssets.value.add(object.assetId)
+      }
+    }
+    // No column says which mode the board was left in, and none is needed: a
+    // board with a film mounted in a slot is a board being laid out.
+    layout.value = objects.value.some(
+      object => object.objectType === 'image' && object.slotCode !== null,
+    )
+    saved.value = board.status === 'saved'
+    savedAt.value = board.savedAt ? new Date(board.savedAt) : null
+  }
+
   async function fetchBoard(key: string) {
     loadState.value = 'loading'
 
+    // A visit that does not exist server-side has no board to read. Not an
+    // error and not an empty board either — it is a board that has nowhere to
+    // be yet, and the films on it stay in this browser until it does.
+    if (!canUpload.value) {
+      loadState.value = 'loaded'
+      resetHistory()
+      pendingFit = true
+      fit()
+      return
+    }
+
     try {
-      const record = await xrayBoardStorage.getBoard(key)
+      const { data } = await xrayApi.getByVisit(visitId.value as string)
       if (boardKey.value !== key) return
 
-      if (record) {
-        const stored = await xrayBoardStorage.getImages(key)
-        if (boardKey.value !== key) return
-        // Held until the read succeeds: a retry that fails must leave the films
-        // already on screen exactly where they are (SRS-194).
-        releaseImages()
-        for (const image of stored) {
-          imageBlobs.set(image.id, image.blob)
-          imageUrls.value[image.id] = URL.createObjectURL(image.blob)
-        }
-        objects.value = record.objects
-
-        // A film the browser evicted leaves its object pointing at nothing.
-        // The read above already came up empty, so there is nothing to retry —
-        // go straight to the placeholder and let the user ask for a reload.
-        for (const object of record.objects) {
-          if (object.objectType === 'image' && !imageUrls.value[object.assetId]) {
-            retriedAssets.add(object.assetId)
-            failedAssets.value.add(object.assetId)
-          }
-        }
-        layout.value = record.layout
-        saved.value = true
-        savedAt.value = new Date(record.savedAt)
-        savedSnapshot.value = snapshot()
+      // Null is "this visit has no board", which is a Draft — not a failure.
+      const board = data?.xrayBoardByVisit ?? null
+      if (board) {
+        applyBoard(board)
+        markSaved()
       }
       loadState.value = 'loaded'
     } catch (error) {
@@ -996,6 +1210,14 @@ export const useXrayBoardStore = defineStore('xrayBoard', () => {
       )
       return false
     }
+    // A board belongs to a visit, and this one does not have a visit yet.
+    if (!canUpload.value) {
+      notifications.error(
+        'Save the visit first',
+        'This visit has not been created yet, so there is nothing to attach the films to. Save the chart and the films go up with it.',
+      )
+      return false
+    }
     if (!objects.value.length) {
       notifications.error('Add at least one X-ray before saving')
       return false
@@ -1003,97 +1225,194 @@ export const useXrayBoardStore = defineStore('xrayBoard', () => {
     return true
   }
 
-  async function persist(key: string) {
-    // Plain copies: Vue's reactive proxies can't be structured-cloned into IndexedDB.
-    // Normalised on the way out only — the board on screen keeps the zIndex the
-    // doctor's last reorder gave it, so nothing shifts under them mid-session.
-    const plainObjects = normalizeZIndex(
-      JSON.parse(JSON.stringify(objects.value)) as XrayObject[],
+  /** Moves a film's blob and its URL onto the id the server filed it under. */
+  function adoptAssetId(film: XrayImageObject, assetId: string) {
+    if (film.assetId === assetId) return
+    const previous = film.assetId
+    const blob = imageBlobs.get(previous)
+    if (blob) {
+      imageBlobs.set(assetId, blob)
+      imageBlobs.delete(previous)
+    }
+    const url = imageUrls.value[previous]
+    if (url) {
+      imageUrls.value[assetId] = url
+      delete imageUrls.value[previous]
+    }
+    film.assetId = assetId
+  }
+
+  /**
+   * The films drafted before the visit existed, sent up now that it does.
+   *
+   * A board on the draft tab has nowhere to upload to, so its films sit in this
+   * browser under ids we minted. `saveXrayBoard` refuses an object pointing at
+   * an asset the visit does not own, so without this the first save after the
+   * chart is created would be rejected whole — and the doctor would have to
+   * re-add every film they had already placed.
+   */
+  async function uploadDraftFilms(key: string) {
+    if (!canUpload.value) return
+    const films = objects.value.filter(
+      (object): object is XrayImageObject =>
+        object.objectType === 'image' && imageBlobs.has(object.assetId),
     )
-    const images: BoardImage[] = []
-    for (const object of plainObjects) {
-      if (object.objectType !== 'image') continue
-      const blob = imageBlobs.get(object.assetId)
-      if (blob) images.push({ id: object.assetId, blob })
+    if (!films.length) return
+
+    // Queued rather than uploaded here, so these films go up the same way every
+    // other film does: one request each, a progress bar per row, and a Retry
+    // that means the same thing. The run adopts rather than places them,
+    // because they are already on the board.
+    for (const film of films) {
+      const blob = imageBlobs.get(film.assetId)
+      if (!blob) continue
+      // Always a File in practice — the one the doctor picked, kept since — but
+      // a Blob would still upload, just without its original name.
+      const file =
+        blob instanceof File ? blob : new File([blob], 'radiograph', { type: blob.type })
+      queued.set(film.assetId, file)
+      uploadQueue.value.push({
+        uploadId: film.assetId,
+        fileName: file.name,
+        status: 'pending',
+        progress: 0,
+        canRetry: false,
+      })
     }
 
-    await xrayBoardStorage.saveBoard(
-      { key, objects: plainObjects, layout: layout.value, savedAt: new Date().toISOString() },
-      images,
-    )
+    await runUploadQueue()
+    // The ids these films were drawn under before the hand-off point at nothing
+    // the server has ever heard of, so an undo back past it would build a board
+    // that `saveXrayBoard` refuses whole.
+    if (boardKey.value === key) resetHistory()
   }
 
   /**
    * Moves the open board to a new key — the draft visit ('new') has just been
-   * saved and got its real visit id, so the board follows it.
+   * saved and got its real visit id, so the board follows it, and its films
+   * finally have somewhere to go.
    */
   async function rekeyBoard(nextKey: string, nextVisitId: string | null) {
     const previousKey = boardKey.value
-    // Also a write that drops the old record, so it needs the same guard as
-    // saveBoard — never move a board we could not read in full. Bailing here
-    // leaves the key alone, so the panel's own watcher opens the new one.
-    if (!previousKey || previousKey === nextKey || !objects.value.length || loadFailed.value) {
-      return
-    }
+    // Bailing here leaves the key alone, so the panel's own watcher opens the
+    // new board from scratch.
+    if (!previousKey || previousKey === nextKey || loadFailed.value) return
+
     boardKey.value = nextKey
-    // The draft visit has a real id now, so its films finally have somewhere to
-    // go — and this is the only path that moves the board without a reload.
     visitId.value = nextVisitId
     // The report was about films added to the draft. It says nothing true about
     // the visit they have just moved to, so it goes rather than misleads.
     resetUploadQueue()
-    if (!saved.value) return
-    try {
-      await persist(nextKey)
-      await xrayBoardStorage.deleteBoard(previousKey)
-    } catch (error) {
-      console.error('Failed to move the X-ray board to the saved visit:', error)
-    }
+    await uploadDraftFilms(nextKey)
   }
 
-  async function saveBoard() {
+  /**
+   * Writes the board down. Reports whether it landed so the caller can keep the
+   * confirmation up on failure — a dialog that closes on a save that did not
+   * happen leaves the doctor with a toast and nothing to press.
+   */
+  async function saveBoard(): Promise<boolean> {
     const key = boardKey.value
     // Checked again here, not just on the button: this is the only call that
-    // rewrites the stored record, so it is the one place that must hold.
-    if (isSaving.value || !key || loadFailed.value) return
+    // rewrites the board server-side, so it is the one place that must hold.
+    if (isSaving.value || !key || loadFailed.value || !canUpload.value) return false
     isSaving.value = true
     try {
-      await persist(key)
+      const { data } = await xrayApi.save({
+        visitId: visitId.value as string,
+        // Flattened to 0..n-1 on the way out only (SRS-280) — z_index is a
+        // SmallInt and "send to back" keeps counting down. The board on screen
+        // keeps the zIndex the doctor's last reorder gave it, so nothing shifts
+        // under them mid-session.
+        objects: normalizeZIndex(objects.value).map(toSaveInput),
+      })
+      const board = data?.saveXrayBoard
+      if (!board) throw new Error('saveXrayBoard answered without a board')
+      // The board was closed or swapped while the save was in flight — the
+      // answer belongs to a visit nobody is looking at any more.
+      if (boardKey.value !== key) return false
 
-      saved.value = true
+      // PER-256 §4.2. The ids the frontend minted were never sent and do not
+      // exist in the database: the save is replace-all and the server issued its
+      // own. Keeping the old ones would leave every object on screen pointing at
+      // a row that is not there.
+      applyBoard(board)
       editMode.value = false
       selectedId.value = null
       editingNoteId.value = null
-      savedAt.value = new Date()
-      savedSnapshot.value = snapshot()
+      // Taken after the payload lands, or the dirty check would be comparing
+      // against a board built from ids the server never issued.
+      markSaved()
+      // PER-255 deletes the assets no saved object points at any more, so the
+      // states before this one are gone for good — an undo back into them would
+      // put frames on the board with nothing behind them.
+      resetHistory()
       notifications.success('Board saved')
+      return true
     } catch (error) {
+      // Nothing here touches the board (PER-259 §A.1–3). No refetch above all:
+      // pulling the stored version back over work the doctor has just arranged
+      // would be an error handler losing the data it exists to protect. The
+      // objects stay, the mode stays, and `savedSnapshot` still describes the
+      // last save that really happened — so the board reads as dirty and Save
+      // is live again for another go.
       console.error('Failed to save X-ray board:', error)
-      notifications.error('Save failed — please try again', 'Nothing on the board was lost.')
+      const failure = toBoardFailure(error)
+      // Longer than the usual toast (§A.5): this is the one message a doctor
+      // must not miss the second half of.
+      notifications.error(failure.title, failure.detail, 8000)
+      return false
     } finally {
       isSaving.value = false
     }
   }
 
+  /**
+   * Nothing but a flag on this side of the wire (PER-257 §2). No request goes
+   * out and `xray_boards.status` stays `saved` — a board that turned back into a
+   * draft the moment someone opened it to look would be marked unfinished by a
+   * doctor who changed nothing and closed the tab.
+   *
+   * The snapshot is re-pinned even though view mode cannot have moved anything,
+   * so that what Cancel restores is always the board Edit was pressed on rather
+   * than something taken further back.
+   */
   function startEdit() {
+    markSaved()
     editMode.value = true
   }
 
+  /**
+   * Throws the edit away and puts back the board Edit was pressed on. Purely
+   * local (PER-258 §3.6): nothing since then reached the server, so there is
+   * nothing to undo there — and the films that did go up are deliberately left
+   * alone, rows and files both. They sit as `pending` until the next save
+   * orphans them and PER-255 collects them; deleting from here risks taking a
+   * film another object still points at.
+   *
+   * The viewport is untouched (§3.7). The board coming back where the doctor
+   * left it is easier to read than one that jumps to a new fit.
+   */
   function cancelEdit() {
+    if (isSaving.value) return
     editMode.value = false
     selectedId.value = null
-    if (savedSnapshot.value) {
-      restore(savedSnapshot.value)
-      resetHistory()
-      // The films the report was about are off the board with the edit, so a
-      // list still offering to retry them has nothing left to add them to.
-      clearUploadQueue()
-      // The films added during the edit are off the board and out of the undo
-      // history with it, so their blobs belong to nobody now (SRS-353). A
-      // full-mouth series discarded and re-added a few times is a lot of memory
-      // to leave behind for the life of the tab.
-      releaseUnreferencedImages()
-    }
+
+    // A board with nothing written down behind it discards back to empty —
+    // there is no earlier version of it to return to.
+    if (savedSnapshot.value) restore(savedSnapshot.value)
+    else objects.value = []
+
+    resetHistory()
+    // The films the report was about are off the board with the edit, so a list
+    // still offering to retry them has nothing left to add them to — and one
+    // still on its way up is called off on the way out (§4).
+    resetUploadQueue()
+    // The films added during the edit are off the board and out of the undo
+    // history with it, so their blobs belong to nobody now (SRS-353). A
+    // full-mouth series discarded and re-added a few times is a lot of memory
+    // to leave behind for the life of the tab.
+    releaseUnreferencedImages()
   }
 
   function closeBoard() {

@@ -17,13 +17,10 @@ import type {
   XrayUploadResponse,
 } from '@/domain/xray/xray.types'
 
-// Written against the schema in PER-233. The queries below now have resolvers
-// behind them, but nothing calls them yet: `saveXrayBoard` is still a stub
-// server-side (PER-254), so the board would have somewhere to read from and
-// nowhere to write to. It keeps reading and writing through
-// `services/storage/xray-board.storage.ts` (IndexedDB) until that lands.
-//
-// The upload at the bottom of this file is the part that is live.
+// Written against the schema in PER-233, and live end to end: PER-234 (read),
+// PER-254 (write) and PER-255 (orphan cleanup) all have resolvers behind them,
+// and the board calls all three. The browser no longer keeps a copy — a visit's
+// board is whatever the server says it is.
 
 const BOARD_FIELDS = gql`
   fragment XrayBoardFields on XrayBoard {
@@ -123,6 +120,46 @@ export const xrayApi = {
     }),
 }
 
+/**
+ * What to tell the doctor when a board write did not go through (PER-259 §A.5).
+ * Plain words, never a code (SRS-197), and the wording is the card's to the
+ * letter — split across the toast's two lines so the sentence that matters most
+ * is the one left on screen.
+ *
+ * "Nothing on the board was lost" carries more weight than the failure itself:
+ * someone who reads "save failed" and assumes the work is gone closes the tab,
+ * which is what actually loses it.
+ */
+export interface XrayBoardFailure {
+  title: string
+  detail: string
+}
+
+/** The code the resolver put on the error — null when no server answered. */
+function graphqlCode(error: unknown): string | null {
+  const errors = (error as { graphQLErrors?: { extensions?: { code?: unknown } }[] })
+    ?.graphQLErrors
+  const code = errors?.[0]?.extensions?.code
+  return typeof code === 'string' ? code : null
+}
+
+export function toBoardFailure(error: unknown): XrayBoardFailure {
+  // Said before anything about saving: signing in again is the only thing that
+  // will help, and the board stays exactly where it is while they do.
+  if (graphqlCode(error) === 'UNAUTHENTICATED') {
+    return { title: 'Your session expired. Please sign in again.', detail: '' }
+  }
+  // Worth telling apart, because it is the one failure the doctor can fix
+  // without touching the board at all.
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+    return {
+      title: 'Save failed — you appear to be offline.',
+      detail: 'Nothing on the board was lost.',
+    }
+  }
+  return { title: 'Save failed — please try again.', detail: 'Nothing on the board was lost.' }
+}
+
 // --- upload (PER-260, PER-245) ----------------------------------------------
 // REST rather than GraphQL, because the films go up as multipart.
 
@@ -152,10 +189,23 @@ function postWithProgress<T>(
   path: string,
   form: FormData,
   onProgress?: (percent: number) => void,
+  signal?: AbortSignal,
 ): Promise<T> {
   return new Promise((resolve, reject) => {
+    // Already called off before this film's turn came round.
+    if (signal?.aborted) {
+      reject(new Error('The upload was cancelled'))
+      return
+    }
+
     const request = new XMLHttpRequest()
     request.open('POST', `${API_URL}${path}`)
+
+    const stopOnAbort = () => request.abort()
+    signal?.addEventListener('abort', stopOnAbort, { once: true })
+    // Fires on load, error and abort alike, so the listener never outlives the
+    // request it belongs to.
+    request.onloadend = () => signal?.removeEventListener('abort', stopOnAbort)
     for (const [name, value] of Object.entries(getAuthHeaders())) {
       request.setRequestHeader(name, value)
     }
@@ -211,18 +261,24 @@ export const xrayAssetApi = {
    *
    * Throws before sending on a bad pairing, and on any transport or status
    * error — `toUploadFailure` turns whichever one it was into something to say.
+   *
+   * `signal` cuts a film's trip short: discarding an edit throws away the films
+   * it was adding, and an upload nobody is waiting for is bandwidth spent on a
+   * result that will be dropped the moment it arrives (PER-258 §4).
    */
   async upload(
     visitId: string,
     files: File[],
     uploadIds: string[],
     onProgress?: (percent: number) => void,
+    signal?: AbortSignal,
   ): Promise<XrayUploadOutcome> {
     const body = buildXrayUploadForm(files, uploadIds)
     const payload = await postWithProgress<XrayUploadResponse>(
       `/visits/${encodeURIComponent(visitId)}/xray-assets`,
       body,
       onProgress,
+      signal,
     )
     return mapUploadOutcome(payload)
   },
