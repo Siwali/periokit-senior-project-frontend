@@ -410,11 +410,9 @@ const stageMeaning = computed(() =>
     : 'The stage says how far the disease has already gone. Fill in the rows still marked above and this line will say what that means for the patient.',
 )
 
-const gradeMeaning = computed(() =>
-  diagnosisStore.finalGrade
-    ? GRADE_MEANING[diagnosisStore.finalGrade]
-    : 'The grade says how fast the disease is moving. Answer the rows still marked above and this line will say what that means for the patient.',
-)
+// The grade always has a value — TAP 2023 starts every case at Grade B — so this
+// line reads what that grade means rather than asking for rows first.
+const gradeMeaning = computed(() => GRADE_MEANING[diagnosisStore.finalGrade])
 </script>
 
 <template>
@@ -573,7 +571,7 @@ const gradeMeaning = computed(() =>
 
           <!-- Saving lives at the foot of the page, once, below the decisions
                it is meant to record. -->
-          <h1 class="mt-1.5 text-2xl xl:text-[28px] font-bold text-slate-800 tracking-tight">
+          <h1 class="mt-1.5 text-2xl xl:text-[28px] font-extrabold text-[#0052ff] tracking-tight">
             {{ diagnosisStore.diagnosisTitle }}
           </h1>
 
@@ -893,7 +891,10 @@ const gradeMeaning = computed(() =>
           <div class="rounded-2xl border border-slate-200 bg-white p-5 xl:p-6 shadow-sm">
             <div class="flex flex-wrap items-center gap-3">
               <span class="text-[13px] text-slate-500 font-normal">System result</span>
-              <span class="text-[18px] font-bold text-slate-900">
+              <span
+                class="text-[18px] font-extrabold"
+                :class="diagnosisStore.stage.stage ? 'text-amber-500' : 'text-red-600'"
+              >
                 {{ diagnosisStore.stage.stage ? `Stage ${diagnosisStore.stage.stage}` : 'Not enough data' }}
               </span>
               <span
@@ -1164,12 +1165,8 @@ const gradeMeaning = computed(() =>
           <div class="rounded-2xl border border-slate-200 bg-white p-5 xl:p-6 shadow-sm">
             <div class="flex flex-wrap items-center gap-3">
               <span class="text-[13px] text-slate-500 font-normal">System result</span>
-              <span class="text-[18px] font-bold text-slate-900">
-                {{
-                  diagnosisStore.grade.grade
-                    ? `Grade ${diagnosisStore.grade.grade}`
-                    : 'Not enough input'
-                }}
+              <span class="text-[18px] font-extrabold text-amber-500">
+                Grade {{ diagnosisStore.grade.grade }}
               </span>
               <span
                 v-if="diagnosisStore.grade.missing.length"
