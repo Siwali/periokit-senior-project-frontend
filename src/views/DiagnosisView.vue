@@ -455,16 +455,20 @@ const gradeMeaning = computed(() => GRADE_MEANING[diagnosisStore.finalGrade])
     </div>
 
     <main class="max-w-320 mx-auto px-4 py-6 flex flex-col gap-5">
-      <div class="flex flex-wrap items-start justify-between gap-3 -mb-2">
+      <div class="flex flex-wrap items-center justify-between gap-3 -mb-2">
         <!-- Out of every state, including the ones with nothing to show. Same
-             pill as the one Visit History goes back to My Patients with. -->
-        <button
-          class="group flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-full text-slate-600 hover:text-[#0052ff] hover:border-[#0052ff] hover:bg-blue-50 font-medium text-sm shadow-sm transition-all w-fit"
-          @click="openChartTab('chart')"
-        >
-          <ArrowLeft class="w-4 h-4 transition-transform group-hover:-translate-x-1" />
-          Periodontal Chart
-        </button>
+             pill as the one Visit History goes back to My Patients with. The
+             page title rides alongside it: the Result below is the heading that
+             matters, so this one stays quieter than it. -->
+        <div class="flex flex-wrap items-center gap-3">
+          <button
+            class="group flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-full text-slate-600 hover:text-[#0052ff] hover:border-[#0052ff] hover:bg-blue-50 font-medium text-sm shadow-sm transition-all w-fit"
+            @click="openChartTab('chart')"
+          >
+            <ArrowLeft class="w-4 h-4 transition-transform group-hover:-translate-x-1" />
+            Periodontal Chart
+          </button>
+        </div>
 
         <!-- The same Save the chart page carries, because it is the same save:
              there is no diagnosis record of its own, the diagnosis is written
@@ -568,13 +572,15 @@ const gradeMeaning = computed(() => GRADE_MEANING[diagnosisStore.finalGrade])
       <template v-else>
         <!-- Diagnosis header -->
         <header class="px-1">
-          <h1 class="text-2xl xl:text-[28px] font-extrabold text-slate-900 tracking-tight">
+          <h1
+            v-if="hasChart && !isLoading && !loadFailed"
+            class="text-[20px] font-bold text-slate-500 tracking-tight"
+          >
             Periodontal diagnosis · AAP / EFP 2017
           </h1>
-
           <!-- Saving lives at the foot of the page, once, below the decisions
                it is meant to record. -->
-          <h2 class="mt-1.5 text-lg xl:text-[20px] font-extrabold text-[#0052ff] tracking-tight">
+          <h2 class="text-xl xl:text-2xl font-extrabold text-[#0052ff] tracking-tight">
             Result : {{ diagnosisStore.diagnosisTitle }}
           </h2>
 
