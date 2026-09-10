@@ -58,7 +58,6 @@ export const useDiagnosisStore = defineStore(
     const {
       records,
       savedSnapshots,
-      currentKey,
       inputs,
       isDirty,
       openFor: openDraft,
@@ -79,9 +78,6 @@ export const useDiagnosisStore = defineStore(
       legacyKeys: ['diagnosis'],
     })
 
-    // Backward-compatibility alias
-    const visitKey = computed(() => currentKey.value)
-
   const findings = computed(() => collectChartFindings(chartStore.teethData))
   const assessment = computed(() =>
     deriveDiagnosisAssessment(inputs, findings.value, chartStore.patientInfo.age),
@@ -90,13 +86,10 @@ export const useDiagnosisStore = defineStore(
     computed(() => assessment.value[key])
   const hasChanges = selectAssessment('hasChanges')
 
-  // Straight off the chart. These four are measurements, so the chart is the
-  // only place they can be changed — a diagnosis that quoted a different number
-  // would leave the record saying one thing and the diagnosis another.
+  // Straight off the chart. Measurements can only be changed there, so a
+  // diagnosis can never quote a different number from the clinical record.
   const interdentalCal = selectAssessment('interdentalCal')
   const probingDepth = selectAssessment('probingDepth')
-  const furcation = selectAssessment('furcation')
-  const mobility = selectAssessment('mobility')
   // The record first, always: an age on file cannot be typed over here. The
   // input behind it only fills the gap when the record carries no age, so the
   // grade's % bone loss ÷ age is not blocked by a record nobody can reach.
@@ -123,13 +116,8 @@ export const useDiagnosisStore = defineStore(
 
   const complexity = selectAssessment('complexity')
 
-  // Where the measured numbers fall, criterion by criterion.
-  const stageReasons = selectAssessment('stageReasons')
-
   // The band each row of the staging table lands in on its own. A tick in
   // `inputs.stageMarks` overrides it, row by row.
-  const autoMarks = selectAssessment('autoMarks')
-
   const stage = selectAssessment('stage')
 
   // The stage is never set by hand. It follows the four rows of the staging
@@ -149,25 +137,13 @@ export const useDiagnosisStore = defineStore(
   const suggestedPhenotype = selectAssessment('suggestedPhenotype')
   const phenotype = selectAssessment('phenotype')
   const phenotypeFromChart = selectAssessment('phenotypeFromChart')
-  const phenotypeOverridden = selectAssessment('phenotypeOverridden')
-
   const grade = selectAssessment('grade')
 
   // As with the stage: never set by hand. The grade is what the criteria above
   // arrive at, and the way to move it is to change the answer that reads wrong.
   const finalGrade = selectAssessment('finalGrade')
 
-  // The rows with nothing to read yet, plus the extent — what stands between
-  // the worksheet and a full diagnosis line.
-  const missingStageInputs = selectAssessment('missingStageInputs')
-
-  const missingInputs = selectAssessment('missingInputs')
-
   const diagnosisTitle = selectAssessment('diagnosisTitle')
-
-  // The grade is never missing — TAP 2023 starts every case at Grade B — so the
-  // stage is what stands between the worksheet and a diagnosis line.
-  const isClassified = selectAssessment('isClassified')
 
   /** Point the worksheet at a visit, loading its recorded inputs if any exist. */
   function openFor(visitOrKey?: string | null, patientId?: string | null) {
@@ -181,24 +157,18 @@ export const useDiagnosisStore = defineStore(
   return {
     records,
     savedSnapshots,
-    currentKey,
     inputs,
-    visitKey,
     isDirty,
     hasChanges,
     findings,
     interdentalCal,
     probingDepth,
-    furcation,
-    mobility,
     age,
     ageFromRecord,
     boneLoss,
     estimatedBoneLoss,
     teethLost,
     complexity,
-    stageReasons,
-    autoMarks,
     stage,
     suggestedExtent,
     extent,
@@ -206,14 +176,10 @@ export const useDiagnosisStore = defineStore(
     suggestedPhenotype,
     phenotype,
     phenotypeFromChart,
-    phenotypeOverridden,
     finalStage,
     grade,
     finalGrade,
-    missingStageInputs,
-    missingInputs,
     diagnosisTitle,
-    isClassified,
     openFor,
     resetInputs,
     rekey,
