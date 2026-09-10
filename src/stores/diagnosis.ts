@@ -1,17 +1,11 @@
 import { defineStore } from 'pinia'
 import { computed } from 'vue'
-import { collectChartFindings } from '@/domain/diagnosis/diagnosis.findings'
 import {
-  assessGrade,
-  assessStage,
-  autoStageMarks,
-  complexityFindings,
-  complexityStage,
-  stageSummary,
-  suggestExtent,
-  suggestPhenotype,
-} from '@/domain/diagnosis/diagnosis.rules'
-import { EXTENT_LABEL, type DiagnosisInputs } from '@/domain/diagnosis/diagnosis.types'
+  deriveDiagnosisAssessment,
+  type DiagnosisAssessment,
+} from '@/domain/diagnosis/diagnosis.assessment'
+import { collectChartFindings } from '@/domain/diagnosis/diagnosis.findings'
+import type { DiagnosisInputs } from '@/domain/diagnosis/diagnosis.types'
 import { useKeyedDrafts } from '@/composables/useKeyedDrafts'
 import { usePeriodontalChartStore } from './periodontal-chart'
 import { registerSessionClearListener } from '@/services/session'
@@ -88,37 +82,26 @@ export const useDiagnosisStore = defineStore(
     // Backward-compatibility alias
     const visitKey = computed(() => currentKey.value)
 
-    const hasChanges = computed(() => {
-      return (
-        inputs.boneLossPercent !== null ||
-        inputs.teethLostToPerio !== null ||
-        inputs.extent !== null ||
-        inputs.stageMarks.cal !== null ||
-        inputs.stageMarks.boneLoss !== null ||
-        inputs.stageMarks.toothLoss !== null ||
-        inputs.stageMarks.complexity !== null ||
-        inputs.directEvidence !== null ||
-        inputs.ageYears !== null ||
-        inputs.phenotype !== null ||
-        inputs.smoking !== null ||
-        inputs.diabetes !== null
-      )
-    })
-
   const findings = computed(() => collectChartFindings(chartStore.teethData))
+  const assessment = computed(() =>
+    deriveDiagnosisAssessment(inputs, findings.value, chartStore.patientInfo.age),
+  )
+  const selectAssessment = <K extends keyof DiagnosisAssessment>(key: K) =>
+    computed(() => assessment.value[key])
+  const hasChanges = selectAssessment('hasChanges')
 
   // Straight off the chart. These four are measurements, so the chart is the
   // only place they can be changed — a diagnosis that quoted a different number
   // would leave the record saying one thing and the diagnosis another.
-  const interdentalCal = computed(() => findings.value.interdentalCal?.value ?? null)
-  const probingDepth = computed(() => findings.value.probingDepth?.value ?? null)
-  const furcation = computed(() => findings.value.furcation?.grade ?? null)
-  const mobility = computed(() => findings.value.mobility?.grade ?? null)
+  const interdentalCal = selectAssessment('interdentalCal')
+  const probingDepth = selectAssessment('probingDepth')
+  const furcation = selectAssessment('furcation')
+  const mobility = selectAssessment('mobility')
   // The record first, always: an age on file cannot be typed over here. The
   // input behind it only fills the gap when the record carries no age, so the
   // grade's % bone loss ÷ age is not blocked by a record nobody can reach.
-  const age = computed(() => chartStore.patientInfo.age ?? inputs.ageYears ?? null)
-  const ageFromRecord = computed(() => chartStore.patientInfo.age !== null)
+  const age = selectAssessment('age')
+  const ageFromRecord = selectAssessment('ageFromRecord')
 
   // Only what was read off the film. The chart's estimate used to fall in
   // behind an empty field, which counted the same attachment loss twice — once
@@ -127,126 +110,64 @@ export const useDiagnosisStore = defineStore(
   // 2 mm of CAL on a 13 mm root is the case definition in the CAL row and 15.4%
   // in this one, which is already Stage II. The estimate is offered beside the
   // field instead, for the doctor to accept or ignore.
-  const boneLoss = computed(() => inputs.boneLossPercent)
+  const boneLoss = selectAssessment('boneLoss')
 
   /** What the chart makes of the worst interdental site, offered as a prompt. */
-  const estimatedBoneLoss = computed(() => findings.value.estimatedBoneLossPercent)
+  const estimatedBoneLoss = selectAssessment('estimatedBoneLoss')
 
   // Note C under TAP 2023 table 5: tooth loss counts towards the stage only
   // where it is known for certain to have been periodontitis that took the
   // tooth. The chart records the gap, never the cause, so its tally is offered
   // beside the field as a prompt and nothing is assumed until the doctor answers.
-  const teethLost = computed(() => inputs.teethLostToPerio)
+  const teethLost = selectAssessment('teethLost')
 
-  const complexity = computed(() =>
-    complexityFindings(
-      probingDepth.value,
-      furcation.value,
-      mobility.value,
-      findings.value.remainingTeeth,
-    ),
-  )
+  const complexity = selectAssessment('complexity')
 
   // Where the measured numbers fall, criterion by criterion.
-  const stageReasons = computed(() =>
-    stageSummary(
-      interdentalCal.value,
-      boneLoss.value,
-      teethLost.value,
-      complexity.value,
-    ),
-  )
+  const stageReasons = selectAssessment('stageReasons')
 
   // The band each row of the staging table lands in on its own. A tick in
   // `inputs.stageMarks` overrides it, row by row.
-  const autoMarks = computed(() =>
-    autoStageMarks(
-      interdentalCal.value,
-      boneLoss.value,
-      teethLost.value,
-      complexityStage(
-        probingDepth.value,
-        furcation.value,
-        mobility.value,
-        findings.value.remainingTeeth,
-      ),
-    ),
-  )
+  const autoMarks = selectAssessment('autoMarks')
 
-  const stage = computed(() => assessStage(inputs.stageMarks, autoMarks.value))
+  const stage = selectAssessment('stage')
 
   // The stage is never set by hand. It follows the four rows of the staging
   // table, and the way to move it is to tick the row that reads differently —
   // then the stage on the record still has its criteria standing behind it.
-  const finalStage = computed(() => stage.value.stage)
+  const finalStage = selectAssessment('finalStage')
 
   // How much of the mouth the chart says is involved, unless the doctor says
   // otherwise — the chart cannot see a pattern it has no readings for.
-  const suggestedExtent = computed(() =>
-    suggestExtent(findings.value.affectedToothIds, findings.value.affectedPercentage),
-  )
-  const extent = computed(() => inputs.extent ?? suggestedExtent.value)
-  const extentOverridden = computed(
-    () =>
-      inputs.extent !== null &&
-      suggestedExtent.value !== null &&
-      inputs.extent !== suggestedExtent.value,
-  )
+  const suggestedExtent = selectAssessment('suggestedExtent')
+  const extent = selectAssessment('extent')
+  const extentOverridden = selectAssessment('extentOverridden')
 
   // Only the molar / incisor pattern, which the extent already counts off the
   // chart. Weighing destruction against biofilm has no cut-off in the table, so
   // the rest of this row is the doctor's.
-  const suggestedPhenotype = computed(() => suggestPhenotype(extent.value))
-  const phenotype = computed(() => inputs.phenotype ?? suggestedPhenotype.value)
-  const phenotypeFromChart = computed(
-    () => inputs.phenotype === null && suggestedPhenotype.value !== null,
-  )
-  const phenotypeOverridden = computed(
-    () =>
-      inputs.phenotype !== null &&
-      suggestedPhenotype.value !== null &&
-      inputs.phenotype !== suggestedPhenotype.value,
-  )
+  const suggestedPhenotype = selectAssessment('suggestedPhenotype')
+  const phenotype = selectAssessment('phenotype')
+  const phenotypeFromChart = selectAssessment('phenotypeFromChart')
+  const phenotypeOverridden = selectAssessment('phenotypeOverridden')
 
-  const grade = computed(() =>
-    assessGrade({
-      directEvidence: inputs.directEvidence,
-      boneLossPercent: boneLoss.value,
-      ageYears: age.value,
-      phenotype: phenotype.value,
-      phenotypeFromChart: phenotypeFromChart.value,
-      smoking: inputs.smoking,
-      diabetes: inputs.diabetes,
-    }),
-  )
+  const grade = selectAssessment('grade')
 
   // As with the stage: never set by hand. The grade is what the criteria above
   // arrive at, and the way to move it is to change the answer that reads wrong.
-  const finalGrade = computed(() => grade.value.grade)
+  const finalGrade = selectAssessment('finalGrade')
 
   // The rows with nothing to read yet, plus the extent — what stands between
   // the worksheet and a full diagnosis line.
-  const missingStageInputs = computed(() => [
-    ...stage.value.missing,
-    ...(extent.value ? [] : ['extent and distribution']),
-  ])
+  const missingStageInputs = selectAssessment('missingStageInputs')
 
-  const missingInputs = computed(() => [...missingStageInputs.value, ...grade.value.missing])
+  const missingInputs = selectAssessment('missingInputs')
 
-  const diagnosisTitle = computed(() => {
-    const parts: string[] = []
-    if (extent.value === 'molar-incisor') parts.push('Periodontitis, molar / incisor pattern')
-    else if (extent.value) parts.push(`${EXTENT_LABEL[extent.value].split(' (')[0]} Periodontitis`)
-    else parts.push('Periodontitis')
-
-    if (finalStage.value) parts.push(`Stage ${finalStage.value}`)
-    parts.push(`Grade ${finalGrade.value}`)
-    return parts.join(', ')
-  })
+  const diagnosisTitle = selectAssessment('diagnosisTitle')
 
   // The grade is never missing — TAP 2023 starts every case at Grade B — so the
   // stage is what stands between the worksheet and a diagnosis line.
-  const isClassified = computed(() => Boolean(finalStage.value))
+  const isClassified = selectAssessment('isClassified')
 
   /** Point the worksheet at a visit, loading its recorded inputs if any exist. */
   function openFor(visitOrKey?: string | null, patientId?: string | null) {
