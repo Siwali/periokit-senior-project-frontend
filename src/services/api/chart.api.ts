@@ -22,7 +22,7 @@ const SAVE_CHART = gql`
         studentId
         visitPhase
       }
-      diagnosis { extent complexity { boneLossPercent teethLostToPerio directEvidence phenotype smoking diabetes ageYears complexityStageOverride } }
+      diagnosis { extent complexity { boneLossPercent teethLostToPerio directEvidence phenotype smoking diabetes ageYears calStageOverride boneLossStageOverride toothLossStageOverride complexityStageOverride } }
     }
   }
 `
@@ -48,7 +48,7 @@ const CHART_BY_VISIT = gql`
         studentId
         visitPhase
       }
-      diagnosis { extent complexity { boneLossPercent teethLostToPerio directEvidence phenotype smoking diabetes ageYears complexityStageOverride } }
+      diagnosis { extent complexity { boneLossPercent teethLostToPerio directEvidence phenotype smoking diabetes ageYears calStageOverride boneLossStageOverride toothLossStageOverride complexityStageOverride } }
     }
   }
 `

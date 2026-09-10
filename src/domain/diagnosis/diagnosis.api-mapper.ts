@@ -15,6 +15,9 @@ export interface DiagnosisComplexityInputDto {
   smoking: 'non_smoker' | 'lt_10' | 'gte_10' | null
   diabetes: 'none' | 'hba1c_lt_7' | 'hba1c_gte_7' | null
   ageYears: number | null
+  calStageOverride: 'stage_1' | 'stage_2' | 'stage_3' | 'stage_4' | null
+  boneLossStageOverride: 'stage_1' | 'stage_2' | 'stage_3' | 'stage_4' | null
+  toothLossStageOverride: 'stage_1' | 'stage_2' | 'stage_3' | 'stage_4' | null
   complexityStageOverride: 'stage_1' | 'stage_2' | 'stage_3' | 'stage_4' | null
 }
 
@@ -114,6 +117,9 @@ export function toDiagnosisInputDto(inputs: DiagnosisInputs): DiagnosisInputDto 
       smoking: mapNullable(inputs.smoking, SMOKING_TO_API),
       diabetes: mapNullable(inputs.diabetes, DIABETES_TO_API),
       ageYears: integerOrNull(inputs.ageYears),
+      calStageOverride: mapNullable(inputs.stageMarks.cal, STAGE_TO_API),
+      boneLossStageOverride: mapNullable(inputs.stageMarks.boneLoss, STAGE_TO_API),
+      toothLossStageOverride: mapNullable(inputs.stageMarks.toothLoss, STAGE_TO_API),
       complexityStageOverride: inputs.stageMarks.complexity
         ? STAGE_TO_API[inputs.stageMarks.complexity]
         : null,
@@ -133,9 +139,9 @@ export function fromDiagnosisResponseDto(response: DiagnosisResponseDto): Partia
     diabetes: mapNullable(complexity.diabetes, DIABETES_FROM_API),
     ageYears: complexity.ageYears,
     stageMarks: {
-      cal: null,
-      boneLoss: null,
-      toothLoss: null,
+      cal: mapNullable(complexity.calStageOverride, STAGE_FROM_API),
+      boneLoss: mapNullable(complexity.boneLossStageOverride, STAGE_FROM_API),
+      toothLoss: mapNullable(complexity.toothLossStageOverride, STAGE_FROM_API),
       complexity: mapNullable(complexity.complexityStageOverride, STAGE_FROM_API),
     },
   }

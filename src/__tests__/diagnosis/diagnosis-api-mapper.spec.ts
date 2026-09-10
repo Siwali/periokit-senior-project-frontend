@@ -10,7 +10,7 @@ const inputs: DiagnosisInputs = {
   boneLossPercent: 38.5,
   teethLostToPerio: 3,
   extent: 'molar-incisor',
-  stageMarks: { cal: null, boneLoss: null, toothLoss: null, complexity: 'IV' },
+  stageMarks: { cal: 'II', boneLoss: 'III', toothLoss: 'IV', complexity: 'IV' },
   directEvidence: 'gte-2mm',
   ageYears: 52,
   phenotype: 'heavy-biofilm',
@@ -30,6 +30,9 @@ describe('Diagnosis API mapper', () => {
         smoking: 'gte_10',
         diabetes: 'hba1c_gte_7',
         ageYears: 52,
+        calStageOverride: 'stage_2',
+        boneLossStageOverride: 'stage_3',
+        toothLossStageOverride: 'stage_4',
         complexityStageOverride: 'stage_4',
       },
     })
@@ -46,6 +49,9 @@ describe('Diagnosis API mapper', () => {
         smoking: 'gte_10',
         diabetes: 'hba1c_gte_7',
         ageYears: 52,
+        calStageOverride: 'stage_2',
+        boneLossStageOverride: 'stage_3',
+        toothLossStageOverride: 'stage_4',
         complexityStageOverride: 'stage_4',
       },
     }
