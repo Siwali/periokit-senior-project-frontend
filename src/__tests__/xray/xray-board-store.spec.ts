@@ -1,7 +1,8 @@
 import { createPinia, setActivePinia } from 'pinia'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
+  getByVisit: vi.fn(),
   notifyError: vi.fn(),
   notifySuccess: vi.fn(),
   notifyWarning: vi.fn(),
@@ -17,7 +18,7 @@ vi.mock('@/stores/notification', () => ({
 
 vi.mock('@/services/api/xray.api', () => ({
   xrayApi: {
-    getByVisit: vi.fn(),
+    getByVisit: mocks.getByVisit,
     refreshUrls: vi.fn(),
     save: vi.fn(),
   },
@@ -37,6 +38,11 @@ import { useXrayBoardStore } from '@/stores/xray-board'
 describe('X-ray board store interface', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
+    mocks.getByVisit.mockReset()
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
   })
 
   it('owns note editing through intent-based actions', async () => {
@@ -73,5 +79,50 @@ describe('X-ray board store interface', () => {
     expect('loadState' in board).toBe(false)
     expect('stageSize' in board).toBe(false)
     expect('selectedObject' in board).toBe(false)
+  })
+
+  it('represents load and retry as one consistent lifecycle', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    mocks.getByVisit.mockRejectedValueOnce(new Error('offline'))
+    const board = useXrayBoardStore()
+
+    await board.loadBoard('patient::visit-1', 'visit-1')
+
+    expect(board.isLoading).toBe(false)
+    expect(board.loadFailed).toBe(true)
+    expect(board.isRetrying).toBe(false)
+    expect(board.retryFailed).toBe(false)
+    expect(board.editable).toBe(false)
+
+    let rejectRetry!: (reason: Error) => void
+    mocks.getByVisit.mockImplementationOnce(
+      () =>
+        new Promise((_, reject) => {
+          rejectRetry = reject
+        }),
+    )
+    const retry = board.retryLoad()
+
+    expect(board.isLoading).toBe(true)
+    expect(board.loadFailed).toBe(false)
+    expect(board.isRetrying).toBe(true)
+    expect(board.retryFailed).toBe(false)
+
+    rejectRetry(new Error('still offline'))
+    await retry
+
+    expect(board.isLoading).toBe(false)
+    expect(board.loadFailed).toBe(true)
+    expect(board.isRetrying).toBe(false)
+    expect(board.retryFailed).toBe(true)
+
+    mocks.getByVisit.mockResolvedValueOnce({ data: { xrayBoardByVisit: null } })
+    await board.retryLoad()
+
+    expect(board.isLoading).toBe(false)
+    expect(board.loadFailed).toBe(false)
+    expect(board.isRetrying).toBe(false)
+    expect(board.retryFailed).toBe(false)
+    expect(board.editable).toBe(true)
   })
 })
