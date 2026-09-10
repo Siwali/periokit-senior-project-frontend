@@ -61,10 +61,13 @@ const diagnosisStore = useDiagnosisStore()
 // Stable object — resetInputs() assigns into it rather than replacing it.
 const inputs = diagnosisStore.inputs
 
-const drawerOpen = ref(false)
-const isLoading = ref(true)
-const loadFailed = ref(false)
+type DiagnosisLoadStatus = 'loading' | 'loaded' | 'error'
 type ConfirmationDialog = 'save' | 'cancel-edit' | 'discard'
+
+const drawerOpen = ref(false)
+const loadStatus = ref<DiagnosisLoadStatus>('loading')
+const isLoading = computed(() => loadStatus.value === 'loading')
+const loadFailed = computed(() => loadStatus.value === 'error')
 const confirmationDialog = ref<ConfirmationDialog | null>(null)
 
 const closeConfirmation = () => {
@@ -149,11 +152,10 @@ onMounted(async () => {
       visitStore.setActiveVisit(visitId.value)
       if (visitId.value !== 'new') await chartStore.loadFromBackend(visitId.value)
     }
+    loadStatus.value = 'loaded'
   } catch (error) {
     console.error('Failed to load visit for diagnosis:', error)
-    loadFailed.value = true
-  } finally {
-    isLoading.value = false
+    loadStatus.value = 'error'
   }
 })
 
