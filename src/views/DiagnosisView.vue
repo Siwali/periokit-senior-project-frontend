@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import {
   ArrowLeft,
@@ -29,6 +29,7 @@ import { useVisitStore } from '@/stores/visit'
 import { useNotificationStore } from '@/stores/notification'
 import { useDiagnosisStore, resolveDiagnosisKey } from '@/stores/diagnosis'
 import { useVisitSave } from '@/composables/useVisitSave'
+import { useDiagnosisVisitContext } from '@/composables/useDiagnosisVisitContext'
 import {
   DIABETES_LABEL,
   DIRECT_EVIDENCE_LABEL,
@@ -61,12 +62,17 @@ const diagnosisStore = useDiagnosisStore()
 // Stable object — resetInputs() assigns into it rather than replacing it.
 const inputs = diagnosisStore.inputs
 
+type ConfirmationDialog = 'save' | 'cancel-edit' | 'discard'
+
 const drawerOpen = ref(false)
-const isLoading = ref(true)
-const loadFailed = ref(false)
-const showDiscardConfirm = ref(false)
-const showSaveConfirm = ref(false)
-const showCancelEditConfirm = ref(false)
+const { loadStatus, open: openVisitContext } = useDiagnosisVisitContext()
+const isLoading = computed(() => loadStatus.value === 'loading')
+const loadFailed = computed(() => loadStatus.value === 'error')
+const confirmationDialog = ref<ConfirmationDialog | null>(null)
+
+const closeConfirmation = () => {
+  confirmationDialog.value = null
+}
 
 const patientId = computed(() => (route.query.patientId as string) || null)
 const visitId = computed(() => (route.query.visitId as string) || null)
@@ -81,13 +87,11 @@ const visitId = computed(() => (route.query.visitId as string) || null)
 const resolvedPatientId = computed(
   () =>
     patientId.value ||
-    chartStore.currentPatientId ||
     visitStore.visits.find(visit => visit.id === visitId.value)?.patientId ||
+    visitStore.patientVisits.find(visit => visit.id === visitId.value)?.patientId ||
+    (visitStore.activeVisitId === visitId.value ? chartStore.currentPatientId : null) ||
     null,
 )
-
-// Load recorded inputs immediately in setup so template has data on first render
-diagnosisStore.openFor(visitId.value, resolvedPatientId.value)
 
 /**
  * The visit always goes back with the doctor, patient or no patient. A chart
@@ -131,34 +135,10 @@ const openTooth = (toothId: ToothId) => {
  * is fetched the same way the chart page fetches it. The guards keep a chart
  * that is already open (and possibly edited) from being reloaded over.
  */
-onMounted(async () => {
-  chartStore.initializeChart()
-  diagnosisStore.openFor(visitId.value, resolvedPatientId.value)
-
-  try {
-    if (patientId.value && chartStore.currentPatientId !== patientId.value) {
-      await chartStore.loadPatientById(patientId.value)
-    }
-    // Which visit is open has to be right even for a draft, or a Save pressed
-    // from this page after a reload would not know which visit it is writing.
-    const alreadyOpen = visitStore.activeVisitId === visitId.value
-    if (visitId.value && !alreadyOpen) {
-      visitStore.setActiveVisit(visitId.value)
-      if (visitId.value !== 'new') await chartStore.loadFromBackend(visitId.value)
-    }
-  } catch (error) {
-    console.error('Failed to load visit for diagnosis:', error)
-    loadFailed.value = true
-  } finally {
-    isLoading.value = false
-  }
-})
-
 watch(
   [visitId, resolvedPatientId],
-  ([newVisit, newPatient]) => {
-    diagnosisStore.openFor(newVisit, newPatient)
-  },
+  ([newVisit, newPatient]) => openVisitContext(newVisit, newPatient),
+  { immediate: true },
 )
 
 // Anything the doctor can change carries a faint box, so an editable value is
@@ -232,7 +212,7 @@ const applyGradeChoice = (choice: GradeChoice) => {
 }
 
 const confirmDiscard = () => {
-  showDiscardConfirm.value = false
+  closeConfirmation()
   diagnosisStore.resetInputs()
   notifStore.info('Diagnosis cleared')
 }
@@ -261,12 +241,15 @@ const handleEdit = () => {
 }
 
 const handleCancelEditClick = () => {
-  if (chartStore.isDirty || diagnosisStore.isDirty) showCancelEditConfirm.value = true
-  else chartStore.editMode = false
+  if (chartStore.isDirty || diagnosisStore.isDirty) {
+    confirmationDialog.value = 'cancel-edit'
+    return
+  }
+  chartStore.editMode = false
 }
 
 const confirmCancelEdit = async () => {
-  showCancelEditConfirm.value = false
+  closeConfirmation()
   chartStore.editMode = false
   // Throw the unsaved edits away by reading the visit back off the backend —
   // the chart and the diagnosis together, since one save wrote both.
@@ -293,11 +276,11 @@ const nothingToSave = computed(
 const handleSaveClick = () => {
   if (isSaving.value) return
   if (!validate()) return
-  showSaveConfirm.value = true
+  confirmationDialog.value = 'save'
 }
 
 const confirmSave = async () => {
-  showSaveConfirm.value = false
+  closeConfirmation()
   const saved = await saveVisit()
   if (!saved) return
 
@@ -1209,7 +1192,7 @@ const gradeMeaning = computed(() => GRADE_MEANING[diagnosisStore.finalGrade])
           type="button"
           class="flex items-center gap-1.5 px-3.5 py-1.5 bg-white/90 hover:bg-white backdrop-blur-sm border border-slate-200/90 text-slate-600 hover:text-red-600 hover:border-red-200 hover:bg-red-50/80 rounded-full font-semibold text-xs shadow-sm hover:shadow-md transition-all duration-150 cursor-pointer opacity-85 hover:opacity-100 group"
           title="Discard changes and restore chart defaults"
-          @click="showDiscardConfirm = true"
+          @click="confirmationDialog = 'discard'"
         >
           <RotateCcw class="w-3.5 h-3.5 text-slate-400 group-hover:text-red-500 transition-transform duration-150 group-hover:-rotate-45" />
           <span>Discard</span>
@@ -1220,35 +1203,35 @@ const gradeMeaning = computed(() => GRADE_MEANING[diagnosisStore.finalGrade])
     <!-- Says out loud what the button beneath it already says: one Save, one
          visit. Same wording as the chart page's, because it is the same act. -->
     <ConfirmModal
-      :show="showSaveConfirm"
+      :show="confirmationDialog === 'save'"
       title="Save Chart"
       message="<span class='text-slate-800 font-bold text-lg block mb-1'>Save this visit?</span><span class='text-slate-500 font-normal'>This saves both the periodontal chart and diagnosis. You can still click Edit to change it later.</span>"
       confirm-text="Save"
       cancel-text="Cancel"
       @confirm="confirmSave"
-      @cancel="showSaveConfirm = false"
+      @cancel="closeConfirmation"
     />
 
     <ConfirmModal
-      :show="showCancelEditConfirm"
+      :show="confirmationDialog === 'cancel-edit'"
       title="Cancel Editing"
       message="<span class='text-slate-800 font-bold text-lg block mb-1'>Are you sure you want to cancel?</span><span class='text-slate-500 font-normal'>Any unsaved changes will be lost.</span>"
       confirm-text="Discard Changes"
       cancel-text="Continue Editing"
       type="danger"
       @confirm="confirmCancelEdit"
-      @cancel="showCancelEditConfirm = false"
+      @cancel="closeConfirmation"
     />
 
     <ConfirmModal
-      :show="showDiscardConfirm"
+      :show="confirmationDialog === 'discard'"
       title="Discard changes"
       message="<span class='text-slate-800 font-bold text-lg block mb-1'>Clear everything you filled in?</span><span class='text-slate-500 font-normal'>The chart's own values come back, and every band you ticked is cleared.</span>"
       confirm-text="Discard"
       cancel-text="Cancel"
       type="danger"
       @confirm="confirmDiscard"
-      @cancel="showDiscardConfirm = false"
+      @cancel="closeConfirmation"
     />
   </div>
 </template>

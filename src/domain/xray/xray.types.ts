@@ -39,6 +39,11 @@ export interface XrayNoteObject extends XrayObjectBase {
 
 export type XrayObject = XrayImageObject | XrayNoteObject
 
+/** Geometry fields changed together while an object is moved, resized, or rotated. */
+export type XrayGeometryPatch = Partial<
+  Pick<XrayObjectBase, 'posX' | 'posY' | 'width' | 'height' | 'rotation'>
+>
+
 /**
  * One mounting position on the board — a film of the 18-film full-mouth series,
  * or one of the nine intraoral photograph views.

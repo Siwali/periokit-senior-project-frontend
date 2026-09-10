@@ -184,8 +184,8 @@ const switchPatient = async (patient: Patient) => {
 }
 
 const viewChart = async (visitId: string) => {
-  // Update query params; the chart page's watcher on `visitId` handles
-  // setActiveVisit + loadFromBackend, so we don't load here (avoids double-load).
+  // Each destination page owns the query-to-visit workflow, so the drawer only
+  // changes the route and never starts a competing chart request.
   const patientId = route.query.patientId || patientVisits.value.find(v => v.id === visitId)?.patientId
   const failure = await router.replace({
     query: patientId

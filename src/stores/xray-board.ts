@@ -11,6 +11,13 @@ import {
   XRAY_PREF_KEYS,
 } from '@/domain/xray/xray.constants'
 import {
+  createXrayBoardFingerprint,
+  createXrayBoardSaveInput,
+  createXrayBoardSnapshot,
+  mapXrayBoardResponse,
+  parseXrayBoardSnapshot,
+} from '@/domain/xray/xray-board'
+import {
   boardBounds,
   clamp,
   findSlotAt,
@@ -20,8 +27,8 @@ import {
 } from '@/domain/xray/xray.geometry'
 import { newUploadId, reasonText } from '@/domain/xray/xray.upload'
 import type {
-  XrayBoardObjectInput,
   XrayBoardResponse,
+  XrayGeometryPatch,
   XrayImageObject,
   XrayLayoutMode,
   XrayNoteObject,
@@ -48,6 +55,8 @@ export function xrayBoardKey(patientId: string | null, visitId: string | null) {
   return `${patientId ?? 'no-patient'}::${visitId ?? 'new'}`
 }
 
+type XrayLoadStatus = 'loading' | 'loaded' | 'error' | 'retrying' | 'retry-failed'
+
 function readImageSize(url: string): Promise<{ width: number; height: number }> {
   return new Promise((resolve, reject) => {
     const image = new Image()
@@ -55,115 +64,6 @@ function readImageSize(url: string): Promise<{ width: number; height: number }> 
     image.onerror = () => reject(new Error('Image could not be decoded'))
     image.src = url
   })
-}
-
-/**
- * Flattens the stack to 0..n-1 — no gaps, nothing negative (SRS-280). "Send to
- * back" counts downwards for as long as the doctor keeps pressing it, and
- * z_index is a SmallInt on the backend, so the drift has to be squeezed out at
- * the point the board is written down. Paint order is unchanged: the sort is
- * what the board was already rendering.
- */
-function normalizeZIndex(boardObjects: XrayObject[]): XrayObject[] {
-  return [...boardObjects]
-    // The id breaks a tie so the order is the board's and not the array's:
-    // without it, two objects sharing a zIndex would be flattened in whatever
-    // order they happen to sit in, and moving one of them within the array
-    // would read as an edit to a board that looks identical.
-    .sort((a, b) => a.zIndex - b.zIndex || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
-    .map((object, index) => ({ ...object, zIndex: index }))
-}
-
-/**
- * The API response, back into the board's own shape. Nothing is recomputed on
- * the way in — SRS-169 forbids touching geometry on load, so every number is
- * passed through as the server sent it, and the union is recovered from
- * `objectType` alone.
- *
- * `naturalWidth`/`naturalHeight` live on the asset rather than the object, so
- * they are looked up; a film whose asset did not come back (cleaned up, or a URL
- * the server could not sign) falls back to its on-board size, which keeps the
- * aspect ratio it is already drawn at rather than collapsing it.
- */
-function fromResponse(board: XrayBoardResponse): XrayObject[] {
-  const assets = new Map(board.assets.map(asset => [asset.id, asset]))
-  return board.objects.map(object => {
-    const base = {
-      id: object.id,
-      zIndex: object.zIndex,
-      posX: object.posX,
-      posY: object.posY,
-      width: object.width,
-      height: object.height,
-      rotation: object.rotation,
-    }
-    if (object.objectType !== 'image') {
-      return {
-        ...base,
-        objectType: 'note',
-        noteText: object.noteText ?? '',
-        noteColor: object.noteColor ?? NOTE_DEFAULT_COLOR,
-        noteFontSize: object.noteFontSize ?? NOTE_FONT.default,
-      } satisfies XrayNoteObject
-    }
-    const asset = object.assetId ? assets.get(object.assetId) : undefined
-    return {
-      ...base,
-      objectType: 'image',
-      assetId: object.assetId ?? '',
-      naturalWidth: asset?.naturalWidth || object.width,
-      naturalHeight: asset?.naturalHeight || object.height,
-      slotCode: object.slotCode,
-    } satisfies XrayImageObject
-  })
-}
-
-/**
- * One object, on its way to `saveXrayBoard`. The id is deliberately dropped: a
- * save is replace-all, so the server has no old row to match it against and
- * mints a fresh one (PER-233). A note must not carry `assetId` at all — the
- * resolver refuses one that does — so the two branches send different fields
- * rather than one shape with nulls in it.
- */
-function toSaveInput(object: XrayObject): XrayBoardObjectInput {
-  const base = {
-    objectType: object.objectType,
-    zIndex: object.zIndex,
-    posX: object.posX,
-    posY: object.posY,
-    width: object.width,
-    height: object.height,
-    rotation: object.rotation,
-  }
-  return object.objectType === 'image'
-    ? { ...base, assetId: object.assetId, slotCode: object.slotCode }
-    : {
-        ...base,
-        noteText: object.noteText,
-        noteColor: object.noteColor,
-        noteFontSize: object.noteFontSize,
-      }
-}
-
-/**
- * The board reduced to what a save would actually write down (PER-257 §3).
- * Built from `toSaveInput` on purpose: the dirty check then compares the exact
- * payload the mutation would send, and a field added to one is a field added to
- * the other. Everything else is left out by construction — the id, the natural
- * size, and above all the signed URL, which lives in `imageUrls` and would
- * otherwise turn the board dirty every time it was refreshed.
- *
- * Rotation is the one saved number that is not an integer: it comes out of an
- * `atan2` during a drag, so it is rounded here to keep 45 and 45.00000001 from
- * reading as different boards. The value on the board is left alone.
- */
-function fingerprint(boardObjects: XrayObject[]): string {
-  return JSON.stringify(
-    normalizeZIndex(boardObjects).map(object => ({
-      ...toSaveInput(object),
-      rotation: Math.round(object.rotation * 100) / 100,
-    })),
-  )
 }
 
 function readPref(key: string): string | null {
@@ -204,6 +104,13 @@ export const useXrayBoardStore = defineStore('xrayBoard', () => {
   const selectedId = ref<string | null>(null)
   const editingNoteId = ref<string | null>(null)
 
+  /**
+   * "no board for this visit" and "we could not find out" are different answers
+   * (SRS-193). One lifecycle value also prevents contradictory combinations
+   * such as a request being both loaded and failed, or retrying and retry-failed.
+   */
+  const loadStatus = ref<XrayLoadStatus>('loading')
+
   // --- save state (Draft -> Saved -> Edit -> Saved) --------------------------
   // The cycle itself, and the two copies of the last save it turns on.
   const {
@@ -218,29 +125,17 @@ export const useXrayBoardStore = defineStore('xrayBoard', () => {
     markSaved,
     clear: clearSaveState,
   } = useXraySaveState({
-    take: () => snapshot(),
-    fingerprint: () => fingerprint(objects.value),
+    take: () => createXrayBoardSnapshot(objects.value),
+    fingerprint: () => createXrayBoardFingerprint(objects.value),
     isEmpty: () => objects.value.length === 0,
-    isReadable: () => loadState.value === 'loaded',
+    isReadable: () => loadStatus.value === 'loaded',
   })
-
-  /**
-   * "no board for this visit" and "we could not find out" are different answers
-   * (SRS-193). Collapsing them shows an empty Draft over a board that really
-   * has films, and the next save wipes it — the one way Phase 1 can lose a
-   * patient's data for good.
-   */
-  const loadState = ref<'loading' | 'loaded' | 'error'>('loading')
-  const isRetrying = ref(false)
-  /** A retry has come back empty-handed — worth saying so, in plain words. */
-  const retryFailed = ref(false)
 
   // --- viewport -------------------------------------------------------------
   // Pan and zoom keep to themselves: nothing in here is part of the board, so
   // the only thing the store hands over is where the board's contents are.
   const {
     viewport,
-    stageSize,
     toWorld,
     viewCenter,
     zoomAt,
@@ -288,8 +183,14 @@ export const useXrayBoardStore = defineStore('xrayBoard', () => {
     selectedObject.value?.objectType === 'note' ? selectedObject.value : null,
   )
   const selectedIsSaved = computed(() => wasSaved(selectedId.value))
-  const isLoading = computed(() => loadState.value === 'loading')
-  const loadFailed = computed(() => loadState.value === 'error')
+  const isLoading = computed(
+    () => loadStatus.value === 'loading' || loadStatus.value === 'retrying',
+  )
+  const loadFailed = computed(
+    () => loadStatus.value === 'error' || loadStatus.value === 'retry-failed',
+  )
+  const isRetrying = computed(() => loadStatus.value === 'retrying')
+  const retryFailed = computed(() => loadStatus.value === 'retry-failed')
   const isEmpty = computed(() => objects.value.length === 0)
   /**
    * Paint order (SRS-167). Sorted here rather than by reordering `objects`, so
@@ -320,7 +221,7 @@ export const useXrayBoardStore = defineStore('xrayBoard', () => {
    */
   const canSave = computed(
     () =>
-      loadState.value === 'loaded' &&
+      loadStatus.value === 'loaded' &&
       editable.value &&
       // A board belongs to a visit, and the draft tab has no visit to belong to.
       canUpload.value &&
@@ -347,7 +248,7 @@ export const useXrayBoardStore = defineStore('xrayBoard', () => {
    * in reads as unchanged, the same way a film dragged out and back does.
    */
   function snapshot() {
-    return JSON.stringify({ objects: normalizeZIndex(objects.value) })
+    return createXrayBoardSnapshot(objects.value)
   }
 
   /** Next free slot on top of the stack. An empty board starts at 0. */
@@ -361,8 +262,7 @@ export const useXrayBoardStore = defineStore('xrayBoard', () => {
 
   // --- history --------------------------------------------------------------
   function restore(snap: string) {
-    const parsed = JSON.parse(snap) as { objects: XrayObject[] }
-    objects.value = parsed.objects
+    objects.value = parseXrayBoardSnapshot(snap)
     if (!objects.value.some(object => object.id === selectedId.value)) selectedId.value = null
     editingNoteId.value = null
   }
@@ -380,6 +280,38 @@ export const useXrayBoardStore = defineStore('xrayBoard', () => {
   // --- objects --------------------------------------------------------------
   function select(id: string | null) {
     selectedId.value = id
+  }
+
+  /** Opens an existing note for text editing without exposing the editing ref. */
+  function startNoteEditing(id: string) {
+    if (!editable.value) return false
+    const note = objects.value.find(object => object.id === id)
+    if (note?.objectType !== 'note') return false
+    selectedId.value = id
+    editingNoteId.value = id
+    return true
+  }
+
+  /** Ends note editing and records the text change as one undo step. */
+  function finishNoteEditing() {
+    if (!editingNoteId.value) return false
+    editingNoteId.value = null
+    pushHistory()
+    return true
+  }
+
+  /**
+   * Applies one geometry frame atomically. Invalid browser maths must not leave
+   * half of an object updated or put NaN into a payload that the API rejects.
+   */
+  function updateObjectGeometry(id: string, patch: XrayGeometryPatch) {
+    if (!editable.value || Object.values(patch).some(value => !Number.isFinite(value))) {
+      return false
+    }
+    const object = objects.value.find(candidate => candidate.id === id)
+    if (!object) return false
+    Object.assign(object, patch)
+    return true
   }
 
   async function addImageFiles(files: FileList | File[], worldX: number, worldY: number) {
@@ -654,7 +586,7 @@ export const useXrayBoardStore = defineStore('xrayBoard', () => {
    */
   function applyBoard(board: XrayBoardResponse) {
     images.releaseAll()
-    objects.value = fromResponse(board)
+    objects.value = mapXrayBoardResponse(board)
     for (const asset of board.assets) {
       if (asset.signedUrl) images.putUrl(asset.id, asset.signedUrl)
     }
@@ -678,14 +610,14 @@ export const useXrayBoardStore = defineStore('xrayBoard', () => {
     savedAt.value = board.savedAt ? new Date(board.savedAt) : null
   }
 
-  async function fetchBoard(key: string) {
-    loadState.value = 'loading'
+  async function fetchBoard(key: string, attempt: 'initial' | 'retry' = 'initial') {
+    loadStatus.value = attempt === 'retry' ? 'retrying' : 'loading'
 
     // A visit that does not exist server-side has no board to read. Not an
     // error and not an empty board either — it is a board that has nowhere to
     // be yet, and the films on it stay in this browser until it does.
     if (!canUpload.value) {
-      loadState.value = 'loaded'
+      loadStatus.value = 'loaded'
       resetHistory()
       fit()
       return
@@ -701,13 +633,13 @@ export const useXrayBoardStore = defineStore('xrayBoard', () => {
         applyBoard(board)
         markSaved()
       }
-      loadState.value = 'loaded'
+      loadStatus.value = 'loaded'
     } catch (error) {
       if (boardKey.value !== key) return
       // Only the flag moves: the objects on screen stay put (SRS-194) and a
       // board that was Saved is still Saved — a failed read is not a downgrade
       // to Draft (SRS-198).
-      loadState.value = 'error'
+      loadStatus.value = attempt === 'retry' ? 'retry-failed' : 'error'
       // Message only, never the board key: it carries the patient id (SRS-199).
       console.error('Failed to open X-ray board:', (error as Error)?.message ?? error)
     } finally {
@@ -728,7 +660,6 @@ export const useXrayBoardStore = defineStore('xrayBoard', () => {
     clearBoardState()
     images.releaseAll()
     uploads.reset()
-    retryFailed.value = false
     await fetchBoard(key)
   }
 
@@ -736,13 +667,7 @@ export const useXrayBoardStore = defineStore('xrayBoard', () => {
   async function retryLoad() {
     const key = boardKey.value
     if (!key || isRetrying.value) return
-    isRetrying.value = true
-    try {
-      await fetchBoard(key)
-      retryFailed.value = loadState.value === 'error'
-    } finally {
-      isRetrying.value = false
-    }
+    await fetchBoard(key, 'retry')
   }
 
   function validateBeforeSave() {
@@ -850,7 +775,7 @@ export const useXrayBoardStore = defineStore('xrayBoard', () => {
         // SmallInt and "send to back" keeps counting down. The board on screen
         // keeps the zIndex the doctor's last reorder gave it, so nothing shifts
         // under them mid-session.
-        objects: normalizeZIndex(objects.value).map(toSaveInput),
+        objects: createXrayBoardSaveInput(objects.value),
       })
       const board = data?.saveXrayBoard
       if (!board) throw new Error('saveXrayBoard answered without a board')
@@ -951,8 +876,7 @@ export const useXrayBoardStore = defineStore('xrayBoard', () => {
     images.releaseAll()
     clearBoardState()
     uploads.reset()
-    loadState.value = 'loading'
-    retryFailed.value = false
+    loadStatus.value = 'loading'
     boardKey.value = null
     visitId.value = null
     resetViewport()
@@ -960,8 +884,6 @@ export const useXrayBoardStore = defineStore('xrayBoard', () => {
 
   return {
     // state
-    boardKey,
-    visitId,
     objects,
     layout,
     layoutMode,
@@ -972,18 +894,15 @@ export const useXrayBoardStore = defineStore('xrayBoard', () => {
     savedAt,
     editMode,
     isSaving,
-    loadState,
     isRetrying,
     retryFailed,
     viewport,
-    stageSize,
     imageUrls: images.urls,
     failedAssets: images.failed,
     uploadQueue,
     lightCanvas,
     toolbarCollapsed,
     // derived
-    selectedObject,
     selectedNote,
     selectedIsSaved,
     isLoading,
@@ -1012,6 +931,9 @@ export const useXrayBoardStore = defineStore('xrayBoard', () => {
     setStageSize,
     // objects
     select,
+    startNoteEditing,
+    finishNoteEditing,
+    updateObjectGeometry,
     addImageFiles,
     retryUpload: uploads.retry,
     retryFailedUploads: uploads.retryFailed,

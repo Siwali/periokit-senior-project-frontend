@@ -318,6 +318,10 @@ export const usePeriodontalChartStore = defineStore('periodontalChart', {
     async loadFromBackend(visitId: string) {
       try {
         const { data } = await chartApi.getByVisit(visitId)
+        const visitStore = useVisitStore()
+        // A slower response from a visit the user already left must not replace
+        // the active chart or hydrate its diagnosis worksheet.
+        if (visitStore.activeVisitId !== visitId) return
         const chartData = data?.chartByVisit
         const diagnosisStore = useDiagnosisStore()
         diagnosisStore.openFor(visitId, this.currentPatientId)
@@ -381,6 +385,8 @@ export const usePeriodontalChartStore = defineStore('periodontalChart', {
       this.currentPatientId = id
       const { patientApi } = await import('@/services/api/patient.api')
       const patient = await patientApi.getById(id)
+      // Keep a slower response from replacing the header of a newer patient.
+      if (this.currentPatientId !== id) return
       if (patient) {
         const genderRaw = patient.gender || ''
         this.patientInfo = {

@@ -331,28 +331,6 @@ function startHandleDrag(event: PointerEvent, object: XrayObject, handle: string
   event.preventDefault()
 }
 
-type GeometryPatch = {
-  posX?: number
-  posY?: number
-  width?: number
-  height?: number
-  rotation?: number
-}
-
-/**
- * Writes geometry only when every number in it is real, and reports whether it
- * did. A film stored with a width of 0 divides into the resize scale as
- * Infinity and comes back out as NaN, which drops the object off the board and
- * would be refused by the xray_object CHECKs at save time — long after the
- * doctor could tell what went wrong. Holding the last good geometry costs one
- * skipped frame instead.
- */
-function applyGeometry(object: XrayObject, patch: GeometryPatch) {
-  if (Object.values(patch).some(value => !Number.isFinite(value))) return false
-  Object.assign(object, patch)
-  return true
-}
-
 function onPointerMove(event: PointerEvent) {
   if (event.pointerType === 'touch' && touches.has(event.pointerId)) {
     touches.set(event.pointerId, { x: event.clientX, y: event.clientY })
@@ -379,12 +357,10 @@ function onPointerMove(event: PointerEvent) {
     return
   }
 
-  const object = objects.value.find(candidate => candidate.id === current.id)
-  if (!object) return
   const point = worldPoint(event)
 
   if (current.mode === 'move') {
-    const written = applyGeometry(object, {
+    const written = board.updateObjectGeometry(current.id, {
       posX: Math.round(point.x - current.offsetX),
       posY: Math.round(point.y - current.offsetY),
     })
@@ -408,7 +384,7 @@ function onPointerMove(event: PointerEvent) {
     const width = Math.round(current.startW * scale)
     const height = Math.round(current.startH * scale)
     const center = rotateVec((current.dirX * width) / 2, (current.dirY * height) / 2, current.angle)
-    const written = applyGeometry(object, {
+    const written = board.updateObjectGeometry(current.id, {
       width,
       height,
       posX: Math.round(current.anchorX + center.x - width / 2),
@@ -422,7 +398,9 @@ function onPointerMove(event: PointerEvent) {
     (Math.atan2(point.y - current.centerY, point.x - current.centerX) * 180) / Math.PI + 90
   if (event.shiftKey) angle = Math.round(angle / 15) * 15
   // Normalised into [0, 360) to match the xray_object_rotation_valid CHECK (PER-231).
-  if (applyGeometry(object, { rotation: ((angle % 360) + 360) % 360 })) current.moved = true
+  if (board.updateObjectGeometry(current.id, { rotation: ((angle % 360) + 360) % 360 })) {
+    current.moved = true
+  }
 }
 
 function endDrag() {
@@ -484,9 +462,7 @@ function blurEditingNote() {
 }
 
 function onNoteBlur() {
-  if (!editingNoteId.value) return
-  board.editingNoteId = null
-  board.pushHistory()
+  board.finishNoteEditing()
 }
 
 /** Reopens a note for editing. Asks `lastPointerDownId`, never `event.target`. */
@@ -494,8 +470,7 @@ function onDoubleClick() {
   if (!editable.value) return
   const object = objects.value.find(candidate => candidate.id === lastPointerDownId)
   if (object?.objectType !== 'note') return
-  board.select(object.id)
-  board.editingNoteId = object.id
+  board.startNoteEditing(object.id)
 }
 
 watch(editingNoteId, async id => {
