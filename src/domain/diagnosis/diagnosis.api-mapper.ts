@@ -28,11 +28,79 @@ export interface DiagnosisResponseDto {
   complexity: DiagnosisComplexityInputDto
 }
 
-const stageToApi: Record<StageId, DiagnosisComplexityInputDto['complexityStageOverride']> = {
-  I: 'stage_1', II: 'stage_2', III: 'stage_3', IV: 'stage_4',
-}
-const stageFromApi: Record<NonNullable<DiagnosisComplexityInputDto['complexityStageOverride']>, StageId> = {
-  stage_1: 'I', stage_2: 'II', stage_3: 'III', stage_4: 'IV',
+type ApiDirectEvidence = NonNullable<DiagnosisComplexityInputDto['directEvidence']>
+type ApiPhenotype = NonNullable<DiagnosisComplexityInputDto['phenotype']>
+type ApiSmoking = NonNullable<DiagnosisComplexityInputDto['smoking']>
+type ApiDiabetes = NonNullable<DiagnosisComplexityInputDto['diabetes']>
+type ApiStageOverride = NonNullable<DiagnosisComplexityInputDto['complexityStageOverride']>
+
+const DIRECT_EVIDENCE_TO_API = {
+  'no-loss': 'no_loss',
+  'lt-2mm': 'lt_2mm',
+  'gte-2mm': 'gte_2mm',
+} satisfies Record<DirectEvidence, ApiDirectEvidence>
+
+const DIRECT_EVIDENCE_FROM_API = {
+  no_loss: 'no-loss',
+  lt_2mm: 'lt-2mm',
+  gte_2mm: 'gte-2mm',
+} satisfies Record<ApiDirectEvidence, DirectEvidence>
+
+const PHENOTYPE_TO_API = {
+  'heavy-biofilm': 'heavy_biofilm',
+  commensurate: 'commensurate',
+  exceeds: 'exceeds',
+} satisfies Record<Phenotype, ApiPhenotype>
+
+const PHENOTYPE_FROM_API = {
+  heavy_biofilm: 'heavy-biofilm',
+  commensurate: 'commensurate',
+  exceeds: 'exceeds',
+} satisfies Record<ApiPhenotype, Phenotype>
+
+const SMOKING_TO_API = {
+  'non-smoker': 'non_smoker',
+  'lt-10': 'lt_10',
+  'gte-10': 'gte_10',
+} satisfies Record<Smoking, ApiSmoking>
+
+const SMOKING_FROM_API = {
+  non_smoker: 'non-smoker',
+  lt_10: 'lt-10',
+  gte_10: 'gte-10',
+} satisfies Record<ApiSmoking, Smoking>
+
+const DIABETES_TO_API = {
+  none: 'none',
+  'hba1c-lt-7': 'hba1c_lt_7',
+  'hba1c-gte-7': 'hba1c_gte_7',
+} satisfies Record<Diabetes, ApiDiabetes>
+
+const DIABETES_FROM_API = {
+  none: 'none',
+  hba1c_lt_7: 'hba1c-lt-7',
+  hba1c_gte_7: 'hba1c-gte-7',
+} satisfies Record<ApiDiabetes, Diabetes>
+
+const STAGE_TO_API = {
+  I: 'stage_1',
+  II: 'stage_2',
+  III: 'stage_3',
+  IV: 'stage_4',
+} satisfies Record<StageId, ApiStageOverride>
+
+const STAGE_FROM_API = {
+  stage_1: 'I',
+  stage_2: 'II',
+  stage_3: 'III',
+  stage_4: 'IV',
+} satisfies Record<ApiStageOverride, StageId>
+
+function mapNullable<T extends string, U extends string>(
+  value: T | null,
+  map: Record<T, U>,
+): U | null {
+  return value === null ? null : map[value]
 }
 
 export function toDiagnosisInputDto(inputs: DiagnosisInputs): DiagnosisInputDto {
@@ -41,32 +109,42 @@ export function toDiagnosisInputDto(inputs: DiagnosisInputs): DiagnosisInputDto 
     complexity: {
       boneLossPercent: finiteOrNull(inputs.boneLossPercent),
       teethLostToPerio: integerOrNull(inputs.teethLostToPerio),
-      directEvidence: toApiValue(inputs.directEvidence, { 'no-loss': 'no_loss', 'lt-2mm': 'lt_2mm', 'gte-2mm': 'gte_2mm' }),
-      phenotype: toApiValue(inputs.phenotype, { 'heavy-biofilm': 'heavy_biofilm', commensurate: 'commensurate', exceeds: 'exceeds' }),
-      smoking: toApiValue(inputs.smoking, { 'non-smoker': 'non_smoker', 'lt-10': 'lt_10', 'gte-10': 'gte_10' }),
-      diabetes: toApiValue(inputs.diabetes, { none: 'none', 'hba1c-lt-7': 'hba1c_lt_7', 'hba1c-gte-7': 'hba1c_gte_7' }),
+      directEvidence: mapNullable(inputs.directEvidence, DIRECT_EVIDENCE_TO_API),
+      phenotype: mapNullable(inputs.phenotype, PHENOTYPE_TO_API),
+      smoking: mapNullable(inputs.smoking, SMOKING_TO_API),
+      diabetes: mapNullable(inputs.diabetes, DIABETES_TO_API),
       ageYears: integerOrNull(inputs.ageYears),
-      complexityStageOverride: inputs.stageMarks.complexity ? stageToApi[inputs.stageMarks.complexity] : null,
+      complexityStageOverride: inputs.stageMarks.complexity
+        ? STAGE_TO_API[inputs.stageMarks.complexity]
+        : null,
     },
   }
 }
 
 export function fromDiagnosisResponseDto(response: DiagnosisResponseDto): Partial<DiagnosisInputs> {
-  const c = response.complexity
+  const complexity = response.complexity
   return {
     extent: response.extent === 'molar_incisor' ? 'molar-incisor' : response.extent,
-    boneLossPercent: c.boneLossPercent,
-    teethLostToPerio: c.teethLostToPerio,
-    directEvidence: fromApiValue(c.directEvidence, { no_loss: 'no-loss', lt_2mm: 'lt-2mm', gte_2mm: 'gte_2mm' }) as DirectEvidence | null,
-    phenotype: fromApiValue(c.phenotype, { heavy_biofilm: 'heavy-biofilm', commensurate: 'commensurate', exceeds: 'exceeds' }) as Phenotype | null,
-    smoking: fromApiValue(c.smoking, { non_smoker: 'non-smoker', lt_10: 'lt-10', gte_10: 'gte-10' }) as Smoking | null,
-    diabetes: fromApiValue(c.diabetes, { none: 'none', hba1c_lt_7: 'hba1c-lt-7', hba1c_gte_7: 'hba1c-gte-7' }) as Diabetes | null,
-    ageYears: c.ageYears,
-    stageMarks: { cal: null, boneLoss: null, toothLoss: null, complexity: c.complexityStageOverride ? stageFromApi[c.complexityStageOverride] : null },
+    boneLossPercent: complexity.boneLossPercent,
+    teethLostToPerio: complexity.teethLostToPerio,
+    directEvidence: mapNullable(complexity.directEvidence, DIRECT_EVIDENCE_FROM_API),
+    phenotype: mapNullable(complexity.phenotype, PHENOTYPE_FROM_API),
+    smoking: mapNullable(complexity.smoking, SMOKING_FROM_API),
+    diabetes: mapNullable(complexity.diabetes, DIABETES_FROM_API),
+    ageYears: complexity.ageYears,
+    stageMarks: {
+      cal: null,
+      boneLoss: null,
+      toothLoss: null,
+      complexity: mapNullable(complexity.complexityStageOverride, STAGE_FROM_API),
+    },
   }
 }
 
-function finiteOrNull(value: number | null) { return value !== null && Number.isFinite(value) ? value : null }
-function integerOrNull(value: number | null) { return value !== null && Number.isInteger(value) ? value : null }
-function toApiValue<T extends string, U extends string>(value: T | null, map: Record<T, U>): U | null { return value === null ? null : map[value] }
-function fromApiValue<T extends string, U extends string>(value: T | null, map: Record<T, U>): U | null { return value === null ? null : map[value] }
+function finiteOrNull(value: number | null) {
+  return value !== null && Number.isFinite(value) ? value : null
+}
+
+function integerOrNull(value: number | null) {
+  return value !== null && Number.isInteger(value) ? value : null
+}
