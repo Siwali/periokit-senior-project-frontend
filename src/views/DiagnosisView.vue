@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import {
   ArrowLeft,
@@ -29,6 +29,7 @@ import { useVisitStore } from '@/stores/visit'
 import { useNotificationStore } from '@/stores/notification'
 import { useDiagnosisStore, resolveDiagnosisKey } from '@/stores/diagnosis'
 import { useVisitSave } from '@/composables/useVisitSave'
+import { useDiagnosisVisitContext } from '@/composables/useDiagnosisVisitContext'
 import {
   DIABETES_LABEL,
   DIRECT_EVIDENCE_LABEL,
@@ -61,11 +62,10 @@ const diagnosisStore = useDiagnosisStore()
 // Stable object — resetInputs() assigns into it rather than replacing it.
 const inputs = diagnosisStore.inputs
 
-type DiagnosisLoadStatus = 'loading' | 'loaded' | 'error'
 type ConfirmationDialog = 'save' | 'cancel-edit' | 'discard'
 
 const drawerOpen = ref(false)
-const loadStatus = ref<DiagnosisLoadStatus>('loading')
+const { loadStatus, open: openVisitContext } = useDiagnosisVisitContext()
 const isLoading = computed(() => loadStatus.value === 'loading')
 const loadFailed = computed(() => loadStatus.value === 'error')
 const confirmationDialog = ref<ConfirmationDialog | null>(null)
@@ -87,13 +87,11 @@ const visitId = computed(() => (route.query.visitId as string) || null)
 const resolvedPatientId = computed(
   () =>
     patientId.value ||
-    chartStore.currentPatientId ||
     visitStore.visits.find(visit => visit.id === visitId.value)?.patientId ||
+    visitStore.patientVisits.find(visit => visit.id === visitId.value)?.patientId ||
+    (visitStore.activeVisitId === visitId.value ? chartStore.currentPatientId : null) ||
     null,
 )
-
-// Load recorded inputs immediately in setup so template has data on first render
-diagnosisStore.openFor(visitId.value, resolvedPatientId.value)
 
 /**
  * The visit always goes back with the doctor, patient or no patient. A chart
@@ -137,33 +135,10 @@ const openTooth = (toothId: ToothId) => {
  * is fetched the same way the chart page fetches it. The guards keep a chart
  * that is already open (and possibly edited) from being reloaded over.
  */
-onMounted(async () => {
-  chartStore.initializeChart()
-  diagnosisStore.openFor(visitId.value, resolvedPatientId.value)
-
-  try {
-    if (patientId.value && chartStore.currentPatientId !== patientId.value) {
-      await chartStore.loadPatientById(patientId.value)
-    }
-    // Which visit is open has to be right even for a draft, or a Save pressed
-    // from this page after a reload would not know which visit it is writing.
-    const alreadyOpen = visitStore.activeVisitId === visitId.value
-    if (visitId.value && !alreadyOpen) {
-      visitStore.setActiveVisit(visitId.value)
-      if (visitId.value !== 'new') await chartStore.loadFromBackend(visitId.value)
-    }
-    loadStatus.value = 'loaded'
-  } catch (error) {
-    console.error('Failed to load visit for diagnosis:', error)
-    loadStatus.value = 'error'
-  }
-})
-
 watch(
   [visitId, resolvedPatientId],
-  ([newVisit, newPatient]) => {
-    diagnosisStore.openFor(newVisit, newPatient)
-  },
+  ([newVisit, newPatient]) => openVisitContext(newVisit, newPatient),
+  { immediate: true },
 )
 
 // Anything the doctor can change carries a faint box, so an editable value is
