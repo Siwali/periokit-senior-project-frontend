@@ -64,9 +64,12 @@ const inputs = diagnosisStore.inputs
 const drawerOpen = ref(false)
 const isLoading = ref(true)
 const loadFailed = ref(false)
-const showDiscardConfirm = ref(false)
-const showSaveConfirm = ref(false)
-const showCancelEditConfirm = ref(false)
+type ConfirmationDialog = 'save' | 'cancel-edit' | 'discard'
+const confirmationDialog = ref<ConfirmationDialog | null>(null)
+
+const closeConfirmation = () => {
+  confirmationDialog.value = null
+}
 
 const patientId = computed(() => (route.query.patientId as string) || null)
 const visitId = computed(() => (route.query.visitId as string) || null)
@@ -232,7 +235,7 @@ const applyGradeChoice = (choice: GradeChoice) => {
 }
 
 const confirmDiscard = () => {
-  showDiscardConfirm.value = false
+  closeConfirmation()
   diagnosisStore.resetInputs()
   notifStore.info('Diagnosis cleared')
 }
@@ -261,12 +264,15 @@ const handleEdit = () => {
 }
 
 const handleCancelEditClick = () => {
-  if (chartStore.isDirty || diagnosisStore.isDirty) showCancelEditConfirm.value = true
-  else chartStore.editMode = false
+  if (chartStore.isDirty || diagnosisStore.isDirty) {
+    confirmationDialog.value = 'cancel-edit'
+    return
+  }
+  chartStore.editMode = false
 }
 
 const confirmCancelEdit = async () => {
-  showCancelEditConfirm.value = false
+  closeConfirmation()
   chartStore.editMode = false
   // Throw the unsaved edits away by reading the visit back off the backend —
   // the chart and the diagnosis together, since one save wrote both.
@@ -293,11 +299,11 @@ const nothingToSave = computed(
 const handleSaveClick = () => {
   if (isSaving.value) return
   if (!validate()) return
-  showSaveConfirm.value = true
+  confirmationDialog.value = 'save'
 }
 
 const confirmSave = async () => {
-  showSaveConfirm.value = false
+  closeConfirmation()
   const saved = await saveVisit()
   if (!saved) return
 
@@ -1203,7 +1209,7 @@ const gradeMeaning = computed(() => GRADE_MEANING[diagnosisStore.finalGrade])
           type="button"
           class="flex items-center gap-1.5 px-3.5 py-1.5 bg-white/90 hover:bg-white backdrop-blur-sm border border-slate-200/90 text-slate-600 hover:text-red-600 hover:border-red-200 hover:bg-red-50/80 rounded-full font-semibold text-xs shadow-sm hover:shadow-md transition-all duration-150 cursor-pointer opacity-85 hover:opacity-100 group"
           title="Discard changes and restore chart defaults"
-          @click="showDiscardConfirm = true"
+          @click="confirmationDialog = 'discard'"
         >
           <RotateCcw class="w-3.5 h-3.5 text-slate-400 group-hover:text-red-500 transition-transform duration-150 group-hover:-rotate-45" />
           <span>Discard</span>
@@ -1214,35 +1220,35 @@ const gradeMeaning = computed(() => GRADE_MEANING[diagnosisStore.finalGrade])
     <!-- Says out loud what the button beneath it already says: one Save, one
          visit. Same wording as the chart page's, because it is the same act. -->
     <ConfirmModal
-      :show="showSaveConfirm"
+      :show="confirmationDialog === 'save'"
       title="Save Chart"
       message="<span class='text-slate-800 font-bold text-lg block mb-1'>Save this visit?</span><span class='text-slate-500 font-normal'>This saves both the periodontal chart and diagnosis. You can still click Edit to change it later.</span>"
       confirm-text="Save"
       cancel-text="Cancel"
       @confirm="confirmSave"
-      @cancel="showSaveConfirm = false"
+      @cancel="closeConfirmation"
     />
 
     <ConfirmModal
-      :show="showCancelEditConfirm"
+      :show="confirmationDialog === 'cancel-edit'"
       title="Cancel Editing"
       message="<span class='text-slate-800 font-bold text-lg block mb-1'>Are you sure you want to cancel?</span><span class='text-slate-500 font-normal'>Any unsaved changes will be lost.</span>"
       confirm-text="Discard Changes"
       cancel-text="Continue Editing"
       type="danger"
       @confirm="confirmCancelEdit"
-      @cancel="showCancelEditConfirm = false"
+      @cancel="closeConfirmation"
     />
 
     <ConfirmModal
-      :show="showDiscardConfirm"
+      :show="confirmationDialog === 'discard'"
       title="Discard changes"
       message="<span class='text-slate-800 font-bold text-lg block mb-1'>Clear everything you filled in?</span><span class='text-slate-500 font-normal'>The chart's own values come back, and every band you ticked is cleared.</span>"
       confirm-text="Discard"
       cancel-text="Cancel"
       type="danger"
       @confirm="confirmDiscard"
-      @cancel="showDiscardConfirm = false"
+      @cancel="closeConfirmation"
     />
   </div>
 </template>
