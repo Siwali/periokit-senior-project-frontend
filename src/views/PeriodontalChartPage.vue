@@ -17,6 +17,7 @@ import { useClinicalValidationStore } from '@/stores/clinical-validation'
 import { useVisitStore } from '@/stores/visit'
 import { useDiagnosisStore, resolveDiagnosisKey } from '@/stores/diagnosis'
 import { useVisitSave } from '@/composables/useVisitSave'
+import { useVisitLoad } from '@/composables/useVisitLoad'
 import { useVisitTabs } from '@/composables/useVisitTabs'
 import { useXrayLeaveGuard } from '@/composables/useXrayLeaveGuard'
 import type { ToothId } from '@/domain/chart/chart.types'
@@ -31,6 +32,7 @@ chartStore.initializeChart()
 const validationStore = useClinicalValidationStore()
 const visitStore = useVisitStore()
 const diagnosisStore = useDiagnosisStore()
+const { loadVisit } = useVisitLoad()
 
 const drawerOpen = ref(false)
 const urlVisitId = ref<string | null>(null)
@@ -157,7 +159,7 @@ onMounted(async () => {
         } else {
           visitStore.visits = []
         }
-        await chartStore.loadFromBackend(visitId)
+        await loadVisit(visitId)
       } else if (keepingDraft) {
         keepDraftVisit(patientId)
       } else {
@@ -201,7 +203,7 @@ onMounted(async () => {
     visitStore.setActiveVisit(visitId)
     if (visitId !== 'new') {
       try {
-        await chartStore.loadFromBackend(visitId)
+        await loadVisit(visitId)
         if (chartStore.currentPatientId) {
           const fetchedVisits = await visitStore.loadVisits(chartStore.currentPatientId)
           const selectedVisit = fetchedVisits.find(v => v.id === visitId)
@@ -291,7 +293,7 @@ watch(() => route.query.visitId, async (newVisitId, oldVisitId) => {
         }
       }
       try {
-        await chartStore.loadFromBackend(newVisitId)
+        await loadVisit(newVisitId)
       } catch (error) {
         console.error('Failed to load chart:', error)
       }
@@ -555,7 +557,7 @@ const confirmCancelEdit = async () => {
   // Discard unsaved edits by reloading from backend
   const visitId = activeVisitId.value
   if (visitId && visitId !== 'new') {
-    try { await chartStore.loadFromBackend(visitId) } catch (e) { console.error(e) }
+    try { await loadVisit(visitId) } catch (e) { console.error(e) }
   }
   diagnosisStore.revertToSaved(resolveDiagnosisKey(activeVisitId.value, currentPatientId.value))
 }

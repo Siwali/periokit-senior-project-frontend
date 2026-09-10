@@ -5,6 +5,7 @@ import type { RouteLocationRaw } from 'vue-router'
 import { usePeriodontalChartStore } from '@/stores/periodontal-chart'
 import { useVisitStore } from '@/stores/visit'
 import { useNotificationStore } from '@/stores/notification'
+import { useVisitLoad } from '@/composables/useVisitLoad'
 
 export interface VisitTabsDeps {
   /** The page's own router move — already past the unsaved-board gate. */
@@ -32,6 +33,7 @@ export function useVisitTabs(deps: VisitTabsDeps) {
   const chartStore = usePeriodontalChartStore()
   const visitStore = useVisitStore()
   const notifStore = useNotificationStore()
+  const { loadVisit } = useVisitLoad()
   const { currentPatientId } = storeToRefs(chartStore)
   const { visits, activeVisitId } = storeToRefs(visitStore)
 
@@ -57,7 +59,7 @@ export function useVisitTabs(deps: VisitTabsDeps) {
     if (visitId === 'new') return
 
     try {
-      await chartStore.loadFromBackend(visitId)
+      await loadVisit(visitId)
     } catch (error) {
       console.error('Failed to load chart for visit:', error)
     }
@@ -108,7 +110,7 @@ export function useVisitTabs(deps: VisitTabsDeps) {
     if (nextActiveId) {
       deps.navigate({ name: 'chart', query: { ...route.query, visitId: nextActiveId } })
       try {
-        await chartStore.loadFromBackend(nextActiveId)
+        await loadVisit(nextActiveId)
       } catch (error) {
         console.error('Failed to load chart for visit:', error)
       }

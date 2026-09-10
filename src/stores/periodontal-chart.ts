@@ -8,8 +8,10 @@ import { useNotificationStore } from './notification'
 import { mapChartToPayload, mapPayloadToChart } from '@/domain/chart/chart.mapper'
 import { chartApi } from '@/services/api/chart.api'
 import { registerSessionClearListener } from '@/services/session'
-import { toDiagnosisInputDto } from '@/domain/diagnosis/diagnosis.api-mapper'
-import { useDiagnosisStore } from './diagnosis'
+import type {
+  DiagnosisInputDto,
+  DiagnosisResponseDto,
+} from '@/domain/diagnosis/diagnosis.api-mapper'
 
 const createDefaultPatientInfo = (): PatientInfo => {
   const authStore = useAuthStore()
@@ -227,14 +229,12 @@ export const usePeriodontalChartStore = defineStore('periodontalChart', {
       this.isDirty = true
     },
 
-    async saveToBackend(completeVisit = true) {
+    async saveToBackend(diagnosis: DiagnosisInputDto, completeVisit = true) {
       const visitStore = useVisitStore()
       const notifStore = useNotificationStore()
       const visitId = visitStore.activeVisitId === 'new' ? undefined : visitStore.activeVisitId
 
       const { patientInfo } = this
-      const diagnosisStore = useDiagnosisStore()
-
       // Validate patient info before save (HN and Patient Name are required)
       if (!patientInfo.hn) {
         notifStore.error('Please enter HN before saving')
@@ -269,7 +269,7 @@ export const usePeriodontalChartStore = defineStore('periodontalChart', {
           visitDate: patientInfo.date,
           visitPhase: patientInfo.visitPhase || 'before_hygienic',
           completeVisit,
-          diagnosis: toDiagnosisInputDto(diagnosisStore.inputs),
+          diagnosis,
         })
 
         const savedChart = data?.saveChart
@@ -323,9 +323,7 @@ export const usePeriodontalChartStore = defineStore('periodontalChart', {
         // the active chart or hydrate its diagnosis worksheet.
         if (visitStore.activeVisitId !== visitId) return
         const chartData = data?.chartByVisit
-        const diagnosisStore = useDiagnosisStore()
-        diagnosisStore.openFor(visitId, this.currentPatientId)
-        if (chartData?.diagnosis) diagnosisStore.hydrateFromBackend(chartData.diagnosis)
+        const diagnosis = (chartData?.diagnosis ?? null) as DiagnosisResponseDto | null
 
         // Keep the current patient in sync — covers the post-save reload where
         // the chart page navigates by visitId alone and would otherwise lose
@@ -341,7 +339,7 @@ export const usePeriodontalChartStore = defineStore('periodontalChart', {
           this.teethData = createInitialChartData()
           this.selectedToothId = null
           this.isDirty = false
-          return
+          return diagnosis
         }
 
         const chartPayload = {
@@ -374,6 +372,7 @@ export const usePeriodontalChartStore = defineStore('periodontalChart', {
         }
 
         this.isDirty = false
+        return diagnosis
 
       } catch (error) {
         console.error('Failed to load chart from backend:', error)

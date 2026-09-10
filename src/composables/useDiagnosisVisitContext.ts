@@ -2,6 +2,7 @@ import { ref } from 'vue'
 import { useDiagnosisStore } from '@/stores/diagnosis'
 import { usePeriodontalChartStore } from '@/stores/periodontal-chart'
 import { useVisitStore } from '@/stores/visit'
+import { useVisitLoad } from '@/composables/useVisitLoad'
 
 export type DiagnosisLoadStatus = 'loading' | 'loaded' | 'error'
 
@@ -14,6 +15,7 @@ export function useDiagnosisVisitContext() {
   const chartStore = usePeriodontalChartStore()
   const visitStore = useVisitStore()
   const diagnosisStore = useDiagnosisStore()
+  const { loadVisit } = useVisitLoad()
   const loadStatus = ref<DiagnosisLoadStatus>('loading')
   let requestId = 0
 
@@ -47,7 +49,7 @@ export function useDiagnosisVisitContext() {
           await chartStore.loadPatientById(patientId)
         }
         if (currentRequest !== requestId) return
-        await chartStore.loadFromBackend(visitId)
+        await loadVisit(visitId)
       } else {
         visitStore.setActiveVisit(null)
       }

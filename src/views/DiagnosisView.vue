@@ -30,6 +30,7 @@ import { useNotificationStore } from '@/stores/notification'
 import { useDiagnosisStore, resolveDiagnosisKey } from '@/stores/diagnosis'
 import { useVisitSave } from '@/composables/useVisitSave'
 import { useDiagnosisVisitContext } from '@/composables/useDiagnosisVisitContext'
+import { useVisitLoad } from '@/composables/useVisitLoad'
 import {
   DIABETES_LABEL,
   DIRECT_EVIDENCE_LABEL,
@@ -58,6 +59,7 @@ const chartStore = usePeriodontalChartStore()
 const visitStore = useVisitStore()
 const notifStore = useNotificationStore()
 const diagnosisStore = useDiagnosisStore()
+const { loadVisit } = useVisitLoad()
 
 // Stable object — resetInputs() assigns into it rather than replacing it.
 const inputs = diagnosisStore.inputs
@@ -256,7 +258,7 @@ const confirmCancelEdit = async () => {
   const id = visitId.value
   if (id && id !== 'new') {
     try {
-      await chartStore.loadFromBackend(id)
+      await loadVisit(id)
     } catch (error) {
       console.error('Failed to reload visit after cancelling edit:', error)
     }

@@ -4,6 +4,7 @@ import { useVisitStore } from '@/stores/visit'
 import { useNotificationStore } from '@/stores/notification'
 import { useDiagnosisStore, resolveDiagnosisKey } from '@/stores/diagnosis'
 import { useXrayBoardStore, xrayBoardKey } from '@/stores/xray-board'
+import { toDiagnosisInputDto } from '@/domain/diagnosis/diagnosis.api-mapper'
 
 /**
  * The one Save this visit has. The chart page and the Diagnosis page are two
@@ -53,7 +54,7 @@ export function useVisitSave() {
         chartStore.currentPatientId,
       )
 
-      await chartStore.saveToBackend(true)
+      await chartStore.saveToBackend(toDiagnosisInputDto(diagnosisStore.inputs), true)
 
       // Saved visits open read-only; this one has just become a saved visit.
       chartStore.editMode = false
