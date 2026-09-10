@@ -11,6 +11,13 @@ import {
   XRAY_PREF_KEYS,
 } from '@/domain/xray/xray.constants'
 import {
+  createXrayBoardFingerprint,
+  createXrayBoardSaveInput,
+  createXrayBoardSnapshot,
+  mapXrayBoardResponse,
+  parseXrayBoardSnapshot,
+} from '@/domain/xray/xray-board'
+import {
   boardBounds,
   clamp,
   findSlotAt,
@@ -20,7 +27,6 @@ import {
 } from '@/domain/xray/xray.geometry'
 import { newUploadId, reasonText } from '@/domain/xray/xray.upload'
 import type {
-  XrayBoardObjectInput,
   XrayBoardResponse,
   XrayGeometryPatch,
   XrayImageObject,
@@ -56,115 +62,6 @@ function readImageSize(url: string): Promise<{ width: number; height: number }> 
     image.onerror = () => reject(new Error('Image could not be decoded'))
     image.src = url
   })
-}
-
-/**
- * Flattens the stack to 0..n-1 — no gaps, nothing negative (SRS-280). "Send to
- * back" counts downwards for as long as the doctor keeps pressing it, and
- * z_index is a SmallInt on the backend, so the drift has to be squeezed out at
- * the point the board is written down. Paint order is unchanged: the sort is
- * what the board was already rendering.
- */
-function normalizeZIndex(boardObjects: XrayObject[]): XrayObject[] {
-  return [...boardObjects]
-    // The id breaks a tie so the order is the board's and not the array's:
-    // without it, two objects sharing a zIndex would be flattened in whatever
-    // order they happen to sit in, and moving one of them within the array
-    // would read as an edit to a board that looks identical.
-    .sort((a, b) => a.zIndex - b.zIndex || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
-    .map((object, index) => ({ ...object, zIndex: index }))
-}
-
-/**
- * The API response, back into the board's own shape. Nothing is recomputed on
- * the way in — SRS-169 forbids touching geometry on load, so every number is
- * passed through as the server sent it, and the union is recovered from
- * `objectType` alone.
- *
- * `naturalWidth`/`naturalHeight` live on the asset rather than the object, so
- * they are looked up; a film whose asset did not come back (cleaned up, or a URL
- * the server could not sign) falls back to its on-board size, which keeps the
- * aspect ratio it is already drawn at rather than collapsing it.
- */
-function fromResponse(board: XrayBoardResponse): XrayObject[] {
-  const assets = new Map(board.assets.map(asset => [asset.id, asset]))
-  return board.objects.map(object => {
-    const base = {
-      id: object.id,
-      zIndex: object.zIndex,
-      posX: object.posX,
-      posY: object.posY,
-      width: object.width,
-      height: object.height,
-      rotation: object.rotation,
-    }
-    if (object.objectType !== 'image') {
-      return {
-        ...base,
-        objectType: 'note',
-        noteText: object.noteText ?? '',
-        noteColor: object.noteColor ?? NOTE_DEFAULT_COLOR,
-        noteFontSize: object.noteFontSize ?? NOTE_FONT.default,
-      } satisfies XrayNoteObject
-    }
-    const asset = object.assetId ? assets.get(object.assetId) : undefined
-    return {
-      ...base,
-      objectType: 'image',
-      assetId: object.assetId ?? '',
-      naturalWidth: asset?.naturalWidth || object.width,
-      naturalHeight: asset?.naturalHeight || object.height,
-      slotCode: object.slotCode,
-    } satisfies XrayImageObject
-  })
-}
-
-/**
- * One object, on its way to `saveXrayBoard`. The id is deliberately dropped: a
- * save is replace-all, so the server has no old row to match it against and
- * mints a fresh one (PER-233). A note must not carry `assetId` at all — the
- * resolver refuses one that does — so the two branches send different fields
- * rather than one shape with nulls in it.
- */
-function toSaveInput(object: XrayObject): XrayBoardObjectInput {
-  const base = {
-    objectType: object.objectType,
-    zIndex: object.zIndex,
-    posX: object.posX,
-    posY: object.posY,
-    width: object.width,
-    height: object.height,
-    rotation: object.rotation,
-  }
-  return object.objectType === 'image'
-    ? { ...base, assetId: object.assetId, slotCode: object.slotCode }
-    : {
-        ...base,
-        noteText: object.noteText,
-        noteColor: object.noteColor,
-        noteFontSize: object.noteFontSize,
-      }
-}
-
-/**
- * The board reduced to what a save would actually write down (PER-257 §3).
- * Built from `toSaveInput` on purpose: the dirty check then compares the exact
- * payload the mutation would send, and a field added to one is a field added to
- * the other. Everything else is left out by construction — the id, the natural
- * size, and above all the signed URL, which lives in `imageUrls` and would
- * otherwise turn the board dirty every time it was refreshed.
- *
- * Rotation is the one saved number that is not an integer: it comes out of an
- * `atan2` during a drag, so it is rounded here to keep 45 and 45.00000001 from
- * reading as different boards. The value on the board is left alone.
- */
-function fingerprint(boardObjects: XrayObject[]): string {
-  return JSON.stringify(
-    normalizeZIndex(boardObjects).map(object => ({
-      ...toSaveInput(object),
-      rotation: Math.round(object.rotation * 100) / 100,
-    })),
-  )
 }
 
 function readPref(key: string): string | null {
@@ -219,8 +116,8 @@ export const useXrayBoardStore = defineStore('xrayBoard', () => {
     markSaved,
     clear: clearSaveState,
   } = useXraySaveState({
-    take: () => snapshot(),
-    fingerprint: () => fingerprint(objects.value),
+    take: () => createXrayBoardSnapshot(objects.value),
+    fingerprint: () => createXrayBoardFingerprint(objects.value),
     isEmpty: () => objects.value.length === 0,
     isReadable: () => loadState.value === 'loaded',
   })
@@ -347,7 +244,7 @@ export const useXrayBoardStore = defineStore('xrayBoard', () => {
    * in reads as unchanged, the same way a film dragged out and back does.
    */
   function snapshot() {
-    return JSON.stringify({ objects: normalizeZIndex(objects.value) })
+    return createXrayBoardSnapshot(objects.value)
   }
 
   /** Next free slot on top of the stack. An empty board starts at 0. */
@@ -361,8 +258,7 @@ export const useXrayBoardStore = defineStore('xrayBoard', () => {
 
   // --- history --------------------------------------------------------------
   function restore(snap: string) {
-    const parsed = JSON.parse(snap) as { objects: XrayObject[] }
-    objects.value = parsed.objects
+    objects.value = parseXrayBoardSnapshot(snap)
     if (!objects.value.some(object => object.id === selectedId.value)) selectedId.value = null
     editingNoteId.value = null
   }
@@ -686,7 +582,7 @@ export const useXrayBoardStore = defineStore('xrayBoard', () => {
    */
   function applyBoard(board: XrayBoardResponse) {
     images.releaseAll()
-    objects.value = fromResponse(board)
+    objects.value = mapXrayBoardResponse(board)
     for (const asset of board.assets) {
       if (asset.signedUrl) images.putUrl(asset.id, asset.signedUrl)
     }
@@ -882,7 +778,7 @@ export const useXrayBoardStore = defineStore('xrayBoard', () => {
         // SmallInt and "send to back" keeps counting down. The board on screen
         // keeps the zIndex the doctor's last reorder gave it, so nothing shifts
         // under them mid-session.
-        objects: normalizeZIndex(objects.value).map(toSaveInput),
+        objects: createXrayBoardSaveInput(objects.value),
       })
       const board = data?.saveXrayBoard
       if (!board) throw new Error('saveXrayBoard answered without a board')
