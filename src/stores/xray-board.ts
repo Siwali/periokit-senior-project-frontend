@@ -22,6 +22,7 @@ import { newUploadId, reasonText } from '@/domain/xray/xray.upload'
 import type {
   XrayBoardObjectInput,
   XrayBoardResponse,
+  XrayGeometryPatch,
   XrayImageObject,
   XrayLayoutMode,
   XrayNoteObject,
@@ -240,7 +241,6 @@ export const useXrayBoardStore = defineStore('xrayBoard', () => {
   // the only thing the store hands over is where the board's contents are.
   const {
     viewport,
-    stageSize,
     toWorld,
     viewCenter,
     zoomAt,
@@ -380,6 +380,38 @@ export const useXrayBoardStore = defineStore('xrayBoard', () => {
   // --- objects --------------------------------------------------------------
   function select(id: string | null) {
     selectedId.value = id
+  }
+
+  /** Opens an existing note for text editing without exposing the editing ref. */
+  function startNoteEditing(id: string) {
+    if (!editable.value) return false
+    const note = objects.value.find(object => object.id === id)
+    if (note?.objectType !== 'note') return false
+    selectedId.value = id
+    editingNoteId.value = id
+    return true
+  }
+
+  /** Ends note editing and records the text change as one undo step. */
+  function finishNoteEditing() {
+    if (!editingNoteId.value) return false
+    editingNoteId.value = null
+    pushHistory()
+    return true
+  }
+
+  /**
+   * Applies one geometry frame atomically. Invalid browser maths must not leave
+   * half of an object updated or put NaN into a payload that the API rejects.
+   */
+  function updateObjectGeometry(id: string, patch: XrayGeometryPatch) {
+    if (!editable.value || Object.values(patch).some(value => !Number.isFinite(value))) {
+      return false
+    }
+    const object = objects.value.find(candidate => candidate.id === id)
+    if (!object) return false
+    Object.assign(object, patch)
+    return true
   }
 
   async function addImageFiles(files: FileList | File[], worldX: number, worldY: number) {
@@ -960,8 +992,6 @@ export const useXrayBoardStore = defineStore('xrayBoard', () => {
 
   return {
     // state
-    boardKey,
-    visitId,
     objects,
     layout,
     layoutMode,
@@ -972,18 +1002,15 @@ export const useXrayBoardStore = defineStore('xrayBoard', () => {
     savedAt,
     editMode,
     isSaving,
-    loadState,
     isRetrying,
     retryFailed,
     viewport,
-    stageSize,
     imageUrls: images.urls,
     failedAssets: images.failed,
     uploadQueue,
     lightCanvas,
     toolbarCollapsed,
     // derived
-    selectedObject,
     selectedNote,
     selectedIsSaved,
     isLoading,
@@ -1012,6 +1039,9 @@ export const useXrayBoardStore = defineStore('xrayBoard', () => {
     setStageSize,
     // objects
     select,
+    startNoteEditing,
+    finishNoteEditing,
+    updateObjectGeometry,
     addImageFiles,
     retryUpload: uploads.retry,
     retryFailedUploads: uploads.retryFailed,
