@@ -45,38 +45,36 @@ const SNAPSHOTS_KEY = 'periokit_diagnosis_snapshots'
 const STORAGE_VERSION_KEY = 'periokit_diagnosis_storage_version'
 const STORAGE_VERSION = '2'
 
-export const useDiagnosisStore = defineStore(
-  'diagnosis',
-  () => {
-    const chartStore = usePeriodontalChartStore()
+export const useDiagnosisStore = defineStore('diagnosis', () => {
+  const chartStore = usePeriodontalChartStore()
 
-    /**
-     * One worksheet per visit, kept apart and kept between sessions. The
-     * switching, the storage and the "as last saved" copy are all in there —
-     * this store is about what the answers mean, not about where they live.
-     */
-    const {
-      records,
-      savedSnapshots,
-      inputs,
-      isDirty,
-      openFor: openDraft,
-      reset: resetInputs,
-      rekey,
-      replace: replaceInputs,
-      commitSaved,
-      revertToSaved,
-      clearAll,
-    } = useKeyedDrafts<DiagnosisInputs>({
-      create: createInputs,
-      storageKey: STORAGE_KEY,
-      snapshotsKey: SNAPSHOTS_KEY,
-      versionKey: STORAGE_VERSION_KEY,
-      version: STORAGE_VERSION,
-      // Written by a version of this store that kept the whole worksheet under
-      // one key; cleared out on sign-out so it cannot outlive the account.
-      legacyKeys: ['diagnosis'],
-    })
+  /**
+   * One worksheet per visit, kept apart and kept between sessions. The
+   * switching, the storage and the "as last saved" copy are all in there —
+   * this store is about what the answers mean, not about where they live.
+   */
+  const {
+    records,
+    savedSnapshots,
+    inputs,
+    isDirty,
+    openFor: openDraft,
+    reset: resetInputs,
+    rekey,
+    replace: replaceInputs,
+    commitSaved,
+    revertToSaved,
+    clearAll,
+  } = useKeyedDrafts<DiagnosisInputs>({
+    create: createInputs,
+    storageKey: STORAGE_KEY,
+    snapshotsKey: SNAPSHOTS_KEY,
+    versionKey: STORAGE_VERSION_KEY,
+    version: STORAGE_VERSION,
+    // Written by an older persistence owner. It has no reader now and is
+    // removed during store setup and sign-out.
+    legacyKeys: ['diagnosis'],
+  })
 
   const findings = computed(() => collectChartFindings(chartStore.teethData))
   const assessment = computed(() =>
@@ -188,12 +186,6 @@ export const useDiagnosisStore = defineStore(
     revertToSaved,
     clearAll,
   }
-},
-{
-  persist: {
-    storage: localStorage,
-    pick: ['records', 'savedSnapshots'],
-  },
 })
 
 registerSessionClearListener(() => {

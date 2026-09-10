@@ -14,7 +14,7 @@ export interface KeyedDraftsOptions<T extends object> {
    */
   versionKey: string
   version: string
-  /** Older storage keys to clear out on sign-out, if any were ever used. */
+  /** Obsolete storage keys to clear on initialization and sign-out. */
   legacyKeys?: string[]
 }
 
@@ -60,6 +60,10 @@ export function useKeyedDrafts<T extends object>(options: KeyedDraftsOptions<T>)
   function loadRecords(): Record<string, T> {
     if (typeof window === 'undefined' || !window.localStorage) return {}
     try {
+      // These keys have no reader anymore. Removing them even when the current
+      // version matches prevents an abandoned persistence plugin from leaving
+      // a second, stale copy of the same drafts behind.
+      for (const key of options.legacyKeys ?? []) localStorage.removeItem(key)
       if (localStorage.getItem(versionKey) !== version) {
         localStorage.removeItem(storageKey)
         localStorage.removeItem(snapshotsKey)
