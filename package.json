@@ -6,13 +6,16 @@
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc -b && vite build",
+    "test": "vitest run",
     "preview": "vite preview"
   },
   "dependencies": {
     "@apollo/client": "^3.14.1",
+    "@headlessui/vue": "^1.7.23",
     "@vue/apollo-composable": "^4.2.2",
     "graphql": "^16.13.2",
     "graphql-tag": "^2.12.6",
+    "i18n-iso-countries": "^7.14.0",
     "lucide-vue-next": "^1.0.0",
     "pinia": "^3.0.4",
     "pinia-plugin-persistedstate": "^4.7.1",
@@ -33,6 +36,7 @@
     "unplugin-vue-components": "^32.0.0",
     "vite": "^8.0.10",
     "vite-plugin-vue-devtools": "^8.1.2",
+    "vitest": "^5.0.0",
     "vue-tsc": "^3.2.7"
   }
 }

@@ -392,7 +392,7 @@ const getColorClasses = (color: FilterConfig['color']) => {
                 {{ getConfig(activePopover as FilterType)?.sortLabels?.asc ?? 'Ascending' }}
                 <div v-if="tempValues[activePopover] === (activePopover + '_asc')" class="w-1.5 h-1.5 rounded-full bg-current"></div>
               </button>
-              
+
               <button
                 @click="toggleSort(activePopover as FilterType, (activePopover + '_desc') as string)"
                 class="w-full px-3 py-2 text-sm text-left hover:bg-slate-50 rounded flex items-center justify-between transition-colors"

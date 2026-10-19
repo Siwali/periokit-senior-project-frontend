@@ -1,12 +1,6 @@
-import { apolloClient } from '@/services/apollo-client'
+import { apolloClient } from '../apollo-client'
 import { gql } from '@apollo/client/core'
-import type {
-  ChartByVisitQueryData,
-  ChartByVisitQueryVariables,
-  SaveChartInput,
-  SaveChartMutationData,
-  SaveChartMutationVariables,
-} from '@/services/api/chart.api.types'
+import type { DiagnosisInputDto } from '@/domain/diagnosis/diagnosis.api-mapper'
 
 const SAVE_CHART = gql`
   mutation SaveChart($input: SaveChartInput!) {
@@ -28,6 +22,7 @@ const SAVE_CHART = gql`
         studentId
         visitPhase
       }
+      diagnosis { extent complexity { boneLossPercent teethLostToPerio directEvidence phenotype smoking diabetes ageYears calStageOverride boneLossStageOverride toothLossStageOverride complexityStageOverride } }
     }
   }
 `
@@ -53,20 +48,30 @@ const CHART_BY_VISIT = gql`
         studentId
         visitPhase
       }
+      diagnosis { extent complexity { boneLossPercent teethLostToPerio directEvidence phenotype smoking diabetes ageYears calStageOverride boneLossStageOverride toothLossStageOverride complexityStageOverride } }
     }
   }
 `
 
 export const chartApi = {
-  save: (input: SaveChartInput) =>
-    apolloClient.mutate<SaveChartMutationData, SaveChartMutationVariables>({
-      mutation: SAVE_CHART,
-      variables: { input },
-    }),
+  save: (input: {
+    visitId?: string | null
+    chartName?: string | null
+    teethData: unknown
+
+    patientHn: string
+    patientFirstName: string
+    patientLastName: string
+    patientAge?: number | null
+    patientGender?: string | null
+    patientNationality?: string | null
+
+    visitDate: string
+    visitPhase: string
+    completeVisit?: boolean
+    diagnosis: DiagnosisInputDto
+  }) =>
+    apolloClient.mutate({ mutation: SAVE_CHART, variables: { input } }),
   getByVisit: (visitId: string) =>
-    apolloClient.query<ChartByVisitQueryData, ChartByVisitQueryVariables>({
-      query: CHART_BY_VISIT,
-      variables: { visitId },
-      fetchPolicy: 'network-only',
-    }),
+    apolloClient.query({ query: CHART_BY_VISIT, variables: { visitId }, fetchPolicy: 'network-only' }),
 }

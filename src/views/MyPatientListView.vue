@@ -23,7 +23,7 @@ const totalPages = ref(0)
 
 const searchInput = ref('')
 
-// Filter configs
+
 const filterConfigs: FilterConfig[] = [
   {
     type: 'date',
@@ -43,7 +43,6 @@ const filterConfigs: FilterConfig[] = [
   }
 ]
 
-// Filter values
 const filterValues = ref<FilterValues>({
   date: null,
   name: null
@@ -96,10 +95,13 @@ const handleSearch = () => {
   }, 400)
 }
 
-// Reset page when filters change
+
 watch(() => filterValues.value, () => {
-  page.value = 1
-  fetchPatients()
+  if (page.value === 1) {
+    fetchPatients()
+  } else {
+    page.value = 1
+  }
 }, { deep: true })
 
 watch(page, () => {
@@ -126,12 +128,12 @@ const handleNewPatient = () => {
     <PatientDrawer v-model:open="drawerOpen" />
 
     <main class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <!-- Header Area -->
+
       <div class="flex flex-col md:flex-row md:items-center justify-between mb-4 gap-4">
         <h1 class="text-3xl font-bold text-slate-900">Patient</h1>
 
         <div class="flex flex-wrap items-center gap-3">
-          <!-- Search -->
+
           <div class="relative w-full md:w-80">
             <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <Search class="h-5 w-5 text-slate-400" />
@@ -145,10 +147,9 @@ const handleNewPatient = () => {
             />
           </div>
 
-          <!-- Filter Panel -->
           <FilterPanel v-model="filterValues" :configs="filterConfigs" />
 
-          <!-- New Patient Button -->
+
           <button
             @click="handleNewPatient"
             class="px-4 py-2.5 bg-[#0052ff] text-white rounded-full text-sm font-medium shadow-sm hover:bg-blue-700 transition-colors flex items-center gap-2 shrink-0"
@@ -161,7 +162,7 @@ const handleNewPatient = () => {
 
       <FilterChips v-model="filterValues" :configs="filterConfigs" class="empty:mb-0 mb-5" />
 
-      <!-- Table Card -->
+
       <div class="bg-white shadow-sm rounded-2xl overflow-hidden border border-slate-100">
         <div class="overflow-x-auto">
           <table class="min-w-full divide-y divide-slate-200">
@@ -169,10 +170,10 @@ const handleNewPatient = () => {
               <tr>
                 <th scope="col" class="px-6 py-4 text-left text-[11px] font-bold text-slate-600 uppercase tracking-wider w-32">HN</th>
                 <th scope="col" class="px-6 py-4 text-left text-[11px] font-bold text-slate-600 uppercase tracking-wider">NAME</th>
-                <th scope="col" class="px-6 py-4 text-left text-[11px] font-bold text-slate-600 uppercase tracking-wider w-24">AGE</th>
-                <th scope="col" class="px-6 py-4 text-left text-[11px] font-bold text-slate-600 uppercase tracking-wider w-32">GENDER</th>
-                <th scope="col" class="px-6 py-4 text-left text-[11px] font-bold text-slate-600 uppercase tracking-wider w-40">DATE</th>
-                <th scope="col" class="px-6 py-4 text-right text-[11px] font-bold text-slate-600 uppercase tracking-wider w-32"></th>
+                <th scope="col" class="hidden sm:table-cell px-6 py-4 text-left text-[11px] font-bold text-slate-600 uppercase tracking-wider w-24">AGE</th>
+                <th scope="col" class="hidden sm:table-cell px-6 py-4 text-left text-[11px] font-bold text-slate-600 uppercase tracking-wider w-32">GENDER</th>
+                <th scope="col" class="hidden sm:table-cell px-6 py-4 text-left text-[11px] font-bold text-slate-600 uppercase tracking-wider w-40">DATE</th>
+                <th scope="col" class="hidden sm:table-cell px-6 py-4 text-right text-[11px] font-bold text-slate-600 uppercase tracking-wider w-32"></th>
               </tr>
             </thead>
             <tbody class="bg-white divide-y divide-slate-100">
@@ -186,16 +187,16 @@ const handleNewPatient = () => {
                     <Skeleton variant="text" width="120px" />
                   </div>
                 </td>
-                <td class="px-6 py-4 whitespace-nowrap">
+                <td class="hidden sm:table-cell px-6 py-4 whitespace-nowrap">
                   <Skeleton variant="text" width="40px" />
                 </td>
-                <td class="px-6 py-4 whitespace-nowrap">
+                <td class="hidden sm:table-cell px-6 py-4 whitespace-nowrap">
                   <Skeleton variant="text" width="50px" />
                 </td>
-                <td class="px-6 py-4 whitespace-nowrap">
+                <td class="hidden sm:table-cell px-6 py-4 whitespace-nowrap">
                   <Skeleton variant="text" width="80px" />
                 </td>
-                <td class="px-6 py-4 whitespace-nowrap text-right">
+                <td class="hidden sm:table-cell px-6 py-4 whitespace-nowrap text-right">
                   <div class="inline-flex justify-end w-full">
                     <Skeleton variant="rounded" width="70px" height="28px" custom-class="rounded-full" />
                   </div>
@@ -227,16 +228,16 @@ const handleNewPatient = () => {
                     <span class="text-sm font-medium text-slate-800 group-hover:text-[#0052ff] transition-colors">{{ patient.firstName }} {{ patient.lastName }}</span>
                   </div>
                 </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">
+                <td class="hidden sm:table-cell px-6 py-4 whitespace-nowrap text-sm text-slate-600">
                   {{ patient.age ?? '-' }}
                 </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">
+                <td class="hidden sm:table-cell px-6 py-4 whitespace-nowrap text-sm text-slate-600">
                   {{ patient.gender || '-' }}
                 </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">
+                <td class="hidden sm:table-cell px-6 py-4 whitespace-nowrap text-sm text-slate-600">
                   {{ formatDate(patient.lastVisitDate) }}
                 </td>
-                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                <td class="hidden sm:table-cell px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                   <button
                     @click.stop="goToHistory(patient.id)"
                     class="inline-flex items-center justify-center px-4 py-1.5 border border-blue-200 text-[#0052ff] rounded-full text-xs font-bold hover:bg-blue-50 transition-colors bg-white shadow-sm"
@@ -249,7 +250,7 @@ const handleNewPatient = () => {
           </table>
         </div>
 
-        <!-- Pagination -->
+
         <div class="bg-white px-4 sm:px-6 py-4 flex items-center justify-between border-t border-slate-100">
           <div class="w-full flex flex-col sm:flex-row items-center justify-between gap-4">
             <div>

@@ -3,8 +3,15 @@ import { calculateBopPercentage, calculateCal, calculateChartSummary, calculateP
 import { createInitialChartData } from '@/domain/chart/chart.factory'
 import type { PatientInfo, SiteIndex, Surface, ToothId } from '@/domain/chart/chart.types'
 import { useAuthStore } from './auth'
-import { loadChartPatientWorkflow, loadChartWorkflow, saveChartWorkflow } from '@/services/chart-workflow'
+import { useVisitStore } from './visit'
+import { useNotificationStore } from './notification'
+import { mapChartToPayload, mapPayloadToChart } from '@/domain/chart/chart.mapper'
+import { chartApi } from '@/services/api/chart.api'
 import { registerSessionClearListener } from '@/services/session'
+import type {
+  DiagnosisInputDto,
+  DiagnosisResponseDto,
+} from '@/domain/diagnosis/diagnosis.api-mapper'
 
 const createDefaultPatientInfo = (): PatientInfo => {
   const authStore = useAuthStore()
@@ -19,13 +26,13 @@ const createDefaultPatientInfo = (): PatientInfo => {
     nationality: '',
     gender: '',
     date: new Date().toISOString().split('T')[0],
-    visitPhase: 'before_hygienic' // Default phase
+    visitPhase: 'before_hygienic'
   }
 }
 
 export const usePeriodontalChartStore = defineStore('periodontalChart', {
   state: () => ({
-    // Single active chart for the current visit
+
     chartName: 'New Chart' as string,
     patientInfo: createDefaultPatientInfo(),
     teethData: createInitialChartData(),
@@ -33,9 +40,14 @@ export const usePeriodontalChartStore = defineStore('periodontalChart', {
     activeSubNav: 'chart' as 'chart' | 'xray' | 'export',
     currentPatientId: null as string | null,
     isDirty: false as boolean,
-    // When true the chart is being viewed (a saved visit, not in edit mode):
-    // all mutating actions become no-ops so the record can't change.
+
+
     readonly: false as boolean,
+
+
+
+
+    editMode: false as boolean,
   }),
 
   getters: {
@@ -81,8 +93,9 @@ export const usePeriodontalChartStore = defineStore('periodontalChart', {
       this.currentPatientId = null
       this.isDirty = false
       this.readonly = false
-      // Explicitly clear localStorage so logout wipes any unsaved draft
-      try { localStorage.removeItem('periodontalChart') } catch (_) {}
+      this.editMode = false
+
+      try { localStorage.removeItem('periodontalChart') } catch (_) { }
     },
 
     updatePatientInfo(value: PatientInfo) {
@@ -167,7 +180,7 @@ export const usePeriodontalChartStore = defineStore('periodontalChart', {
       if (!tooth || tooth.extracted) return
       tooth.implant = !tooth.implant
 
-      // When Implant toggles, reset the existing mobility/furcation values
+
       tooth.mo = ''
       tooth.fur.buccal = tooth.fur.buccal.map(() => 0)
       tooth.fur.lingual = tooth.fur.lingual.map(() => 0)
@@ -180,7 +193,7 @@ export const usePeriodontalChartStore = defineStore('periodontalChart', {
       if (!tooth) return
       tooth.extracted = !tooth.extracted
 
-      // Clear ALL clinical data when tooth is extracted (fill black)
+
       if (tooth.extracted) {
         const clearSurfaceData = () => ({
           bop: [false, false, false],
@@ -216,16 +229,177 @@ export const usePeriodontalChartStore = defineStore('periodontalChart', {
       this.isDirty = true
     },
 
-    async saveToBackend(completeVisit = true) {
-      await saveChartWorkflow(this, completeVisit)
+    async saveToBackend(diagnosis: DiagnosisInputDto, completeVisit = true) {
+      const visitStore = useVisitStore()
+      const notifStore = useNotificationStore()
+      const visitId = visitStore.activeVisitId === 'new' ? undefined : visitStore.activeVisitId
+
+      const { patientInfo } = this
+
+      if (!patientInfo.hn) {
+        notifStore.error('Please enter HN before saving')
+        throw new Error('HN is required')
+      }
+      if (!patientInfo.patientName) {
+        notifStore.error('Please enter patient name before saving')
+        throw new Error('Patient name is required')
+      }
+
+      const payload = mapChartToPayload({
+        name: this.chartName,
+        patientInfo: this.patientInfo,
+        teethData: this.teethData,
+      })
+
+      const names = patientInfo.patientName.trim().split(/\s+/)
+      const patientGender = patientInfo.gender?.trim().toLowerCase() || null
+      const patientNationality = patientInfo.nationality?.trim() || null
+
+      try {
+        const { data } = await chartApi.save({
+          visitId,
+          chartName: this.chartName,
+          teethData: payload,
+          patientHn: patientInfo.hn,
+          patientFirstName: names[0] ?? '',
+          patientLastName: names.length > 1 ? names.slice(1).join(' ') : '',
+          patientAge: patientInfo.age ?? null,
+          patientGender,
+          patientNationality,
+          visitDate: patientInfo.date,
+          visitPhase: patientInfo.visitPhase || 'before_hygienic',
+          completeVisit,
+          diagnosis,
+        })
+
+        const savedChart = data?.saveChart
+        if (savedChart?.visitId) {
+          visitStore.setActiveVisit(savedChart.visitId)
+        }
+
+
+
+
+        if (savedChart?.patientId) {
+          this.currentPatientId = savedChart.patientId
+        }
+
+        this.isDirty = false
+        notifStore.success('Chart saved successfully',)
+
+
+
+        if (this.currentPatientId) {
+          const fetchedVisits = await visitStore.loadVisits(this.currentPatientId)
+          if (savedChart?.visitId) {
+            const newRealVisit = fetchedVisits.find(v => v.id === savedChart.visitId)
+            if (newRealVisit) {
+              const newIdx = visitStore.visits.findIndex(v => v.id === 'new')
+              if (newIdx !== -1) {
+                visitStore.visits[newIdx] = newRealVisit
+              } else {
+                const existingIdx = visitStore.visits.findIndex(v => v.id === savedChart.visitId)
+                if (existingIdx !== -1) {
+                  visitStore.visits[existingIdx] = newRealVisit
+                } else {
+                  visitStore.visits.push(newRealVisit)
+                }
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Save chart error:', err)
+        notifStore.error('Failed to save chart, please try again')
+        throw err
+      }
     },
 
     async loadFromBackend(visitId: string) {
-      await loadChartWorkflow(this, visitId)
+      try {
+        const { data } = await chartApi.getByVisit(visitId)
+        const visitStore = useVisitStore()
+
+
+        if (visitStore.activeVisitId !== visitId) return
+        const chartData = data?.chartByVisit
+        const diagnosis = (chartData?.diagnosis ?? null) as DiagnosisResponseDto | null
+
+
+
+
+        if (chartData?.patientId) {
+          this.currentPatientId = chartData.patientId
+        }
+
+        if (!chartData || !chartData.teethData) {
+
+
+          this.chartName = 'New Chart'
+          this.teethData = createInitialChartData()
+          this.selectedToothId = null
+          this.isDirty = false
+          return diagnosis
+        }
+
+        const chartPayload = {
+          chart_name: chartData.chartName || 'Chart',
+          patient_info: chartData.patientInfo || this.patientInfo,
+          teeth: chartData.teethData,
+          summary: chartData.summary || undefined
+        }
+
+        const rehydrated = mapPayloadToChart(chartPayload)
+
+        this.chartName = chartData.chartName || rehydrated.name || this.chartName
+        this.teethData = rehydrated.teethData || this.teethData
+
+        if (chartData.patientInfo) {
+          const pi = chartData.patientInfo
+          this.patientInfo = {
+            hn: pi.hn || '',
+            patientName: pi.patientName || '',
+            age: pi.age ?? null,
+            gender: pi.gender || '',
+            nationality: pi.nationality || '',
+            date: pi.date || new Date().toISOString().split('T')[0],
+            doctor: pi.doctor || '',
+            studentId: pi.studentId || '',
+            visitPhase: pi.visitPhase || 'before_hygienic',
+          }
+        } else {
+          this.patientInfo = rehydrated.patientInfo || this.patientInfo
+        }
+
+        this.isDirty = false
+        return diagnosis
+
+      } catch (error) {
+        console.error('Failed to load chart from backend:', error)
+        throw error
+      }
     },
 
     async loadPatientById(id: string) {
-      await loadChartPatientWorkflow(this, id)
+      this.currentPatientId = id
+      const { patientApi } = await import('@/services/api/patient.api')
+      const patient = await patientApi.getById(id)
+
+      if (this.currentPatientId !== id) return
+      if (patient) {
+        const genderRaw = patient.gender || ''
+        this.patientInfo = {
+          hn: patient.hn || '',
+          doctor: this.patientInfo.doctor,
+          studentId: this.patientInfo.studentId,
+          patientName: `${patient.firstName || ''} ${patient.lastName || ''}`.trim(),
+          age: patient.age ?? null,
+          nationality: patient.nationality || '',
+          gender: genderRaw ? genderRaw.charAt(0).toUpperCase() + genderRaw.slice(1) : '',
+          date: patient.lastVisitDate ? patient.lastVisitDate.split('T')[0] : new Date().toISOString().split('T')[0],
+          visitPhase: this.patientInfo.visitPhase || 'before_hygienic',
+        }
+      }
     }
   },
 

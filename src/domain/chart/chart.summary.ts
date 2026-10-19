@@ -3,18 +3,18 @@ import { getSiteLabel, getSiteRegion, type SiteRegion } from './chart.mapper'
 
 const toNumber = (value: string) => Number.parseInt(value, 10) || 0
 
-// ── Site-aware summary types & helpers (for the Overview display) ──────────────
-// Each finding keeps the affected site(s) so the UI can show *where* on the tooth
-// the value was recorded, not just the tooth number.
+
+
+
 
 export interface SiteRef {
-  label: string       // base position label, e.g. 'MB' | 'B' | 'DB' | 'MP' …
-  region: SiteRegion  // buccal-upper | palatal | lingual | buccal-lower (color + arch)
+  label: string
+  region: SiteRegion
 }
 
 export interface ToothSiteEntry {
   toothId: number
-  sites: SiteRef[]    // empty ⇒ whole-tooth finding (e.g. mobility)
+  sites: SiteRef[]
 }
 
 const SURFACES: Surface[] = ['buccal', 'lingual']
@@ -22,8 +22,8 @@ const SURFACES: Surface[] = ['buccal', 'lingual']
 const sortedToothIds = (chartData: ChartData): number[] =>
   Object.keys(chartData).map(Number).sort((a, b) => a - b)
 
-// Append a site to the per-tooth accumulator, creating the entry on first hit.
-// Iterating surfaces buccal→lingual and index 0→2 keeps sites in display order.
+
+
 const pushSite = (
   map: Map<number, ToothSiteEntry>,
   toothId: number,
@@ -45,12 +45,78 @@ const toEntries = (map: Map<number, ToothSiteEntry>): ToothSiteEntry[] =>
   Array.from(map.values()).sort((a, b) => a.toothId - b.toothId)
 
 
-/**
- * Get teeth by mobility grade
- * @param chartData - Chart data
- * @param grade - Mobility grade (0-3)
- * @returns Array of tooth IDs with the specified mobility grade
- */
+
+
+
+
+
+
+
+export const getTeethByPdRange = (
+  chartData: ChartData,
+  min: number,
+  max?: number,
+): number[] => {
+  const result: number[] = []
+  const surfaces: Surface[] = ['buccal', 'lingual']
+
+  Object.entries(chartData).forEach(([toothId, tooth]) => {
+    if (tooth.extracted) return
+
+    surfaces.forEach((surface) => {
+      tooth[surface].pd.forEach((value) => {
+        const pd = toNumber(value)
+        if (pd > 0 && pd >= min && (max === undefined || pd <= max)) {
+          if (!result.includes(Number.parseInt(toothId, 10))) {
+            result.push(Number.parseInt(toothId, 10))
+          }
+        }
+      })
+    })
+  })
+
+  return result.sort((a, b) => a - b)
+}
+
+
+
+
+
+
+
+
+export const getTeethByCalRange = (
+  chartData: ChartData,
+  min: number,
+  max?: number,
+): number[] => {
+  const result: number[] = []
+  const surfaces: Surface[] = ['buccal', 'lingual']
+
+  Object.entries(chartData).forEach(([toothId, tooth]) => {
+    if (tooth.extracted) return
+
+    surfaces.forEach((surface) => {
+      tooth[surface].cal.forEach((value) => {
+        const cal = toNumber(value)
+        if (cal > 0 && cal >= min && (max === undefined || cal <= max)) {
+          if (!result.includes(Number.parseInt(toothId, 10))) {
+            result.push(Number.parseInt(toothId, 10))
+          }
+        }
+      })
+    })
+  })
+
+  return result.sort((a, b) => a - b)
+}
+
+
+
+
+
+
+
 export const getTeethByMobility = (
   chartData: ChartData,
   grade: number,
@@ -67,12 +133,179 @@ export const getTeethByMobility = (
   return result.sort((a, b) => a - b)
 }
 
-// ── Site-aware accessors (used by the Overview's Clinical Data Summary) ────────
 
-/**
- * Group abnormal Probing Depth (PD > 4mm) by value, keeping the affected site(s)
- * of each tooth.
- */
+
+
+
+
+
+export const getTeethByFurcation = (
+  chartData: ChartData,
+  grade: number,
+): number[] => {
+  const result: number[] = []
+  const surfaces: Surface[] = ['buccal', 'lingual']
+
+  Object.entries(chartData).forEach(([toothId, tooth]) => {
+    if (tooth.extracted || tooth.implant) return
+
+
+    let maxFur = 0
+    surfaces.forEach((surface) => {
+      tooth.fur[surface].forEach((furValue) => {
+        if (furValue > maxFur) {
+          maxFur = furValue
+        }
+      })
+    })
+
+
+    if (maxFur === grade) {
+      result.push(Number.parseInt(toothId, 10))
+    }
+  })
+
+  return result.sort((a, b) => a - b)
+}
+
+
+
+
+
+
+export const getTeethWithBop = (chartData: ChartData): number[] => {
+  const result: number[] = []
+  const surfaces: Surface[] = ['buccal', 'lingual']
+
+  Object.entries(chartData).forEach(([toothId, tooth]) => {
+    if (tooth.extracted) return
+
+    surfaces.forEach((surface) => {
+      if (tooth[surface].bop.some((b) => b)) {
+        if (!result.includes(Number.parseInt(toothId, 10))) {
+          result.push(Number.parseInt(toothId, 10))
+        }
+      }
+    })
+  })
+
+  return result.sort((a, b) => a - b)
+}
+
+
+
+
+
+
+export const getTeethWithPi = (chartData: ChartData): number[] => {
+  const result: number[] = []
+  const surfaces: Surface[] = ['buccal', 'lingual']
+
+  Object.entries(chartData).forEach(([toothId, tooth]) => {
+    if (tooth.extracted) return
+
+    surfaces.forEach((surface) => {
+      if (tooth[surface].pi.some((p) => p)) {
+        if (!result.includes(Number.parseInt(toothId, 10))) {
+          result.push(Number.parseInt(toothId, 10))
+        }
+      }
+    })
+  })
+
+  return result.sort((a, b) => a - b)
+}
+
+
+
+
+
+
+
+export const getPrognosisSummary = (
+  chartData: ChartData,
+): Record<string, number[]> => {
+  const summary: Record<string, number[]> = {
+    Good: [],
+    Fair: [],
+    Poor: [],
+    Questionable: [],
+    Hopeless: [],
+    'N/A': [],
+    'Good (Fixed)': [],
+  }
+
+  Object.entries(chartData).forEach(([toothId, tooth]) => {
+    if (tooth.extracted) {
+      summary['N/A'].push(Number.parseInt(toothId, 10))
+      return
+    }
+
+    if (tooth.implant) {
+      summary['Good (Fixed)'].push(Number.parseInt(toothId, 10))
+      return
+    }
+
+    const surfaces: Surface[] = ['buccal', 'lingual']
+    const allCAL: number[] = []
+    const maxFurValues: number[] = []
+
+    surfaces.forEach((surface) => {
+      tooth[surface].cal.forEach((cal) => {
+        allCAL.push(toNumber(cal))
+      })
+      tooth.fur[surface].forEach((fur) => {
+        maxFurValues.push(fur)
+      })
+    })
+
+    const maxCAL = allCAL.length > 0 ? Math.max(...allCAL) : 0
+    const maxFur = maxFurValues.length > 0 ? Math.max(...maxFurValues) : 0
+    const mobility = toNumber(tooth.mo)
+
+    let prognosis = 'Good'
+    if (maxCAL > 8 || mobility >= 3) prognosis = 'Hopeless'
+    else if (maxCAL > 6 || maxFur >= 2 || mobility >= 2) prognosis = 'Questionable'
+    else if (maxCAL > 5 || maxFur === 2) prognosis = 'Poor'
+    else if (maxCAL >= 4 || maxFur === 1) prognosis = 'Fair'
+
+    summary[prognosis].push(Number.parseInt(toothId, 10))
+  })
+
+  return summary
+}
+
+
+
+
+
+
+export const getTeethByKtwLessThanTwo = (chartData: ChartData): number[] => {
+  const result: number[] = []
+  const surfaces: Surface[] = ['buccal', 'lingual']
+
+  Object.entries(chartData).forEach(([toothId, tooth]) => {
+    if (tooth.extracted) return
+
+    const hasLowKtw = surfaces.some((surface) => {
+      const val = parseFloat(tooth[surface].ktw)
+      return val > 0 && val < 2
+    })
+
+    if (hasLowKtw) {
+      result.push(Number.parseInt(toothId, 10))
+    }
+  })
+
+  return result.sort((a, b) => a - b)
+}
+
+
+
+
+
+
+
 export const getPdByValueWithSites = (
   chartData: ChartData,
 ): Record<number, ToothSiteEntry[]> => {
@@ -100,11 +333,11 @@ export const getPdByValueWithSites = (
   return out
 }
 
-/**
- * Group keratinized tissue width (0 < KTW < 2mm) by value, keeping the affected
- * surface(s). KTW is per-surface, so the center label (index 1) is used as the
- * surface code (Bᵘ / P / L / Bˡ).
- */
+
+
+
+
+
 export const getKtwByValueWithSites = (
   chartData: ChartData,
 ): Record<string, ToothSiteEntry[]> => {
@@ -131,10 +364,10 @@ export const getKtwByValueWithSites = (
   return out
 }
 
-/**
- * Teeth whose maximum furcation grade equals the requested grade (matching
- * getTeethByFurcation), keeping the site(s) that carry that grade.
- */
+
+
+
+
 export const getFurcationWithSites = (
   chartData: ChartData,
   grade: number,
