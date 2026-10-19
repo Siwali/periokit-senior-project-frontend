@@ -1,6 +1,6 @@
 import { getAuthHeaders } from "../token-storage";
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
+export const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
 export type ApiValidationError = {
   path?: string;
@@ -12,24 +12,34 @@ export type ApiResponse<T> = {
   message?: string;
   data?: T;
   errors?: ApiValidationError[];
+
+
+
+
+
+
+  reason?: string;
 };
 
 export class ApiError extends Error {
   status: number;
   errors?: ApiValidationError[];
   data?: unknown;
+  reason?: string;
 
   constructor(
     message: string,
     status: number,
     errors?: ApiValidationError[],
     data?: unknown,
+    reason?: string,
   ) {
     super(message);
     this.name = "ApiError";
     this.status = status;
     this.errors = errors;
     this.data = data;
+    this.reason = reason;
   }
 }
 
@@ -69,6 +79,7 @@ export async function apiRequest<T>(
       response.status,
       payload.errors,
       payload.data,
+      payload.reason,
     );
   }
 

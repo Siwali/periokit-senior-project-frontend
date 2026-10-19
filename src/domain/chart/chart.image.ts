@@ -284,25 +284,40 @@ export const getFurMarkerStyle = (id: ToothId, surface: Surface, index: number, 
   }
 }
 
-// KTW Warning marker positions (displayed when KTW < 2mm)
-// Positioned at the top of upper teeth, bottom of lower teeth
+
+
 type KtwWarningPosition = {
   top: string
   left: string
 }
 
 const KTW_WARNING_BASE_POSITIONS: Record<'upper' | 'lower', KtwWarningPosition> = {
-  upper: { top: '8%', left: '50%' },   // Top of upper teeth
-  lower: { top: '92%', left: '50%' }   // Bottom of lower teeth
+  upper: { top: '8%', left: '50%' },
+  lower: { top: '92%', left: '50%' }
 }
 
 export const getKtwWarningStyle = (id: ToothId, _surface: Surface): KtwWarningPosition => {
-  // Base position depends on arch
+
   return KTW_WARNING_BASE_POSITIONS[isUpperTooth(id) ? 'upper' : 'lower']
 }
 
-// Check if KTW warning should be displayed (KTW < 2mm and has a value)
-// Uses parseFloat to support decimal values like 1.5, 1.9
+
+const MOBILITY_MARKER_POSITIONS: Record<'upper' | 'lower', KtwWarningPosition> = {
+  upper: { top: '73%', left: '50%' },
+  lower: { top: '29%', left: '50%' }
+}
+
+export const getMobilityMarkerStyle = (id: ToothId): KtwWarningPosition => {
+  return MOBILITY_MARKER_POSITIONS[isUpperTooth(id) ? 'upper' : 'lower']
+}
+
+export const getMobilityGrade = (tooth: ToothData): number => {
+  if (tooth.extracted || tooth.implant) return 0
+  return parseInt(tooth.mo, 10) || 0
+}
+
+
+
 export const shouldShowKtwWarning = (ktwValue: string): boolean => {
   const num = parseFloat(ktwValue) || 0
   return num > 0 && num < 2

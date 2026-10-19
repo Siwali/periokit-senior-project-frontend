@@ -1,16 +1,58 @@
 <script setup lang="ts">
-import { LogOut, AlertCircle } from "lucide-vue-next";
+import { nextTick, onBeforeUnmount, ref, watch } from "vue";
+import { LogOut, AlertCircle, Loader2 } from "lucide-vue-next";
 
-defineProps<{
+const props = defineProps<{
   show: boolean;
   title: string;
   message: string;
   confirmText?: string;
   cancelText?: string;
   type?: "danger" | "info" | "warning";
+
+
+
+
+
+  busy?: boolean;
+  busyText?: string;
 }>();
 
 const emit = defineEmits(["confirm", "cancel"]);
+
+
+function requestCancel() {
+  if (props.busy) return;
+  emit("cancel");
+}
+
+function onKeyDown(event: KeyboardEvent) {
+  if (event.key === "Escape") requestCancel();
+}
+
+const confirmButton = ref<HTMLButtonElement | null>(null);
+const cancelButton = ref<HTMLButtonElement | null>(null);
+
+
+
+watch(
+  () => props.show,
+  async (open) => {
+    if (!open) {
+      document.removeEventListener("keydown", onKeyDown);
+      return;
+    }
+    document.addEventListener("keydown", onKeyDown);
+    await nextTick();
+
+
+
+    (props.type === "danger" ? cancelButton : confirmButton).value?.focus();
+  },
+  { immediate: true },
+);
+
+onBeforeUnmount(() => document.removeEventListener("keydown", onKeyDown));
 </script>
 
 <template>
@@ -19,34 +61,34 @@ const emit = defineEmits(["confirm", "cancel"]);
       v-if="show"
       class="fixed inset-0 z-[9999] flex items-center justify-center p-4"
     >
-      <!-- Backdrop -->
+
       <div
         class="absolute inset-0 bg-black/40 backdrop-blur-sm"
-        @click="emit('cancel')"
+        @click="requestCancel"
       ></div>
 
-      <!-- Modal Content -->
+
       <Transition name="scale">
         <div
           v-if="show"
           class="relative bg-white rounded-[24px] shadow-[0_8px_30px_rgb(0,0,0,0.12)] w-full max-w-lg overflow-hidden"
         >
-          <!-- Background Glow Effect -->
-          <div 
+
+          <div
             class="absolute -top-20 -right-20 w-48 h-48 rounded-full blur-3xl opacity-20 pointer-events-none transition-colors"
             :class="type === 'danger' ? 'bg-red-500' : 'bg-[#0052ff]'"
           ></div>
 
           <div class="p-8 relative z-10">
-            <!-- Header/Icon Section -->
+
             <div class="flex justify-between items-start mb-2">
-              <h3 
+              <h3
                 class="text-2xl font-bold pr-4"
                 :class="type === 'danger' ? 'text-red-600' : 'text-[#0052ff]'"
               >
                 {{ title }}
               </h3>
-              <div 
+              <div
                 :class="type === 'danger' ? 'text-red-500' : 'text-[#0052ff]'"
                 class="flex-shrink-0"
               >
@@ -55,28 +97,43 @@ const emit = defineEmits(["confirm", "cancel"]);
               </div>
             </div>
 
-            <!-- Body -->
+
             <p
               class="text-gray-500 font-semibold leading-relaxed whitespace-pre-line mb-8"
               v-html="message"
             ></p>
 
-            <!-- Actions -->
+
             <div class="flex flex-col sm:flex-row gap-3">
               <button
+                ref="confirmButton"
                 @click="emit('confirm')"
+                :disabled="busy"
                 :class="[
-                  'flex-1 px-6 py-3 rounded-xl font-bold text-white shadow-lg transition-all active:scale-95',
+                  'flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold text-white shadow-lg transition-all',
                   type === 'danger'
-                    ? 'bg-red-500 hover:bg-red-600 shadow-red-500/20'
-                    : 'bg-[#0052ff] hover:bg-[#0042cc] shadow-blue-500/20',
+                    ? 'bg-red-500 shadow-red-500/20'
+                    : 'bg-[#0052ff] shadow-blue-500/20',
+                  busy
+                    ? 'opacity-60 cursor-default'
+                    : type === 'danger'
+                      ? 'hover:bg-red-600 active:scale-95'
+                      : 'hover:bg-[#0042cc] active:scale-95',
                 ]"
               >
-                {{ confirmText || "Confirm" }}
+                <Loader2 v-if="busy" class="w-4 h-4 animate-spin" />
+                {{ busy ? busyText || "Working..." : confirmText || "Confirm" }}
               </button>
               <button
+                ref="cancelButton"
                 @click="emit('cancel')"
-                class="flex-1 px-6 py-3 rounded-xl font-bold text-gray-700 bg-white border border-gray-200 hover:bg-gray-50 transition-all active:scale-95"
+                :disabled="busy"
+                class="flex-1 px-6 py-3 rounded-xl font-bold text-gray-700 bg-white border border-gray-200 transition-all"
+                :class="
+                  busy
+                    ? 'opacity-60 cursor-default'
+                    : 'hover:bg-gray-50 active:scale-95'
+                "
               >
                 {{ cancelText || "Cancel" }}
               </button>

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia'
-import { Download, FileText, Image as ImageIcon, Plus, Save, Stethoscope, Loader2, X, Pencil } from 'lucide-vue-next'
+import { Download, FileText, Image as ImageIcon, Plus, Save, Stethoscope, Loader2, Users, X, Pencil } from 'lucide-vue-next'
 import Navbar from '@/components/layout/Navbar.vue'
 import ChartLegend from '@/components/chart/ChartLegend.vue'
 import ChartOverviewModal from '@/components/chart/ChartOverviewModal.vue'
@@ -11,15 +11,19 @@ import ToothSidebarOverlay from '@/components/chart/ToothSidebarOverlay.vue'
 import VirtualNumpad from '@/components/chart/VirtualNumpad.vue'
 import AutoFitWrapper from '@/components/common/AutoFitWrapper.vue'
 import PatientDrawer from '@/components/patients/VisitListPanel.vue'
+import XrayBoardPanel from '@/components/xray/XrayBoardPanel.vue'
+import ExportPanel from '@/components/export/ExportPanel.vue'
 import { usePeriodontalChartStore } from '@/stores/periodontal-chart'
 import { useClinicalValidationStore } from '@/stores/clinical-validation'
 import { useVisitStore } from '@/stores/visit'
-import { useNotificationStore } from '@/stores/notification'
-import { useChartRouteState } from '@/composables/chart/useChartRouteState'
-import { useDraftRecovery } from '@/composables/chart/useDraftRecovery'
+import { useDiagnosisStore, resolveDiagnosisKey } from '@/stores/diagnosis'
+import { useVisitSave } from '@/composables/useVisitSave'
+import { useVisitLoad } from '@/composables/useVisitLoad'
+import { useVisitTabs } from '@/composables/useVisitTabs'
+import { useXrayLeaveGuard, XRAY_LEAVE_WARNING } from '@/composables/useXrayLeaveGuard'
 import type { ToothId } from '@/domain/chart/chart.types'
-import { computed, onMounted, ref, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { ref, watch, onMounted, onUnmounted, computed } from 'vue'
+import { onBeforeRouteLeave, onBeforeRouteUpdate, useRoute, useRouter } from 'vue-router'
 import draggable from 'vuedraggable'
 
 const route = useRoute()
@@ -28,9 +32,321 @@ const chartStore = usePeriodontalChartStore()
 chartStore.initializeChart()
 const validationStore = useClinicalValidationStore()
 const visitStore = useVisitStore()
-const notifStore = useNotificationStore()
+const diagnosisStore = useDiagnosisStore()
+const { loadVisit } = useVisitLoad()
 
 const drawerOpen = ref(false)
+const urlVisitId = ref<string | null>(null)
+
+
+
+
+
+async function enterNewVisitState() {
+
+
+  const patientId = route.query.patientId as string | undefined
+  const today = new Date().toISOString().split('T')[0]
+  chartStore.resetChart()
+  if (patientId) {
+    await chartStore.loadPatientById(patientId)
+  }
+  chartStore.patientInfo.date = today
+  chartStore.patientInfo.visitPhase = 'before_hygienic'
+  visitStore.addDraftVisit(patientId || '', today, 'before_hygienic')
+}
+
+
+
+
+
+
+
+function keepDraftVisit(patientId: string) {
+  visitStore.visits = []
+  visitStore.addDraftVisit(
+    patientId,
+    chartStore.patientInfo.date || new Date().toISOString().split('T')[0],
+    chartStore.patientInfo.visitPhase || 'before_hygienic',
+  )
+}
+
+
+
+
+
+
+
+
+
+
+
+
+const hasOpenDraft = () => chartStore.isDirty && visitStore.activeVisitId === 'new'
+
+
+
+
+
+
+const restoreOpenDraft = (
+  patientId: string | null,
+  extraQuery: Record<string, string | undefined> = {},
+) => {
+  keepDraftVisit(patientId ?? '')
+  return navigate({
+    name: 'chart',
+    query: { ...(patientId ? { patientId } : {}), visitId: 'new', ...extraQuery },
+  })
+}
+
+
+
+const draftRestored = ref(false)
+
+onMounted(async () => {
+  const visitId = route.query.visitId as string | undefined
+  const patientId = route.query.patientId as string | undefined
+
+
+  const requestedTab = route.query.tab
+  const wantsTab =
+    requestedTab === 'xray' || requestedTab === 'export' ? requestedTab : null
+
+  const tabQuery = wantsTab ? { tab: wantsTab } : {}
+
+
+
+  const hadDirtyWork = chartStore.isDirty
+  const persistedPatientId = chartStore.currentPatientId
+
+
+
+
+
+
+
+
+  const keepsDraft = (forPatientId?: string | null) =>
+    hadDirtyWork && (persistedPatientId ?? null) === (forPatientId ?? null)
+
+
+
+
+
+
+
+  const draftMatchesUrl =
+    hasOpenDraft() && (!patientId || (persistedPatientId ?? null) === patientId)
+
+  if (patientId && visitId) {
+    urlVisitId.value = visitId
+    const keepingDraft = visitId === 'new' && keepsDraft(patientId)
+
+
+
+
+
+
+    if (!keepingDraft) chartStore.currentPatientId = null
+    try {
+      if (!keepingDraft) await chartStore.loadPatientById(patientId)
+      const fetchedVisits = await visitStore.loadVisits(patientId)
+      visitStore.setActiveVisit(visitId)
+      if (visitId !== 'new') {
+        const selectedVisit = fetchedVisits.find(v => v.id === visitId)
+        if (selectedVisit) {
+          visitStore.visits = [selectedVisit]
+        } else {
+          visitStore.visits = []
+        }
+        await loadVisit(visitId)
+      } else if (keepingDraft) {
+        keepDraftVisit(patientId)
+      } else {
+        visitStore.visits = []
+        await enterNewVisitState()
+      }
+    } catch (error) {
+      console.error('Failed to load chart:', error)
+    }
+  } else if (!visitId && draftMatchesUrl) {
+    draftRestored.value = true
+    const draftPatientId = patientId ?? persistedPatientId ?? null
+    restoreOpenDraft(draftPatientId, tabQuery)
+  } else if (patientId) {
+    visitStore.setActiveVisit(null)
+    chartStore.resetChart()
+    try {
+      await chartStore.loadPatientById(patientId)
+      const fetchedVisits = await visitStore.loadVisits(patientId)
+
+      if (fetchedVisits.length === 0) {
+        visitStore.visits = []
+        await enterNewVisitState()
+        navigate({ name: 'chart', query: { patientId, visitId: 'new', ...tabQuery } })
+      } else {
+
+        const sorted = [...fetchedVisits].sort((a, b) => (a.visitNumber ?? 0) - (b.visitNumber ?? 0))
+        const latest = sorted[sorted.length - 1]
+        visitStore.visits = [latest]
+        navigate({ name: 'chart', query: { patientId, visitId: latest.id, ...tabQuery } })
+      }
+    } catch (error) {
+      console.error('Failed to load patient:', error)
+    }
+  } else if (visitId) {
+    urlVisitId.value = visitId
+
+
+    const keepingDraft = visitId === 'new' && keepsDraft(null)
+    chartStore.currentPatientId = null
+    visitStore.setActiveVisit(visitId)
+    if (visitId !== 'new') {
+      try {
+        await loadVisit(visitId)
+        if (chartStore.currentPatientId) {
+          const fetchedVisits = await visitStore.loadVisits(chartStore.currentPatientId)
+          const selectedVisit = fetchedVisits.find(v => v.id === visitId)
+          if (selectedVisit) {
+            visitStore.visits = [selectedVisit]
+          }
+        }
+      } catch (error) {
+        console.error('Failed to load chart:', error)
+      }
+    } else if (keepingDraft) {
+      keepDraftVisit('')
+    } else {
+      visitStore.visits = []
+      await enterNewVisitState()
+    }
+  } else {
+    visitStore.visits = []
+    await enterNewVisitState()
+  }
+
+
+
+  if (wantsTab) chartStore.activeSubNav = wantsTab
+})
+
+
+
+
+
+
+
+
+
+
+
+watch(
+  () => chartStore.activeSubNav,
+  tab => {
+    const current = (route.query.tab as string | undefined) ?? 'chart'
+    if (current === tab) return
+    const query = { ...route.query }
+    if (tab === 'chart') delete query.tab
+    else query.tab = tab
+    navigate({ name: 'chart', query })
+  },
+)
+
+
+watch(() => route.query.visitId, async (newVisitId, oldVisitId) => {
+
+
+
+
+
+
+  if (
+    newVisitId === 'new' &&
+    oldVisitId === undefined &&
+    hasOpenDraft() &&
+    ((route.query.patientId as string | undefined) ?? null) === chartStore.currentPatientId
+  ) {
+    urlVisitId.value = 'new'
+    return
+  }
+
+  if (newVisitId && typeof newVisitId === 'string') {
+    urlVisitId.value = newVisitId
+    visitStore.setActiveVisit(newVisitId)
+    if (newVisitId !== 'new') {
+
+      const existing = visitStore.visits.find(v => v.id === newVisitId)
+      if (!existing) {
+        const selectedVisit = visitStore.patientVisits.find(v => v.id === newVisitId)
+        if (selectedVisit) {
+          visitStore.visits.push(selectedVisit)
+        } else {
+
+          const patientId = route.query.patientId as string || chartStore.currentPatientId
+          if (patientId) {
+            const fetchedVisits = await visitStore.loadVisits(patientId)
+            const updatedVisit = fetchedVisits.find(v => v.id === newVisitId)
+            if (updatedVisit) {
+              visitStore.visits.push(updatedVisit)
+            }
+          }
+        }
+      }
+      try {
+        await loadVisit(newVisitId)
+      } catch (error) {
+        console.error('Failed to load chart:', error)
+      }
+    } else {
+      await enterNewVisitState()
+    }
+  } else if (newVisitId === undefined && route.query.patientId === undefined) {
+
+
+
+    if (hasOpenDraft()) {
+      restoreOpenDraft(chartStore.currentPatientId)
+      return
+    }
+    visitStore.clearVisits()
+    chartStore.resetChart()
+  }
+})
+
+
+
+watch(() => route.query.patientId, (newPatientId, oldPatientId) => {
+  if (newPatientId === undefined && oldPatientId !== undefined && route.query.visitId === undefined) {
+
+    if (hasOpenDraft()) {
+      restoreOpenDraft(chartStore.currentPatientId)
+      return
+    }
+    visitStore.clearVisits()
+    chartStore.resetChart()
+  }
+})
+
+
+
+
+
+watch(() => chartStore.currentPatientId, async (newPatientId, oldPatientId) => {
+  if (!newPatientId || newPatientId === oldPatientId || oldPatientId === null) return
+  visitStore.clearVisits()
+  const fetchedVisits = await visitStore.loadVisits(newPatientId)
+  if (fetchedVisits.length > 0) {
+
+    const sorted = [...fetchedVisits].sort((a, b) => (a.visitNumber ?? 0) - (b.visitNumber ?? 0))
+    const latest = sorted[sorted.length - 1]
+    visitStore.visits = [latest]
+    await handleSwitchVisit(latest.id)
+  } else {
+    chartStore.resetChart()
+    await chartStore.loadPatientById(newPatientId)
+  }
+})
 
 const {
   patientInfo,
@@ -40,107 +356,129 @@ const {
   activeSubNav,
   summary,
   currentPatientId,
+
+
+
+  editMode,
 } = storeToRefs(chartStore)
 
 const { visits, activeVisitId } = storeToRefs(visitStore)
 
-const editMode = ref(false)
 const showOverviewModal = ref(false)
 const showSaveConfirmModal = ref(false)
-const showCloseTabWarningModal = ref(false)
 const showDraftRecoveryModal = ref(false)
 const showValidation = ref(false)
 const showCancelEditConfirmModal = ref(false)
-const enableAutoFit = ref(false)
-const isSaving = ref(false)
-const isTouchDevice = ref(false)
+
+
+
+
 
 const {
-  hasPatient,
-  isNewPatientMode,
-  handleSwitchVisit,
-  handleCloseVisit,
-  confirmCloseTab,
-  handleNewVisit,
-} = useChartRouteState({
-  chartStore,
-  visitStore,
-  notifStore,
-  route,
-  router,
-  activeVisitId,
-  currentPatientId,
-  visitCount: computed(() => visits.value.length),
-  showCloseTabWarningModal,
-})
+  showLeaveWarning: showXrayLeaveWarningModal,
+  hasUnsavedBoard,
+  isBypassing,
+  navigate,
+  guard: guardUnsavedXray,
+  confirmLeave: confirmLeaveXray,
+  cancelLeave: cancelLeaveXray,
+  askBeforeLeaving,
+} = useXrayLeaveGuard()
 
-const { discardDraft } = useDraftRecovery({
-  chartStore,
-  route,
-  showDraftRecoveryModal,
-})
 
+const enableAutoFit = ref(false)
+
+const isTouchDevice = ref(false)
 onMounted(() => {
   isTouchDevice.value = 'ontouchstart' in window || navigator.maxTouchPoints > 0
 })
 
-const validateBeforeSave = () => {
-  showValidation.value = true
-  if (!patientInfo.value.hn) {
-    notifStore.error('Please enter HN before saving')
-    return false
-  }
-  if (!patientInfo.value.patientName) {
-    notifStore.error('Please enter patient name before saving')
-    return false
-  }
-  if (!chartStore.hasChartData) {
-    notifStore.error('Please enter clinical chart data before saving')
-    return false
-  }
-  return true
+onBeforeRouteUpdate((to, from) => {
+
+
+
+  const sameBoard =
+    to.query.visitId === from.query.visitId && to.query.patientId === from.query.patientId
+  if (isBypassing() || sameBoard || !hasUnsavedBoard()) return true
+  return askBeforeLeaving(to)
+})
+
+onBeforeRouteLeave(to => {
+
+
+
+  if (to.name !== 'chart' && to.name !== 'diagnosis') chartStore.editMode = false
+
+
+  const toSameVisitDiagnosis =
+    to.name === 'diagnosis' &&
+    (to.query.visitId ?? null) === xrayVisitId.value &&
+    (to.query.patientId ?? null) === xrayPatientId.value
+  if (isBypassing() || toSameVisitDiagnosis || !hasUnsavedBoard()) return true
+  return askBeforeLeaving(to)
+})
+
+
+const {
+  showCloseTabWarning: showCloseTabWarningModal,
+  switchVisit: handleSwitchVisit,
+  closeVisit: handleCloseVisit,
+  confirmCloseTab,
+  cancelCloseTab,
+  newVisit: handleNewVisit,
+} = useVisitTabs({ navigate, guard: guardUnsavedXray, enterNewVisitState })
+
+
+
+
+const handleOpenDiagnosis = () => {
+  const patientId = currentPatientId.value || (route.query.patientId as string | undefined)
+  const visitId = activeVisitId.value || (route.query.visitId as string | undefined)
+
+  router.push({
+    name: 'diagnosis',
+    query: {
+      ...(patientId ? { patientId } : {}),
+      ...(visitId ? { visitId } : {}),
+    },
+  })
 }
+
+
+
+const { isSaving, validate, saveVisit } = useVisitSave()
 
 const handleSaveClick = () => {
   if (isSaving.value) return
-  if (!validateBeforeSave()) return
+
+
+  showValidation.value = true
+  if (!validate()) return
   showSaveConfirmModal.value = true
 }
 
 const confirmSaveChart = async () => {
   showSaveConfirmModal.value = false
-  if (isSaving.value) return
+  const saved = await saveVisit()
+  if (!saved) return
 
-  isSaving.value = true
-  const wasNewPatient = isNewPatientMode.value
+  const { visitId: activeVisit, patientId } = saved
 
-  try {
-    await chartStore.saveToBackend(true)
-    editMode.value = false
 
-    const activeVisit = activeVisitId.value
-    const patientId = currentPatientId.value
 
-    if (wasNewPatient && patientId) {
-      router.push({ name: 'patient-visits', params: { patientId } })
-      return
-    }
 
-    if (activeVisit && (route.query.visitId !== activeVisit || (patientId && route.query.patientId !== patientId))) {
-      router.replace({
-        query: {
-          ...route.query,
-          visitId: activeVisit,
-          ...(patientId ? { patientId } : {}),
-        },
-      })
-    }
-  } catch (error) {
-    console.error('Failed to save chart:', error)
-  } finally {
-    isSaving.value = false
+
+  if (activeVisit && (route.query.visitId !== activeVisit || (patientId && route.query.patientId !== patientId))) {
+    navigate({
+      query: {
+        ...route.query,
+        visitId: activeVisit,
+        ...(patientId ? { patientId } : {}),
+      },
+    })
   }
 }
+
 
 const formatDate = (dateStr: string) => {
   if (!dateStr) return ''
@@ -148,21 +486,102 @@ const formatDate = (dateStr: string) => {
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
+
+
+const hasPatient = computed(() => {
+
+
+
+
+
+  const isDraft = route.query.visitId === 'new' || activeVisitId.value === 'new'
+
+  const hasNoQueryParams = !route.query.patientId && !route.query.visitId
+  return isDraft || hasNoQueryParams || Boolean(currentPatientId.value || route.query.patientId)
+})
+
+
+
+
+const isNewPatientMode = computed(() => {
+  return !route.query.patientId && !currentPatientId.value
+})
+
+
+const isXrayTab = computed(() => activeSubNav.value === 'xray' && hasPatient.value)
+const xrayPatientId = computed(
+  () => currentPatientId.value || (route.query.patientId as string) || null,
+)
+const xrayVisitId = computed(() => activeVisitId.value || (route.query.visitId as string) || null)
+
+
+
+
 const isExistingVisit = computed(
-  () => activeVisitId.value !== 'new' && activeVisitId.value !== null,
+  () => activeVisitId.value !== 'new' && activeVisitId.value !== null
 )
+
 const chartEditable = computed(
-  () => !isExistingVisit.value || editMode.value,
+  () => !isExistingVisit.value || editMode.value
 )
+
 const patientFieldsEditable = computed(() => !isExistingVisit.value)
 
+
+
+
+const buttonRowRef = ref<HTMLElement | null>(null)
+const actionsFloating = ref(false)
+
+const updateActionsFloating = () => {
+  const rect = buttonRowRef.value?.getBoundingClientRect()
+
+  const desktop = window.matchMedia('(min-width: 1280px) and (pointer: fine)').matches
+  actionsFloating.value = desktop && !!rect && rect.bottom < 110
+}
+
+
+
+onMounted(() => {
+  window.addEventListener('scroll', updateActionsFloating, { passive: true })
+  window.addEventListener('resize', updateActionsFloating)
+  updateActionsFloating()
+})
+onUnmounted(() => {
+  window.removeEventListener('scroll', updateActionsFloating)
+  window.removeEventListener('resize', updateActionsFloating)
+})
+
+const actionButtonShape = computed(() =>
+  actionsFloating.value ? 'p-4 rounded-full shadow-lg' : 'px-3 py-1.5 rounded-lg shadow-sm'
+)
+const actionIconSize = computed(() => (actionsFloating.value ? 'w-5 h-5' : 'w-3.5 h-3.5'))
+
+
 watch(chartEditable, value => { chartStore.readonly = !value }, { immediate: true })
-watch(activeVisitId, () => { editMode.value = false })
+
+watch(
+  [activeVisitId, currentPatientId],
+  ([newVisit, newPatient]) => {
+    diagnosisStore.openFor(newVisit, newPatient)
+  },
+  { immediate: true },
+)
+
+
+
+
+
+
+watch(activeVisitId, (newVisitId, oldVisitId) => {
+  if (oldVisitId === null || newVisitId === oldVisitId) return
+  editMode.value = false
+})
 
 const handleEditVisit = () => { editMode.value = true }
 
 const handleCancelEditClick = () => {
-  if (chartStore.isDirty) {
+  if (chartStore.isDirty || diagnosisStore.isDirty) {
     showCancelEditConfirmModal.value = true
   } else {
     editMode.value = false
@@ -175,24 +594,56 @@ const confirmCancelEdit = async () => {
 
   const visitId = activeVisitId.value
   if (visitId && visitId !== 'new') {
-    try {
-      await chartStore.loadFromBackend(visitId)
-    } catch (error) {
-      console.error(error)
-    }
+    try { await loadVisit(visitId) } catch (e) { console.error(e) }
   }
+  diagnosisStore.revertToSaved(resolveDiagnosisKey(activeVisitId.value, currentPatientId.value))
+}
+
+
+
+
+
+const beforeUnloadHandler = (e: BeforeUnloadEvent) => {
+  if (chartStore.isDirty || diagnosisStore.isDirty || hasUnsavedBoard()) {
+    e.preventDefault()
+
+    e.returnValue = ''
+  }
+}
+onMounted(() => { window.addEventListener('beforeunload', beforeUnloadHandler) })
+onUnmounted(() => { window.removeEventListener('beforeunload', beforeUnloadHandler) })
+
+
+
+
+onMounted(() => {
+
+
+
+  if (chartStore.isDirty && !route.query.visitId && !draftRestored.value) {
+    showDraftRecoveryModal.value = true
+  }
+})
+
+const discardDraft = () => {
+  showDraftRecoveryModal.value = false
+  chartStore.resetChart()
 }
 
 const handleUpdateNote = ({ id, note }: { id: string | number; note: string }) => {
   chartStore.updateNote(Number(id) as ToothId, note)
 }
 </script>
+
 <template>
-  <div class="min-h-screen bg-[#f1f5f9] font-sans text-[#1e293b]">
+  <div
+    class="min-h-screen bg-[#f1f5f9] font-sans text-[#1e293b]"
+    :class="{ 'h-screen flex flex-col overflow-hidden': isXrayTab }"
+  >
     <Navbar @toggle-drawer="drawerOpen = !drawerOpen" />
     <PatientDrawer v-model:open="drawerOpen" />
 
-    <div class="bg-white border-b border-slate-200 py-1.5 sticky top-16 z-40">
+    <div class="bg-white border-b border-slate-200 py-1.5 sticky top-16 z-40 shrink-0">
       <div class="max-w-400 mx-auto px-4 flex items-center justify-center">
         <div class="flex items-center gap-1.5 p-0.5 bg-slate-100/80 rounded-xl border border-slate-200 overflow-x-auto min-w-max">
           <button
@@ -224,14 +675,44 @@ const handleUpdateNote = ({ id, note }: { id: string | number; note: string }) =
       </div>
     </div>
 
-    <main class="max-w-400 mx-auto px-4 py-3">
-      <!-- Empty state when no patient selected -->
-      <div v-if="!hasPatient" class="flex flex-col items-center justify-center py-20">
-        <p class="text-slate-400 text-sm">Please select a patient from the drawer</p>
-      </div>
+
+    <XrayBoardPanel
+      v-if="isXrayTab"
+      :patient-id="xrayPatientId"
+      :visit-id="xrayVisitId"
+    />
+
+
+    <ExportPanel
+      v-else-if="activeSubNav === 'export' && hasPatient"
+      :patient-id="xrayPatientId"
+      :visit-id="xrayVisitId"
+      @switch-visit="handleSwitchVisit"
+    />
+
+    <main v-else class="max-w-400 mx-auto px-4 py-3">
+
+
+      <section
+        v-if="!hasPatient"
+        class="bg-white rounded-3xl shadow-md border border-slate-200 p-10 flex flex-col items-center gap-3 mt-3"
+      >
+        <Users class="w-8 h-8 text-slate-300" />
+        <p class="text-[13px] font-bold text-slate-700">No patient open yet</p>
+        <p class="text-[12px] text-slate-400 text-center max-w-100">
+          The chart records one patient at a time. Open My Patients and select a patient to
+          view or record visits.
+        </p>
+        <button
+          class="flex items-center gap-1.5 px-3.5 py-1.5 bg-[#0052ff] text-white rounded-lg font-bold text-[11px] shadow-md hover:bg-blue-700 transition-colors"
+          @click="router.push({ name: 'my-patients' })"
+        >
+          <Users class="w-3.5 h-3.5" /> My patients
+        </button>
+      </section>
 
       <template v-else>
-        <div class="flex flex-wrap items-center justify-between gap-4 mb-3">
+        <div ref="buttonRowRef" class="flex flex-wrap items-center sm:justify-between gap-2 sm:gap-4 mb-3">
           <button
             class="bg-white px-3 py-1.5 rounded-lg border border-slate-200 text-[11px] font-bold text-slate-600 flex items-center gap-1.5 shadow-sm hover:bg-slate-50 transition-all duration-500"
             :class="selectedToothId !== null ? 'xl:ml-18' : 'xl:ml-63'"
@@ -240,12 +721,15 @@ const handleUpdateNote = ({ id, note }: { id: string | number; note: string }) =
             <FileText class="w-3.5 h-3.5" /> Overview
           </button>
 
-          <div class="flex flex-wrap items-center gap-2 xl:mr-50">
-            <button class="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-[#9333ea]/30 text-[#9333ea] rounded-lg font-bold text-[11px] shadow-sm hover:bg-purple-50 transition-colors">
+          <div class="flex flex-wrap items-center gap-2 xl:mr-50 max-sm:contents">
+            <button
+              class="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-[#9333ea]/30 text-[#9333ea] rounded-lg font-bold text-[11px] shadow-sm hover:bg-purple-50 transition-colors"
+              @click="handleOpenDiagnosis"
+            >
               <Stethoscope class="w-3.5 h-3.5" /> Diagnosis
             </button>
-            <button 
-              class="flex items-center gap-1.5 px-3 py-1.5 border rounded-lg font-bold text-[11px] transition-all duration-200 xl:hidden" 
+            <button
+              class="flex items-center gap-1.5 px-3 py-1.5 border rounded-lg font-bold text-[11px] transition-all duration-200 xl:hidden"
               @click="enableAutoFit = !enableAutoFit"
               :class="enableAutoFit ? 'bg-[#0052ff] border-[#0052ff] text-white shadow-inner transform scale-[0.98]' : 'bg-white border-slate-200 text-slate-700 shadow-sm hover:bg-slate-50'"
             >
@@ -255,36 +739,49 @@ const handleUpdateNote = ({ id, note }: { id: string | number; note: string }) =
               <Plus class="w-3.5 h-3.5" /> New Visit
             </button>
 
-            <!-- Edit button: existing visit, not yet in edit mode -->
-            <button
-              v-if="isExistingVisit && !editMode"
-              @click="handleEditVisit"
-              class="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 text-slate-700 rounded-lg font-bold text-[11px] shadow-sm hover:bg-slate-50 transition-colors"
-            >
-              <Pencil class="w-3.5 h-3.5" /> Edit
-            </button>
 
-            <!-- Cancel edit: discard unsaved edits -->
-            <button
-              v-if="isExistingVisit && editMode"
-              @click="handleCancelEditClick"
-              class="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-lg font-bold text-[11px] shadow-sm hover:bg-slate-50 transition-colors"
-            >
-              <X class="w-3.5 h-3.5" /> Cancel
-            </button>
 
-            <!-- Save Chart: new unsaved visit OR existing visit in edit mode -->
-            <button
-              v-if="chartEditable"
-              @click="handleSaveClick"
-              :disabled="isSaving || (isExistingVisit && editMode && !chartStore.isDirty)"
-              class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold text-[11px] shadow-md transition-colors"
-              :class="(isSaving || (isExistingVisit && editMode && !chartStore.isDirty)) ? 'bg-slate-300 text-slate-500 cursor-not-allowed opacity-50' : 'bg-blue-600 text-white hover:bg-blue-700'"
-            >
-              <Loader2 v-if="isSaving" class="w-3.5 h-3.5 animate-spin" />
-              <Save v-else class="w-3.5 h-3.5" />
-              {{ isSaving ? 'Saving...' : 'Save Chart' }}
-            </button>
+
+            <div :class="actionsFloating ? 'fixed bottom-8 right-8 z-40 flex items-center gap-2' : 'flex flex-wrap items-center gap-2 max-sm:contents'">
+
+              <button
+                v-if="isExistingVisit && !editMode"
+                @click="handleEditVisit"
+                class="flex items-center gap-1.5 bg-white border border-amber-400 text-amber-600 font-bold text-[11px] hover:bg-amber-50 transition-colors"
+                :class="actionButtonShape"
+                aria-label="Edit"
+                title="Edit"
+              >
+                <Pencil :class="actionIconSize" /><span v-if="!actionsFloating">Edit</span>
+              </button>
+
+
+              <button
+                v-if="isExistingVisit && editMode"
+                @click="handleCancelEditClick"
+                class="flex items-center gap-1.5 bg-white border border-red-300 text-red-600 font-bold text-[11px] hover:bg-red-50 transition-colors"
+                :class="actionButtonShape"
+                aria-label="Cancel"
+                title="Cancel"
+              >
+                <X :class="actionIconSize" /><span v-if="!actionsFloating">Cancel</span>
+              </button>
+
+
+              <button
+                v-if="chartEditable"
+                @click="handleSaveClick"
+                aria-label="Save Chart"
+                title="Save Chart"
+                :disabled="isSaving || (isExistingVisit && editMode && !chartStore.isDirty && !diagnosisStore.isDirty)"
+                class="flex items-center gap-1.5 font-bold text-[11px] transition-colors"
+                :class="[actionButtonShape, (isSaving || (isExistingVisit && editMode && !chartStore.isDirty && !diagnosisStore.isDirty)) ? 'bg-slate-300 text-slate-500 cursor-not-allowed opacity-50' : 'bg-blue-600 text-white hover:bg-blue-700']"
+              >
+                <Loader2 v-if="isSaving" class="animate-spin" :class="actionIconSize" />
+                <Save v-else :class="actionIconSize" />
+                <span v-if="!actionsFloating">{{ isSaving ? 'Saving...' : 'Save Chart' }}</span>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -292,7 +789,7 @@ const handleUpdateNote = ({ id, note }: { id: string | number; note: string }) =
           <ChartLegend :is-sidebar-open="selectedToothId !== null" class="hidden xl:flex" />
 
           <div class="w-full xl:w-255 shrink-0 flex flex-col gap-0 transition-all duration-500 min-w-0">
-            <!-- Visit Tabs: always visible when there are visits/drafts -->
+
             <div v-if="!isNewPatientMode || visits.length > 0" class="flex items-center gap-0 relative z-10">
               <template v-if="visits.length === 0">
                 <div class="px-4 py-2 text-xs text-slate-400 italic">
@@ -357,8 +854,8 @@ const handleUpdateNote = ({ id, note }: { id: string | number; note: string }) =
               @update:patient-info="chartStore.updatePatientInfo"
             />
 
-            <!-- fieldset disables native inputs/checkboxes when read-only; the
-                 store guard covers the div-based toggles (BoP/PI/fur/Ext). -->
+
+
             <fieldset :disabled="!chartEditable" class="border-0 p-0 m-0 min-w-0">
               <div class="overflow-x-auto w-full scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-transparent" :class="isTouchDevice ? 'pb-96' : 'pb-4'">
                 <AutoFitWrapper :enable-auto-fit="enableAutoFit">
@@ -390,18 +887,20 @@ const handleUpdateNote = ({ id, note }: { id: string | number; note: string }) =
             :tooth-id="selectedToothId"
             :tooth-data="selectedToothData"
             :readonly="!chartEditable"
+            :patient-id="xrayPatientId"
+            :visit-id="xrayVisitId"
             @close="selectedToothId = null"
             @update-note="handleUpdateNote"
           />
 
-          <!-- Overview Modal -->
+
           <ChartOverviewModal
             :show="showOverviewModal"
             :chart-data="teethData"
             @close="showOverviewModal = false"
           />
 
-          <!-- Save Chart Confirmation Modal -->
+
           <ConfirmModal
             :show="showSaveConfirmModal"
             title="Save Chart"
@@ -412,7 +911,7 @@ const handleUpdateNote = ({ id, note }: { id: string | number; note: string }) =
             @cancel="showSaveConfirmModal = false"
           />
 
-          <!-- Close Tab Warning Modal -->
+
           <ConfirmModal
             :show="showCloseTabWarningModal"
             title="Unsaved Changes"
@@ -421,10 +920,10 @@ const handleUpdateNote = ({ id, note }: { id: string | number; note: string }) =
             cancel-text="Cancel"
             type="danger"
             @confirm="confirmCloseTab"
-            @cancel="showCloseTabWarningModal = false"
+            @cancel="cancelCloseTab"
           />
 
-          <!-- Draft Recovery Modal -->
+
           <ConfirmModal
             :show="showDraftRecoveryModal"
             title="Draft Found"
@@ -435,7 +934,7 @@ const handleUpdateNote = ({ id, note }: { id: string | number; note: string }) =
             @cancel="discardDraft"
           />
 
-          <!-- Cancel Edit Confirmation Modal -->
+
           <ConfirmModal
             :show="showCancelEditConfirmModal"
             title="Cancel Editing"
@@ -447,10 +946,23 @@ const handleUpdateNote = ({ id, note }: { id: string | number; note: string }) =
             @cancel="showCancelEditConfirmModal = false"
           />
 
-          <!-- Virtual Numpad -->
+
           <VirtualNumpad />
         </div>
       </template>
     </main>
+
+
+
+    <ConfirmModal
+      :show="showXrayLeaveWarningModal"
+      :title="XRAY_LEAVE_WARNING.title"
+      :message="XRAY_LEAVE_WARNING.message"
+      :confirm-text="XRAY_LEAVE_WARNING.confirmText"
+      :cancel-text="XRAY_LEAVE_WARNING.cancelText"
+      type="danger"
+      @confirm="confirmLeaveXray"
+      @cancel="cancelLeaveXray"
+    />
   </div>
 </template>

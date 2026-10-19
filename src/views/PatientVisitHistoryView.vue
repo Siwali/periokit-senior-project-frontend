@@ -5,15 +5,18 @@ import { patientApi, type Patient } from '../services/api/patient.api'
 import { visitApi, type Visit } from '../services/api/visit.api'
 import Navbar from '../components/layout/Navbar.vue'
 import FilterPanel from '../components/common/FilterPanel.vue'
-import FilterChips from '../components/common/FilterChips.vue'
 import PatientDrawer from '../components/patients/VisitListPanel.vue'
-import type { FilterConfig, FilterValues } from '../components/common/FilterPanel.vue'
+import type { FilterConfig } from '../components/common/FilterPanel.vue'
 import { Search, Plus, Calendar, ChevronLeft, ChevronRight, X, AlertCircle, User, ArrowLeft } from 'lucide-vue-next'
 import { usePeriodontalChartStore } from '@/stores/periodontal-chart'
 import { useVisitStore } from '@/stores/visit'
 import Skeleton from '../components/common/Skeleton.vue'
-import { usePagination } from '@/composables/usePagination'
-import { useVisitFilters } from '@/composables/visits/useVisitFilters'
+import {
+  filterVisits,
+  selectVisitForComparison,
+  sortVisits,
+  type VisitFilters,
+} from '@/domain/visits/visit-history'
 
 const route = useRoute()
 const router = useRouter()
@@ -27,12 +30,14 @@ const patient = ref<Patient | null>(null)
 const visits = ref<Visit[]>([])
 const isLoading = ref(true)
 
-// UI States
+
 const searchInput = ref('')
 const compareAnchorVisitId = ref<string | null>(null)
 const compareSecondVisitId = ref<string | null>(null)
+const page = ref(1)
+const pageSize = ref(10)
 
-// Filter configs
+
 const filterConfigs: FilterConfig[] = [
   {
     type: 'phase',
@@ -55,24 +60,11 @@ const filterConfigs: FilterConfig[] = [
   }
 ]
 
-// Filter values
-const filterValues = ref<FilterValues>({
+
+const filterValues = ref<VisitFilters>({
   phase: '',
   date: null
 })
-
-const { filteredVisits } = useVisitFilters({
-  visits,
-  searchInput,
-  filterValues,
-})
-
-const {
-  page,
-  totalPages,
-  paginatedItems: paginatedVisits,
-  resetPage,
-} = usePagination(filteredVisits, 10)
 
 const fetchPatientAndVisits = async () => {
   isLoading.value = true
@@ -82,18 +74,13 @@ const fetchPatientAndVisits = async () => {
       visitApi.getByPatient(patientId)
     ])
     patient.value = patientData
-    // Sort visits by date descending, then createdAt descending, then ID
-    visits.value = [...visitsData].sort(
-      (a, b) =>
-        new Date(b.visitDate).getTime() - new Date(a.visitDate).getTime() ||
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime() ||
-        b.id.localeCompare(a.id)
-    )
 
-    // Update chartStore patientInfo so VisitListPanel shows correct patient name
+    visits.value = sortVisits(visitsData)
+
+
     await chartStore.loadPatientById(patientId)
 
-    // Load visits into visitStore
+
     await visitStore.loadVisits(patientId)
   } catch (error) {
     console.error('Failed to fetch patient data:', error)
@@ -114,28 +101,12 @@ const openChart = (visitId: string) => {
 }
 
 const handleCompare = (visitId: string) => {
-  const visit = visits.value.find(v => v.id === visitId)
-  if (!visit?.hasChart) return
-
-  // Toggle off if this visit is already one of the selected ones
-  if (compareAnchorVisitId.value === visitId) {
-    compareAnchorVisitId.value = compareSecondVisitId.value
-    compareSecondVisitId.value = null
-    return
-  }
-  if (compareSecondVisitId.value === visitId) {
-    compareSecondVisitId.value = null
-    return
-  }
-
-  if (!compareAnchorVisitId.value) {
-    // First selection
-    compareAnchorVisitId.value = visitId
-  } else if (!compareSecondVisitId.value) {
-    // Second selection — wait for explicit "Start Compare"
-    compareSecondVisitId.value = visitId
-  }
-  // Both already chosen: ignore further selections until one is cleared
+  const selection = selectVisitForComparison(
+    { anchorId: compareAnchorVisitId.value, secondId: compareSecondVisitId.value },
+    visits.value.find(visit => visit.id === visitId),
+  )
+  compareAnchorVisitId.value = selection.anchorId
+  compareSecondVisitId.value = selection.secondId
 }
 
 const startCompare = () => {
@@ -193,30 +164,42 @@ const formatDate = (dateString: string) => {
   return `${day} ${month} ${year}`
 }
 
-// Reset page when filters change
-watch(() => filterValues.value, () => {
-  resetPage()
+const totalPages = computed(() => Math.ceil(filteredVisits.value.length / pageSize.value))
+
+const paginatedVisits = computed(() => {
+  const start = (page.value - 1) * pageSize.value
+  const end = start + pageSize.value
+  return filteredVisits.value.slice(start, end)
+})
+
+
+const filteredVisits = computed(() => filterVisits(visits.value, filterValues.value, searchInput.value))
+
+
+watch([filterValues, searchInput], () => {
+  page.value = 1
 }, { deep: true })
 
 const goBack = () => {
   router.push({ name: 'my-patients' })
 }
 
-// Reset patient info when leaving the page
 onUnmounted(() => {
-  chartStore.updatePatientInfo({
-    hn: '',
-    patientName: '',
-    age: null,
-    gender: '',
-    nationality: '',
-    date: new Date().toISOString().split('T')[0],
-    doctor: chartStore.patientInfo?.doctor || '',
-    studentId: chartStore.patientInfo?.studentId || '',
-    visitPhase: 'before_hygienic'
-  })
+  if (!chartStore.isDirty) {
+    chartStore.patientInfo = {
+      hn: '',
+      patientName: '',
+      age: null,
+      gender: '',
+      nationality: '',
+      date: new Date().toISOString().split('T')[0],
+      doctor: chartStore.patientInfo?.doctor || '',
+      studentId: chartStore.patientInfo?.studentId || '',
+      visitPhase: 'before_hygienic'
+    }
+  }
 
-  // Clear visits from visitStore
+
   visitStore.visits = []
   visitStore.setActiveVisit(null)
 })
@@ -228,7 +211,7 @@ onUnmounted(() => {
     <PatientDrawer v-model:open="drawerOpen" />
 
     <main class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <!-- Breadcrumb / Header Area -->
+
       <div class="flex flex-col md:flex-row md:items-start justify-between mb-4 gap-4">
         <div class="min-w-0 md:flex-1">
           <button @click="goBack" class="group flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-full text-slate-600 hover:text-[#0052ff] hover:border-[#0052ff] hover:bg-blue-50 font-medium text-sm shadow-sm transition-all mb-3 w-fit">
@@ -241,7 +224,7 @@ onUnmounted(() => {
         </div>
 
         <div class="flex flex-wrap md:flex-nowrap items-center gap-3 md:shrink-0">
-          <!-- Search -->
+
           <div class="relative w-full md:w-80">
             <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <Search class="h-5 w-5 text-slate-400" />
@@ -254,10 +237,10 @@ onUnmounted(() => {
             />
           </div>
 
-          <!-- Filter Panel -->
+
           <FilterPanel v-model="filterValues" :configs="filterConfigs" />
 
-          <!-- New Visit Button -->
+
           <button
             @click="createNewVisit"
             class="px-4 py-2.5 bg-[#0052ff] text-white rounded-full text-sm font-medium shadow-sm hover:bg-blue-700 transition-colors flex items-center gap-2 shrink-0"
@@ -268,9 +251,10 @@ onUnmounted(() => {
         </div>
       </div>
 
-      <FilterChips v-model="filterValues" :configs="filterConfigs" class="empty:mb-0 mb-6" />
 
-      <!-- Compare Mode Banner -->
+      <div id="active-filter-chips" class="empty:mb-0 mb-6"></div>
+
+
       <div v-if="compareAnchorVisitId" class="mb-6 bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-center justify-between shadow-sm animate-in fade-in slide-in-from-top-4 duration-300">
         <div class="flex items-center gap-3">
           <AlertCircle class="w-5 h-5 text-[#0052ff]" />
@@ -279,7 +263,7 @@ onUnmounted(() => {
               Comparing Visit #{{ compareAnchorVisitNumber }} and Visit #{{ compareSecondVisitNumber }}
             </template>
             <template v-else>
-              Selecting Visit #{{ compareAnchorVisitNumber }} to Compare — select the 2nd visit
+              Selected Visit #{{ compareAnchorVisitNumber }}. Select a second visit to compare.
             </template>
           </p>
         </div>
@@ -297,7 +281,7 @@ onUnmounted(() => {
         </div>
       </div>
 
-      <!-- Visit Timeline Card -->
+
       <div class="bg-white shadow-sm rounded-2xl border border-slate-100 overflow-hidden">
         <div class="px-6 py-5 border-b border-slate-100 flex items-baseline gap-2">
           <h2 class="text-lg font-bold text-slate-800">Visit Timeline</h2>
@@ -342,7 +326,7 @@ onUnmounted(() => {
                 : 'border-slate-200 hover:border-slate-300 hover:shadow-sm'
             ]"
           >
-            <!-- Visit Info -->
+
             <div class="flex items-start gap-4 mb-4 sm:mb-0">
               <div class="w-12 h-12 rounded-full bg-[#eef4ff] text-[#0052ff] flex items-center justify-center font-bold text-lg shrink-0">
                 {{ visit.visitNumber }}
@@ -369,7 +353,7 @@ onUnmounted(() => {
               </div>
             </div>
 
-            <!-- Actions -->
+
             <div class="flex items-center gap-3 sm:ml-4">
               <button
                 @click="openChart(visit.id)"
@@ -395,7 +379,7 @@ onUnmounted(() => {
           </div>
         </div>
 
-        <!-- Pagination -->
+
         <div v-if="totalPages > 0" class="bg-white px-4 sm:px-6 py-4 flex items-center justify-between border-t border-slate-100">
           <div class="w-full flex flex-col sm:flex-row items-center justify-between sm:justify-end gap-4">
             <nav class="relative z-0 inline-flex items-center gap-2" aria-label="Pagination">
