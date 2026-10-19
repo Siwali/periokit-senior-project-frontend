@@ -1,19 +1,21 @@
 <script setup lang="ts">
-import { onMounted } from "vue";
-import { RouterView } from "vue-router";
+import { computed, onMounted } from "vue";
+import { RouterView, useRoute } from "vue-router";
 import NotificationToast from "./components/common/NotificationToast.vue";
 import { useAuthStore } from "./stores/auth";
 
 const authStore = useAuthStore();
+const route = useRoute();
+const isExportRenderer = computed(() => route.meta.exportRenderer === true);
 
 onMounted(async () => {
-  if (authStore.isAuthenticated) {
+  if (!isExportRenderer.value && authStore.isAuthenticated) {
     await authStore.fetchProfile();
   }
 });
 </script>
 
 <template>
-  <NotificationToast />
+  <NotificationToast v-if="!isExportRenderer" />
   <RouterView />
 </template>

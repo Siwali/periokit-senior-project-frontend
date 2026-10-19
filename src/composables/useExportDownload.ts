@@ -28,7 +28,7 @@ export function useExportDownload(save: typeof saveBlob = saveBlob) {
     status.value = 'cancelled'
   }
 
-  async function start(visitId: string, request: ExportPreviewRequest, snapshotVersion: string): Promise<ExportResult> {
+  async function start(visitId: string, request: ExportPreviewRequest, snapshotVersion: string, rendererVersion: string): Promise<ExportResult> {
     cancel()
     const mine = new AbortController()
     controller = mine
@@ -38,7 +38,7 @@ export function useExportDownload(save: typeof saveBlob = saveBlob) {
     try {
       const { blob, filename } = await downloadExportFile(
         visitId,
-        { ...request, expectedSnapshotVersion: snapshotVersion },
+        { ...request, expectedSnapshotVersion: snapshotVersion, expectedRendererVersion: rendererVersion },
         mine.signal,
         () => (status.value = 'downloading'),
       )

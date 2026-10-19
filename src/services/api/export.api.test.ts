@@ -14,6 +14,7 @@ const request = {
   grayscale: false,
   baseFilename: 'report',
   expectedSnapshotVersion: 'v'.repeat(43),
+  expectedRendererVersion: '1.0',
 }
 
 afterEach(() => vi.unstubAllGlobals())

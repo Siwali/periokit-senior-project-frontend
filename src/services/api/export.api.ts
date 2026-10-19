@@ -27,6 +27,7 @@ export interface ExportPreviewPage {
 
 export interface ExportPreview {
   snapshotVersion: string
+  rendererVersion: string
   availability: SectionAvailability
   pageCount: number
   pages: ExportPreviewPage[]
@@ -73,7 +74,7 @@ export async function fetchExportPreview(visitId: string, request: ExportPreview
 
 export async function downloadExportFile(
   visitId: string,
-  request: ExportPreviewRequest & { expectedSnapshotVersion: string },
+  request: ExportPreviewRequest & { expectedSnapshotVersion: string; expectedRendererVersion: string },
   signal: AbortSignal,
   onDownloading?: () => void,
 ) {

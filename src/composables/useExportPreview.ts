@@ -12,7 +12,7 @@ export function useExportPreview(
   visitId: Ref<string | null>,
   request: Ref<ExportPreviewRequest | null>,
   availability: Ref<SectionAvailability>,
-  debounceMs = 400,
+  debounceMs = 800,
 ) {
   const preview = shallowRef<ExportPreview | null>(null)
   const loading = ref(false)
