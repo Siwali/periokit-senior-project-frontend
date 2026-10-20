@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { boardObjectsForPage, mapSnapshotChart, type ExportChartSnapshot, type ExportRenderModel } from './export-renderer'
+import { boardObjectsForPage, buildBrowserRenderModel, mapSnapshotChart, type ExportChartSnapshot, type ExportRenderModel } from './export-renderer'
+import type { ExportSource } from '@/services/api/export.api'
 
 const chart = (teeth: ExportChartSnapshot['teeth']): ExportChartSnapshot => ({
   id: 'chart', name: 'Saved chart', status: 'saved', updatedAt: '2026-10-19T00:00:00Z', summary: null, teeth,
@@ -49,5 +50,28 @@ describe('export renderer image sections', () => {
 
   it('keeps placed notes when imageNotes is selected', () => {
     expect(boardObjectsForPage(renderModel(['images', 'imageNotes']), 'images').map(object => object.id)).toEqual(['image', 'note'])
+  })
+})
+
+describe('buildBrowserRenderModel', () => {
+  it('applies page settings locally without mutating the saved source', () => {
+    const source: ExportSource = {
+      protocolVersion: '1.0', snapshotVersion: 'snapshot', rendererVersion: 'legacy',
+      generatedAt: '2026-10-20T00:00:00Z', availability: {},
+      patient: { hn: '1', firstName: 'A', lastName: 'B', age: null, gender: null, nationality: null, note: null },
+      visit: { date: '2026-10-20', phase: 'before', doctorName: null, studentId: null, clinicalNote: null, status: 'saved' },
+      chart: null, diagnosis: null, imageBoard: null,
+    }
+    const before = structuredClone(source)
+    const model = buildBrowserRenderModel(source, {
+      format: 'pdf', sections: ['chart', 'diagnosis'], paperSize: 'letter',
+      orientations: { chart: 'landscape', diagnosis: 'portrait' }, grayscale: true, baseFilename: 'report',
+    })
+    expect(model.pages).toMatchObject([
+      { section: 'chart', widthMm: 279.4, heightMm: 215.9, pageCount: 2 },
+      { section: 'diagnosis', widthMm: 215.9, heightMm: 279.4, pageCount: 2 },
+    ])
+    expect(model.options.grayscale).toBe(true)
+    expect(source).toEqual(before)
   })
 })

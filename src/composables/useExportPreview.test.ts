@@ -1,12 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { effectScope, nextTick, ref } from 'vue'
-import type { ExportPreviewRequest } from '@/services/api/export.api'
+import type { ExportPreviewRequest, ExportSource } from '@/services/api/export.api'
 import type { SectionAvailability } from '@/domain/export/export.mapping'
 
 const fetchExportPreview = vi.fn()
+const fetchExportSource = vi.fn()
 vi.mock('@/services/api/export.api', async () => {
   const { ExportApiError } = await vi.importActual<typeof import('@/services/api/export.api')>('@/services/api/export.api')
-  return { ExportApiError, fetchExportPreview }
+  return { ExportApiError, fetchExportPreview, fetchExportSource }
 })
 vi.mock('@/services/session', () => ({ handleUnauthorizedSession: vi.fn() }))
 vi.mock('@/services/token-storage', () => ({ getAuthHeaders: () => ({}) }))
@@ -14,27 +15,34 @@ vi.mock('@/services/token-storage', () => ({ getAuthHeaders: () => ({}) }))
 const { useExportPreview } = await import('./useExportPreview')
 const { ExportApiError } = await import('@/services/api/export.api')
 
-const req = (format: 'pdf' | 'png' = 'pdf'): ExportPreviewRequest => ({
-  format, sections: ['chart'], paperSize: 'a4', orientations: {}, grayscale: false, baseFilename: 'r',
+const req = (): ExportPreviewRequest => ({
+  format: 'pdf', sections: ['chart'], paperSize: 'a4', orientations: {}, grayscale: false, baseFilename: 'r',
 })
-const result = (snapshotVersion: string) => ({
+const source = (snapshotVersion: string): ExportSource => ({
+  protocolVersion: '1.0',
   snapshotVersion,
   rendererVersion: 'legacy',
-  availability: {},
-  pageCount: 1,
-  pages: [],
-  warnings: [],
+  generatedAt: '2026-10-20T00:00:00.000Z',
+  availability: { chart: { available: true, reason: null } },
+  patient: { hn: '1', firstName: 'Ada', lastName: 'L', age: 30, gender: null, nationality: null, note: null },
+  visit: { date: '2026-10-20', phase: 'before', doctorName: null, studentId: null, clinicalNote: null, status: 'saved' },
+  chart: {
+    id: 'chart', name: 'Baseline', status: 'saved', updatedAt: '2026-10-20T00:00:00.000Z',
+    summary: null, teeth: [],
+  },
+  diagnosis: null,
+  imageBoard: null,
 })
 
 function deferred<T>() {
-  let resolve!: (v: T) => void
-  const promise = new Promise<T>((r) => (resolve = r))
+  let resolve!: (value: T) => void
+  const promise = new Promise<T>((done) => { resolve = done })
   return { promise, resolve }
 }
 
-function setup(visitId = 'v1', request = req()) {
+function setup(visitId = 'v1', initial = req()) {
   const visit = ref<string | null>(visitId)
-  const body = ref<ExportPreviewRequest | null>(request)
+  const body = ref<ExportPreviewRequest | null>(initial)
   const availability = ref<SectionAvailability>({})
   const scope = effectScope()
   const api = scope.run(() => useExportPreview(visit, body, availability, 100))!
@@ -42,84 +50,71 @@ function setup(visitId = 'v1', request = req()) {
 }
 
 beforeEach(() => vi.useFakeTimers())
-afterEach(() => vi.useRealTimers())
+afterEach(() => {
+  vi.clearAllMocks()
+  vi.useRealTimers()
+})
 
 describe('useExportPreview', () => {
-  it('debounces option changes into one request', async () => {
-    fetchExportPreview.mockResolvedValue(result('a'))
-    const p = setup()
-    p.body.value = req('png')
-    await nextTick()
-    p.body.value = req('pdf')
-    await nextTick()
-    await vi.advanceTimersByTimeAsync(100)
-    expect(fetchExportPreview).toHaveBeenCalledTimes(1)
-    expect(p.preview.value?.snapshotVersion).toBe('a')
-  })
-
-  it('does not reload when only download-only options change', async () => {
-    fetchExportPreview.mockResolvedValue(result('a'))
-    const p = setup()
-    await vi.advanceTimersByTimeAsync(100)
-    expect(fetchExportPreview).toHaveBeenCalledTimes(1)
-
-    p.body.value = { ...req('png'), pngDpi: 300, baseFilename: 'another-name' }
-    await nextTick()
-    await vi.advanceTimersByTimeAsync(100)
-
-    expect(fetchExportPreview).toHaveBeenCalledTimes(1)
-  })
-
-  it('reloads when a visual option changes', async () => {
-    fetchExportPreview.mockResolvedValue(result('a'))
-    const p = setup()
-    await vi.advanceTimersByTimeAsync(100)
-
-    p.body.value = { ...req(), paperSize: 'letter' }
-    await nextTick()
-    await vi.advanceTimersByTimeAsync(100)
-
-    expect(fetchExportPreview).toHaveBeenCalledTimes(2)
-  })
-
-  it('aborts the old request and ignores its late response after a visit change', async () => {
-    const first = deferred<ReturnType<typeof result>>()
-    fetchExportPreview.mockReturnValueOnce(first.promise).mockResolvedValueOnce(result('v2'))
-    const p = setup()
-    await vi.advanceTimersByTimeAsync(100)
-    const firstSignal = fetchExportPreview.mock.calls[0]![2] as AbortSignal
-
-    p.visit.value = 'v2'
-    await nextTick()
-    expect(firstSignal.aborted).toBe(true)
-    await vi.advanceTimersByTimeAsync(100)
-    first.resolve(result('v1-late'))
+  it('loads one source and renders visual option changes locally', async () => {
+    fetchExportSource.mockResolvedValue(source('a'))
+    const preview = setup()
     await vi.runAllTimersAsync()
-    expect(p.preview.value?.snapshotVersion).toBe('v2')
-  })
+    expect(fetchExportSource).toHaveBeenCalledTimes(1)
+    expect(preview.preview.value?.pages[0]?.widthMm).toBe(297)
 
-  it('does not preview a new (unsaved) visit', async () => {
-    const p = setup('new')
-    await vi.advanceTimersByTimeAsync(100)
+    preview.body.value = { ...req(), paperSize: 'letter', orientations: { chart: 'portrait' } }
+    await nextTick()
+
+    expect(fetchExportSource).toHaveBeenCalledTimes(1)
     expect(fetchExportPreview).not.toHaveBeenCalled()
-    expect(p.preview.value).toBeNull()
+    expect(preview.preview.value?.pages[0]).toMatchObject({ widthMm: 215.9, heightMm: 279.4 })
   })
 
-  it('marks sections unavailable on EXPORT_DATA_UNAVAILABLE', async () => {
-    fetchExportPreview.mockRejectedValueOnce(
-      new ExportApiError('x', 422, 'EXPORT_DATA_UNAVAILABLE', { unavailable: [{ section: 'chart', reason: 'No saved periodontal chart' }] }),
-    )
-    const p = setup()
-    await vi.advanceTimersByTimeAsync(100)
-    expect(p.availability.value.chart).toEqual({ available: false, reason: 'No saved periodontal chart' })
-    expect(p.error.value).toBeNull()
+  it('does not reload for download-only changes', async () => {
+    fetchExportSource.mockResolvedValue(source('a'))
+    const preview = setup()
+    await vi.runAllTimersAsync()
+    preview.body.value = { ...req(), format: 'png', pngDpi: 300, baseFilename: 'new-name' }
+    await nextTick()
+    expect(fetchExportSource).toHaveBeenCalledTimes(1)
+    expect(fetchExportPreview).not.toHaveBeenCalled()
+  })
+
+  it('aborts the old source request after a visit change', async () => {
+    const first = deferred<ExportSource>()
+    fetchExportSource.mockReturnValueOnce(first.promise).mockResolvedValueOnce(source('v2'))
+    const preview = setup()
+    await nextTick()
+    const firstSignal = fetchExportSource.mock.calls[0]![1] as AbortSignal
+    preview.visit.value = 'v2'
+    await vi.runAllTimersAsync()
+    expect(firstSignal.aborted).toBe(true)
+    expect(preview.preview.value?.snapshotVersion).toBe('v2')
+  })
+
+  it('does not load a new unsaved visit', async () => {
+    setup('new')
+    await vi.runAllTimersAsync()
+    expect(fetchExportSource).not.toHaveBeenCalled()
+  })
+
+  it('falls back to the legacy preview endpoint during rolling deployment', async () => {
+    fetchExportSource.mockRejectedValueOnce(new ExportApiError('missing', 404, 'EXPORT_FAILED'))
+    fetchExportPreview.mockResolvedValueOnce({
+      snapshotVersion: 'legacy', rendererVersion: 'legacy', availability: {}, pageCount: 0, pages: [], warnings: [],
+    })
+    const preview = setup()
+    await vi.runAllTimersAsync()
+    expect(fetchExportPreview).toHaveBeenCalledTimes(1)
+    expect(preview.preview.value?.snapshotVersion).toBe('legacy')
   })
 
   it('aborts on scope dispose', async () => {
-    fetchExportPreview.mockReturnValueOnce(new Promise(() => {}))
-    const p = setup()
-    await vi.advanceTimersByTimeAsync(100)
-    p.scope.stop()
-    expect((fetchExportPreview.mock.calls[0]![2] as AbortSignal).aborted).toBe(true)
+    fetchExportSource.mockReturnValueOnce(new Promise(() => {}))
+    const preview = setup()
+    await nextTick()
+    preview.scope.stop()
+    expect((fetchExportSource.mock.calls[0]![1] as AbortSignal).aborted).toBe(true)
   })
 })

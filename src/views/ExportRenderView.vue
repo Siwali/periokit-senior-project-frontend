@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onErrorCaptured, onMounted, ref } from 'vue'
+import { computed, nextTick, onErrorCaptured, onMounted, ref, watch } from 'vue'
 import PatientChartHeader from '@/components/chart/PatientChartHeader.vue'
 import PeriodontalChartGrid from '@/components/chart/PeriodontalChartGrid.vue'
 import ExportReportPage from '@/components/export/ExportReportPage.vue'
@@ -14,6 +14,8 @@ import {
   type ExportRenderModel,
 } from '@/domain/export/export-renderer'
 
+const props = defineProps<{ inputModel?: ExportRenderModel }>()
+
 const model = ref<ExportRenderModel | null>(null)
 const renderError = ref<string | null>(null)
 const chartData = computed(() => mapSnapshotChart(model.value?.chart ?? null))
@@ -21,6 +23,7 @@ const chartSummary = computed(() => rendererChartSummary(chartData.value))
 const patientInfo = computed(() => model.value ? rendererPatientInfo(model.value) : null)
 
 const setStatus = (state: 'loading' | 'ready' | 'error', code?: string) => {
+  if (props.inputModel) return
   window.__PERIOKIT_EXPORT_STATUS__ = { state, protocolVersion: EXPORT_RENDERER_PROTOCOL_VERSION, ...(code ? { code } : {}) }
 }
 setStatus('loading')
@@ -79,9 +82,12 @@ function fail(error: unknown) {
 }
 
 onErrorCaptured(error => { fail(error); return false })
+watch(() => props.inputModel, value => {
+  if (value) model.value = value
+})
 onMounted(async () => {
   try {
-    model.value = readExportRenderModel()
+    model.value = props.inputModel ?? readExportRenderModel()
     await nextTick()
     await document.fonts.ready
     await inlineImages()
@@ -92,7 +98,12 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div v-if="model" id="export-render-root" class="bg-slate-100">
+  <div
+    v-if="model"
+    :id="inputModel ? undefined : 'export-render-root'"
+    class="export-render-document"
+    :class="{ 'bg-slate-100': !inputModel }"
+  >
     <ExportReportPage v-for="page in model.pages" :key="page.id" :page="page" :model="model">
       <div v-if="page.section === 'patientDetails'" class="grid h-full grid-cols-2 gap-4 content-start pt-3 text-[11px]">
         <div class="col-span-2 rounded-xl border border-slate-200 bg-slate-50 p-5">
@@ -156,10 +167,10 @@ onMounted(async () => {
 <style>
 html:has(#export-render-root), body:has(#export-render-root), body:has(#export-render-root) #app { margin: 0; min-width: 0; background: #f1f5f9; }
 #export-render-root { min-height: 100vh; }
-#export-render-root > main { margin: 0 auto 16px; }
+.export-render-document > main { margin: 0 auto 16px; }
 .export-chart-stage { position: relative; width: 100%; height: 100%; overflow: hidden; }
 .export-chart-content { width: 1120px; transform: scale(.65); transform-origin: left top; }
 .export-board { position: relative; width: 100%; height: 100%; overflow: hidden; background: #101827; border-radius: 8px; }
 .export-board-object { position: absolute; transform-origin: center; border-radius: 4px; }
-@media print { #export-render-root > main { margin: 0; break-after: page; } }
+@media print { .export-render-document > main { margin: 0; break-after: page; } }
 </style>

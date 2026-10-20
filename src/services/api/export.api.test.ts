@@ -4,7 +4,7 @@ const handleUnauthorizedSession = vi.fn()
 vi.mock('../session', () => ({ handleUnauthorizedSession }))
 vi.mock('../token-storage', () => ({ getAuthHeaders: () => ({ Authorization: 'Bearer t' }) }))
 
-const { downloadExportFile, ExportApiError } = await import('./export.api')
+const { downloadExportFile, fetchExportSource, ExportApiError } = await import('./export.api')
 
 const request = {
   format: 'excel' as const,
@@ -46,5 +46,17 @@ describe('downloadExportFile', () => {
     vi.stubGlobal('fetch', vi.fn(async () => Response.json({ code: 'AUTHENTICATION_REQUIRED' }, { status: 401 })))
     await expect(downloadExportFile('id', request, new AbortController().signal)).rejects.toMatchObject({ status: 401 })
     expect(handleUnauthorizedSession).toHaveBeenCalledOnce()
+  })
+})
+
+describe('fetchExportSource', () => {
+  it('loads the saved source with authorization and no request body', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => Response.json({ protocolVersion: '1.0' })))
+    const signal = new AbortController().signal
+    await fetchExportSource('visit id', signal)
+    expect(fetch).toHaveBeenCalledWith(
+      expect.stringContaining('/visits/visit%20id/exports/source'),
+      { headers: { Authorization: 'Bearer t' }, signal },
+    )
   })
 })

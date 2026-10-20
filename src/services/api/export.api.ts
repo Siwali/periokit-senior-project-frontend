@@ -3,6 +3,7 @@ import { getAuthHeaders } from '../token-storage'
 import { handleUnauthorizedSession } from '../session'
 import { filenameFromDisposition, type SectionAvailability } from '@/domain/export/export.mapping'
 import type { ExportFormat, Orientation, PaperSize, PngDpi, SectionId } from '@/domain/export/export.constants'
+import type { ExportRenderModel } from '@/domain/export/export-renderer'
 
 export interface ExportPreviewRequest {
   format: ExportFormat
@@ -32,6 +33,12 @@ export interface ExportPreview {
   pageCount: number
   pages: ExportPreviewPage[]
   warnings: { code: string; section: SectionId; message: string }[]
+  model?: ExportRenderModel
+}
+
+export type ExportSource = Omit<ExportRenderModel, 'options' | 'pages'> & {
+  rendererVersion: string
+  availability: SectionAvailability
 }
 
 export class ExportApiError extends Error {
@@ -61,6 +68,23 @@ async function post(visitId: string, path: string, body: unknown, signal: AbortS
   if (response.status === 401) void handleUnauthorizedSession()
   throw new ExportApiError(
     payload.message || 'Export request failed',
+    response.status,
+    payload.code || 'EXPORT_FAILED',
+    payload.details,
+  )
+}
+
+export async function fetchExportSource(visitId: string, signal: AbortSignal) {
+  const response = await fetch(`${API_URL}/visits/${encodeURIComponent(visitId)}/exports/source`, {
+    headers: getAuthHeaders(),
+    signal,
+  })
+  if (response.ok) return (await response.json()) as ExportSource
+
+  const payload = (await response.json().catch(() => ({}))) as { code?: string; message?: string; details?: unknown }
+  if (response.status === 401) void handleUnauthorizedSession()
+  throw new ExportApiError(
+    payload.message || 'Export source request failed',
     response.status,
     payload.code || 'EXPORT_FAILED',
     payload.details,

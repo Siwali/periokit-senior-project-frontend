@@ -1,6 +1,8 @@
 import { createInitialChartData } from '@/domain/chart/chart.factory'
 import { calculateChartSummary } from '@/domain/chart/chart.calculations'
 import type { ChartData, PatientInfo, Surface } from '@/domain/chart/chart.types'
+import { PAPER_SIZES, type ExportFormat, type PaperSize, type SectionId } from './export.constants'
+import type { ExportPreviewRequest, ExportSource } from '@/services/api/export.api'
 
 export const EXPORT_RENDERER_PROTOCOL_VERSION = '1.0' as const
 
@@ -65,7 +67,7 @@ export interface ExportRenderModel {
   protocolVersion: typeof EXPORT_RENDERER_PROTOCOL_VERSION
   snapshotVersion: string
   generatedAt: string
-  options: { format: 'pdf' | 'png' | 'excel'; paperSize: 'a4' | 'letter' | 'legal'; grayscale: boolean }
+  options: { format: ExportFormat; paperSize: PaperSize; grayscale: boolean }
   pages: ExportRenderPageModel[]
   patient: {
     hn: string
@@ -171,4 +173,44 @@ export function readExportRenderModel(): ExportRenderModel {
   if (model.protocolVersion !== EXPORT_RENDERER_PROTOCOL_VERSION) throw new Error('RENDER_PROTOCOL_MISMATCH')
   if (!Array.isArray(model.pages) || model.pages.length === 0) throw new Error('RENDER_PAGES_MISSING')
   return model
+}
+
+const PAGE_TITLES: Record<SectionId, string> = {
+  chart: 'Periodontal chart',
+  diagnosis: 'Periodontal diagnosis',
+  images: 'Images',
+  imageNotes: 'Image notes',
+}
+
+export function buildBrowserRenderModel(
+  source: ExportSource,
+  request: ExportPreviewRequest,
+): ExportRenderModel {
+  const paper = PAPER_SIZES.find(item => item.id === request.paperSize)
+  if (!paper) throw new Error('RENDER_PAPER_SIZE_INVALID')
+  const pageCount = request.sections.length
+  const pages = request.sections.map((section, index) => {
+    const orientation = request.orientations[section]
+      ?? (section === 'chart' || section === 'images' ? 'landscape' : 'portrait')
+    const [portraitWidth, portraitHeight] = paper.mm
+    const [widthMm, heightMm] = orientation === 'portrait'
+      ? [portraitWidth, portraitHeight]
+      : [portraitHeight, portraitWidth]
+    return {
+      id: `${index + 1}-${section}`,
+      section,
+      title: PAGE_TITLES[section],
+      pageNumber: index + 1,
+      pageCount,
+      widthMm,
+      heightMm,
+      orientation,
+    }
+  })
+  const { rendererVersion: _rendererVersion, availability: _availability, ...modelSource } = source
+  return {
+    ...modelSource,
+    options: { format: request.format, paperSize: request.paperSize, grayscale: request.grayscale },
+    pages,
+  }
 }
