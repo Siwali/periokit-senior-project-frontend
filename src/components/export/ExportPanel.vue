@@ -5,6 +5,7 @@ import { useExportReport } from '@/composables/useExportReport'
 import { useXrayBoardStore, xrayBoardKey } from '@/stores/xray-board'
 import { mmToPx } from '@/domain/export/export.constants'
 import ExportSettings from './ExportSettings.vue'
+import ExportRenderView from '@/views/ExportRenderView.vue'
 
 const props = defineProps<{
   patientId: string | null
@@ -39,7 +40,7 @@ watch(() => [state.paper, { ...state.orient }], () => (zoom.value = null))
 
 const countLabel = computed(() => {
   const n = preview.value?.pageCount ?? 0
-  const unit = state.format === 'excel' ? 'sheet section' : state.format === 'png' ? 'image' : 'page'
+  const unit = state.format === 'excel' ? 'sheet' : state.format === 'png' ? 'image' : 'page'
   return `${n} ${unit}${n === 1 ? '' : 's'}`
 })
 </script>
@@ -87,8 +88,9 @@ const countLabel = computed(() => {
         </p>
         <div v-else class="flex flex-col items-center gap-6" :class="{ 'opacity-60': previewLoading }" :style="{ zoom: effectiveZoom }">
           <div v-for="w in preview?.warnings ?? []" :key="w.code + w.section" class="text-[12px] text-amber-700">{{ w.message }}</div>
+          <ExportRenderView v-if="preview?.model" :input-model="preview.model" />
           <iframe
-            v-for="page in pages"
+            v-for="page in preview?.model ? [] : pages"
             :key="page.id"
             :title="page.title"
             :srcdoc="page.html"

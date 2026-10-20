@@ -10,6 +10,7 @@ export type SectionId = 'chart' | 'diagnosis' | 'images' | 'imageNotes'
 
 export interface ExportState {
   format: ExportFormat
+  includePatientDetails: boolean
   paper: PaperSize
   pngDpi: PngDpi
   orient: Record<SectionId, Orientation>
@@ -21,7 +22,7 @@ export const SECTIONS: { id: SectionId; label: string; desc: string; parent?: Se
   { id: 'chart', label: 'Periodontal chart', desc: 'Full chart as drawn on the chart page' },
   { id: 'diagnosis', label: 'Diagnosis', desc: 'Same as the Diagnosis page: stage and grade tables' },
   { id: 'images', label: 'X-ray & intraoral photos', desc: 'Films and photos as placed on the board' },
-  { id: 'imageNotes', label: 'X-ray notes', desc: 'Notes placed among the films and photos', parent: 'images' },
+  { id: 'imageNotes', label: 'X-ray notes', desc: 'Show notes on the X-ray and photo page', parent: 'images' },
 ]
 
 export type PaperGroup = 'ISO A' | 'ISO B' | 'JIS B' | 'North America'

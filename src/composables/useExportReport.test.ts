@@ -10,7 +10,7 @@ vi.mock('@/stores/visit', () => ({ useVisitStore: () => ({ visits: [] }) }))
 vi.mock('@/stores/xray-board', () => ({ useXrayBoardStore: () => ({ editable: false, isDirty: false }) }))
 vi.mock('@/stores/notification', () => ({ useNotificationStore: () => notify }))
 
-const preview = ref<{ snapshotVersion: string } | null>(null)
+const preview = ref<{ snapshotVersion: string; rendererVersion: string } | null>(null)
 const refresh = vi.fn()
 vi.mock('./useExportPreview', () => ({
   useExportPreview: () => ({ preview, loading: ref(false), error: ref(null), refresh }),
@@ -25,11 +25,15 @@ const { useExportReport } = await import('./useExportReport')
 const setup = (visitId = 'v1') => effectScope().run(() => useExportReport(ref(visitId)))!
 
 beforeEach(() => {
-  preview.value = { snapshotVersion: 'old' }
+  preview.value = { snapshotVersion: 'old', rendererVersion: '1.0' }
   start.mockResolvedValue({ status: 'completed', filename: 'f.pdf' })
 })
 
 describe('useExportReport', () => {
+  it('defaults the periodontal chart to portrait', () => {
+    expect(setup().state.orient.chart).toBe('portrait')
+  })
+
   it('flags unsaved local changes', () => {
     expect(setup().hasUnsavedChanges.value).toBe(true)
   })
@@ -44,21 +48,21 @@ describe('useExportReport', () => {
     const order: string[] = []
     refresh.mockImplementationOnce(async () => {
       order.push('refresh')
-      preview.value = { snapshotVersion: 'new' }
+      preview.value = { snapshotVersion: 'new', rendererVersion: '1.0' }
     })
     await setup().saveAndExport(async () => (order.push('save'), true))
     expect(order).toEqual(['save', 'refresh'])
-    expect(start).toHaveBeenCalledWith('v1', expect.any(Object), 'new')
+    expect(start).toHaveBeenCalledWith('v1', expect.any(Object), 'new', '1.0')
   })
 
   it('Export saved version leaves local state untouched', async () => {
     await setup().exportSaved()
-    expect(start).toHaveBeenCalledWith('v1', expect.any(Object), 'old')
+    expect(start).toHaveBeenCalledWith('v1', expect.any(Object), 'old', '1.0')
     expect(chart.isDirty).toBe(true)
   })
 
   it('refreshes the preview instead of downloading on 409', async () => {
-    start.mockResolvedValueOnce({ status: 'stale' })
+    start.mockResolvedValueOnce({ status: 'stale', code: 'EXPORT_SOURCE_CHANGED' })
     await setup().exportSaved()
     expect(notify.warning).toHaveBeenCalled()
     expect(refresh).toHaveBeenCalled()

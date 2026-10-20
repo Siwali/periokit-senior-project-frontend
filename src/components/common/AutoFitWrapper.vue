@@ -1,19 +1,34 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, nextTick, watch } from 'vue'
+import { computed, ref, onMounted, onUnmounted, nextTick, watch } from 'vue'
+import { calculateContainScale, calculateFitScale } from './fit-scale'
 
 const props = defineProps<{
   enableAutoFit?: boolean
+  maxScale?: number
+  safeInset?: number
+  animate?: boolean
+  fitHeight?: boolean
+  centerContent?: boolean
 }>()
 
 const containerRef = ref<HTMLElement | null>(null)
 const contentRef = ref<HTMLElement | null>(null)
 const scale = ref(1)
 const scaledHeight = ref(0)
+const offsetX = ref(0)
+const offsetY = ref(0)
+const containerStyle = computed(() => (
+  props.fitHeight
+    ? { height: '100%' }
+    : scaledHeight.value > 0 ? { height: `${scaledHeight.value}px` } : undefined
+))
 
 const calculateScale = () => {
   if (!props.enableAutoFit) {
     scale.value = 1
     scaledHeight.value = 0
+    offsetX.value = 0
+    offsetY.value = 0
     return
   }
 
@@ -29,14 +44,28 @@ const calculateScale = () => {
 
     contentRef.value.style.transform = currentTransform
 
-    if (contentWidth > 0 && containerWidth < contentWidth) {
-
-      scale.value = containerWidth / contentWidth
-      scaledHeight.value = contentHeight * scale.value
-    } else {
-      scale.value = 1
-      scaledHeight.value = contentHeight
-    }
+    scale.value = props.fitHeight
+      ? calculateContainScale(
+          containerWidth,
+          containerRef.value.clientHeight,
+          contentWidth,
+          contentHeight,
+          props.maxScale ?? 1,
+          props.safeInset ?? 0,
+        )
+      : calculateFitScale(
+          containerWidth,
+          contentWidth,
+          props.maxScale ?? 1,
+          props.safeInset ?? 0,
+        )
+    scaledHeight.value = contentHeight * scale.value
+    offsetX.value = props.centerContent
+      ? Math.max(0, (containerWidth - contentWidth * scale.value) / 2)
+      : 0
+    offsetY.value = props.centerContent && props.fitHeight
+      ? Math.max(0, (containerRef.value.clientHeight - contentHeight * scale.value) / 2)
+      : 0
   }
 }
 
@@ -48,6 +77,7 @@ onMounted(() => {
       calculateScale()
     })
     resizeObserver.observe(containerRef.value)
+    if (contentRef.value) resizeObserver.observe(contentRef.value)
   }
 
   nextTick(calculateScale)
@@ -59,15 +89,30 @@ onUnmounted(() => {
   }
 })
 
-watch(() => props.enableAutoFit, calculateScale)
+watch(
+  () => [
+    props.enableAutoFit,
+    props.maxScale,
+    props.safeInset,
+    props.fitHeight,
+    props.centerContent,
+  ],
+  calculateScale,
+)
 </script>
 
 <template>
-  <div ref="containerRef" class="w-full overflow-hidden origin-top-left transition-all duration-300" :style="scaledHeight > 0 ? { height: `${scaledHeight}px` } : {}">
+  <div
+    ref="containerRef"
+    class="w-full overflow-hidden origin-top-left"
+    :class="{ 'transition-all duration-300': animate !== false }"
+    :style="containerStyle"
+  >
     <div
       ref="contentRef"
-      class="origin-top-left transition-transform duration-300 min-w-max"
-      :style="{ transform: `scale(${scale})` }"
+      class="origin-top-left min-w-max"
+      :class="{ 'transition-transform duration-300': animate !== false }"
+      :style="{ transform: `translate(${offsetX}px, ${offsetY}px) scale(${scale})` }"
     >
       <slot />
     </div>

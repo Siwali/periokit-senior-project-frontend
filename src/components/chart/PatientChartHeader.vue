@@ -12,6 +12,8 @@ const props = defineProps<{
   patientFieldsDisabled?: boolean
 
   visitFieldsDisabled?: boolean
+  showSummary?: boolean
+  forceDesktop?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -53,10 +55,13 @@ const sortedPdBreakdown = computed(() => {
 </script>
 
 <template>
-  <section class="bg-white rounded-2xl xl:rounded-l-none xl:rounded-r-3xl xl:rounded-bl-3xl xl:rounded-tl-none shadow-md xl:shadow-xl border border-slate-200 overflow-hidden relative z-0">
-    <div class="p-4 xl:p-6 border-b border-slate-100 bg-white">
-      <div class="flex flex-col xl:flex-row items-center justify-between gap-3 xl:gap-4 mb-4 xl:mb-5">
-        <div class="flex items-center gap-2 w-full xl:w-auto justify-center xl:justify-start">
+  <section
+    class="patient-chart-header bg-white rounded-2xl xl:rounded-l-none xl:rounded-r-3xl xl:rounded-bl-3xl xl:rounded-tl-none shadow-md xl:shadow-xl border border-slate-200 overflow-hidden relative z-0"
+    :class="{ 'patient-chart-header--desktop': props.forceDesktop }"
+  >
+    <div class="patient-chart-header__body p-4 xl:p-6 border-b border-slate-100 bg-white">
+      <div class="patient-chart-header__title-row flex flex-col xl:flex-row items-center justify-between gap-3 xl:gap-4 mb-4 xl:mb-5">
+        <div class="patient-chart-header__hn flex items-center gap-2 w-full xl:w-auto justify-center xl:justify-start">
           <span class="text-[16px] font-bold text-slate-800">HN-</span>
           <input
             v-model="localPatientInfo.hn"
@@ -70,11 +75,11 @@ const sortedPdBreakdown = computed(() => {
             ]"
           />
         </div>
-        <h1 class="text-xl xl:text-3xl font-bold text-slate-800 tracking-tight text-center">Periodontal Chart</h1>
-        <div class="w-40 hidden xl:block"></div>
+        <h1 class="patient-chart-header__title text-xl xl:text-3xl font-bold text-slate-800 tracking-tight text-center">Periodontal Chart</h1>
+        <div class="patient-chart-header__title-spacer w-40 hidden xl:block"></div>
       </div>
 
-      <div class="flex flex-wrap justify-center gap-3 xl:gap-8 mb-4 xl:mb-5">
+      <div class="patient-chart-header__phases flex flex-wrap justify-center gap-3 xl:gap-8 mb-4 xl:mb-5">
         <label class="flex items-center gap-2 group" :class="props.visitFieldsDisabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'">
           <input
             type="checkbox"
@@ -107,23 +112,23 @@ const sortedPdBreakdown = computed(() => {
         </label>
       </div>
 
-      <div class="grid grid-cols-2 xl:grid-cols-12 gap-y-3 xl:gap-y-4 gap-x-3 xl:gap-x-5 items-center">
+      <div class="patient-chart-header__fields grid grid-cols-2 xl:grid-cols-12 gap-y-3 xl:gap-y-4 gap-x-3 xl:gap-x-5 items-center">
 
-        <div class="col-span-2 xl:col-span-3 flex flex-col xl:flex-row xl:items-center gap-1 xl:gap-2">
+        <div class="patient-chart-header__field patient-chart-header__field--date col-span-2 xl:col-span-3 flex flex-col xl:flex-row xl:items-center gap-1 xl:gap-2">
           <span class="text-[14px] font-bold text-black whitespace-nowrap shrink-0">Date:</span>
           <input v-model="localPatientInfo.date" type="date" :disabled="props.visitFieldsDisabled" class="bg-slate-50 border border-slate-300 rounded-md px-2 py-1 text-[14px] w-full outline-none focus:ring-2 focus:ring-slate-300 transition-all disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-slate-100" />
         </div>
-        <div class="col-span-2 xl:col-span-6 flex flex-col xl:flex-row xl:items-center gap-1 xl:gap-2">
+        <div class="patient-chart-header__field patient-chart-header__field--doctor col-span-2 xl:col-span-6 flex flex-col xl:flex-row xl:items-center gap-1 xl:gap-2">
           <span class="text-[14px] font-bold text-black whitespace-nowrap shrink-0">Doctor:</span>
           <input v-model="localPatientInfo.doctor" type="text" :disabled="props.visitFieldsDisabled" class="bg-slate-50 border border-slate-300 rounded-md px-2 py-1 text-[14px] w-full outline-none focus:ring-2 focus:ring-slate-300 transition-all disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-slate-100" />
         </div>
-        <div class="col-span-2 xl:col-span-3 flex flex-col xl:flex-row xl:items-center gap-1 xl:gap-2">
+        <div class="patient-chart-header__field patient-chart-header__field--doctor-id col-span-2 xl:col-span-3 flex flex-col xl:flex-row xl:items-center gap-1 xl:gap-2">
           <span class="text-[14px] font-bold text-black whitespace-nowrap shrink-0">Doctor ID:</span>
           <input v-model="localPatientInfo.studentId" type="text" :disabled="props.visitFieldsDisabled" class="bg-slate-50 border border-slate-300 rounded-md px-2 py-1 text-[14px] w-full outline-none focus:ring-2 focus:ring-slate-300 transition-all disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-slate-100" />
         </div>
 
 
-        <div class="col-span-2 xl:col-span-4 flex flex-col xl:flex-row xl:items-center gap-1 xl:gap-2">
+        <div class="patient-chart-header__field patient-chart-header__field--patient col-span-2 xl:col-span-4 flex flex-col xl:flex-row xl:items-center gap-1 xl:gap-2">
           <span class="text-[14px] font-bold text-black whitespace-nowrap shrink-0">Patient:</span>
           <input
             v-model="localPatientInfo.patientName"
@@ -137,18 +142,18 @@ const sortedPdBreakdown = computed(() => {
             ]"
           />
         </div>
-        <div class="col-span-1 xl:col-span-2 flex flex-col xl:flex-row xl:items-center gap-1 xl:gap-2">
+        <div class="patient-chart-header__field patient-chart-header__field--age col-span-1 xl:col-span-2 flex flex-col xl:flex-row xl:items-center gap-1 xl:gap-2">
           <span class="text-[14px] font-bold text-black whitespace-nowrap shrink-0">Age:</span>
           <div class="flex items-center gap-2 w-full">
             <input v-model="localPatientInfo.age" type="number" :disabled="props.patientFieldsDisabled" class="bg-slate-50 border border-slate-300 rounded-md px-2 py-1 text-[14px] w-16 outline-none focus:ring-2 focus:ring-slate-300 transition-all disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-slate-100" />
             <span class="text-[14px] text-black whitespace-nowrap shrink-0">years old</span>
           </div>
         </div>
-        <div class="col-span-2 xl:col-span-3 flex flex-col xl:flex-row xl:items-center gap-1 xl:gap-2 xl:ml-6">
+        <div class="patient-chart-header__field patient-chart-header__field--nationality col-span-2 xl:col-span-3 flex flex-col xl:flex-row xl:items-center gap-1 xl:gap-2 xl:ml-6">
           <span class="text-[14px] font-bold text-black whitespace-nowrap shrink-0">Nationality:</span>
           <CountrySelect v-model="localPatientInfo.nationality" :disabled="props.patientFieldsDisabled" />
         </div>
-        <div class="col-span-1 xl:col-span-3 flex flex-col xl:flex-row xl:items-center gap-1 xl:gap-2 xl:justify-end">
+        <div class="patient-chart-header__field patient-chart-header__field--gender col-span-1 xl:col-span-3 flex flex-col xl:flex-row xl:items-center gap-1 xl:gap-2 xl:justify-end">
           <span class="text-[14px] font-bold text-black whitespace-nowrap shrink-0">Gender:</span>
           <div class="flex gap-3">
             <label class="flex items-center gap-1.5 group" :class="props.patientFieldsDisabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'">
@@ -165,7 +170,7 @@ const sortedPdBreakdown = computed(() => {
     </div>
 
 
-    <div class="px-6 py-3 bg-linear-to-r from-slate-50 to-white border-t border-slate-100">
+    <div v-if="props.showSummary !== false" class="px-6 py-3 bg-linear-to-r from-slate-50 to-white border-t border-slate-100">
       <div class="flex items-center gap-3 overflow-x-auto">
 
         <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-50 border border-blue-100 whitespace-nowrap">
@@ -242,3 +247,45 @@ const sortedPdBreakdown = computed(() => {
     </div>
   </section>
 </template>
+
+<style scoped>
+.patient-chart-header--desktop .patient-chart-header__body { padding: 1.5rem; }
+.patient-chart-header--desktop .patient-chart-header__title-row {
+  flex-direction: row;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+.patient-chart-header--desktop .patient-chart-header__hn {
+  width: auto;
+  justify-content: flex-start;
+}
+.patient-chart-header--desktop .patient-chart-header__title { font-size: 1.875rem; line-height: 2.25rem; }
+.patient-chart-header--desktop .patient-chart-header__title-spacer { display: block; }
+.patient-chart-header--desktop .patient-chart-header__phases {
+  gap: 2rem;
+  margin-bottom: 1.25rem;
+}
+.patient-chart-header--desktop .patient-chart-header__fields {
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  column-gap: 1.25rem;
+  row-gap: 1rem;
+}
+.patient-chart-header--desktop .patient-chart-header__field {
+  flex-direction: row;
+  align-items: center;
+  gap: .5rem;
+}
+.patient-chart-header--desktop .patient-chart-header__field--date,
+.patient-chart-header--desktop .patient-chart-header__field--doctor-id { grid-column: span 3 / span 3; }
+.patient-chart-header--desktop .patient-chart-header__field--doctor { grid-column: span 6 / span 6; }
+.patient-chart-header--desktop .patient-chart-header__field--patient { grid-column: span 4 / span 4; }
+.patient-chart-header--desktop .patient-chart-header__field--age { grid-column: span 2 / span 2; }
+.patient-chart-header--desktop .patient-chart-header__field--nationality {
+  grid-column: span 3 / span 3;
+  margin-left: 1.5rem;
+}
+.patient-chart-header--desktop .patient-chart-header__field--gender {
+  grid-column: span 3 / span 3;
+  justify-content: flex-end;
+}
+</style>

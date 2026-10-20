@@ -1,0 +1,157 @@
+<script setup lang="ts">
+import { computed, nextTick, onErrorCaptured, onMounted, ref, watch } from 'vue'
+import PatientChartHeader from '@/components/chart/PatientChartHeader.vue'
+import PeriodontalChartGrid from '@/components/chart/PeriodontalChartGrid.vue'
+import AutoFitWrapper from '@/components/common/AutoFitWrapper.vue'
+import ExportReportPage from '@/components/export/ExportReportPage.vue'
+import ExportDiagnosisReport from '@/components/export/ExportDiagnosisReport.vue'
+import {
+  EXPORT_RENDERER_PROTOCOL_VERSION,
+  boardObjectsForPage,
+  mapSnapshotChart,
+  readExportRenderModel,
+  rendererChartSummary,
+  rendererPatientInfo,
+  type ExportBoardObject,
+  type ExportRenderModel,
+} from '@/domain/export/export-renderer'
+
+const props = defineProps<{ inputModel?: ExportRenderModel }>()
+
+const model = ref<ExportRenderModel | null>(null)
+const renderError = ref<string | null>(null)
+const chartData = computed(() => mapSnapshotChart(model.value?.chart ?? null))
+const chartSummary = computed(() => rendererChartSummary(chartData.value))
+const patientInfo = computed(() => model.value ? rendererPatientInfo(model.value) : null)
+
+const setStatus = (state: 'loading' | 'ready' | 'error', code?: string) => {
+  if (props.inputModel) return
+  window.__PERIOKIT_EXPORT_STATUS__ = { state, protocolVersion: EXPORT_RENDERER_PROTOCOL_VERSION, ...(code ? { code } : {}) }
+}
+setStatus('loading')
+
+const boardAsset = (id: string | null) => model.value?.imageBoard?.assets.find(asset => asset.id === id)?.source
+const boardObjects = computed(() => model.value ? boardObjectsForPage(model.value) : [])
+const boardBounds = computed(() => {
+  const objects = model.value?.imageBoard?.objects ?? []
+  if (!objects.length) return { minX: 0, minY: 0, width: 1, height: 1 }
+  const minX = Math.min(...objects.map(object => object.posX))
+  const minY = Math.min(...objects.map(object => object.posY))
+  const maxX = Math.max(...objects.map(object => object.posX + object.width))
+  const maxY = Math.max(...objects.map(object => object.posY + object.height))
+  return { minX, minY, width: Math.max(1, maxX - minX), height: Math.max(1, maxY - minY) }
+})
+const boardObjectStyle = (object: ExportBoardObject) => ({
+  left: `${((object.posX - boardBounds.value.minX) / boardBounds.value.width) * 100}%`,
+  top: `${((object.posY - boardBounds.value.minY) / boardBounds.value.height) * 100}%`,
+  width: `${(object.width / boardBounds.value.width) * 100}%`,
+  height: `${(object.height / boardBounds.value.height) * 100}%`,
+  zIndex: object.zIndex,
+  transform: `rotate(${object.rotation}deg)`,
+  backgroundColor: object.noteColor ?? undefined,
+  fontSize: object.noteFontSize ? `${Math.max(7, object.noteFontSize * 0.55)}px` : undefined,
+})
+
+async function inlineImages() {
+  await Promise.all(Array.from(document.images).map(async image => {
+    if (!image.complete) await new Promise<void>((resolve, reject) => {
+      image.addEventListener('load', () => resolve(), { once: true })
+      image.addEventListener('error', () => reject(new Error('RENDER_IMAGE_LOAD_FAILED')), { once: true })
+    })
+    if (image.src.startsWith('data:')) return
+    const canvas = document.createElement('canvas')
+    canvas.width = image.naturalWidth
+    canvas.height = image.naturalHeight
+    canvas.getContext('2d')?.drawImage(image, 0, 0)
+    image.src = canvas.toDataURL('image/png')
+  }))
+}
+
+function fail(error: unknown) {
+  const code = error instanceof Error && /^[A-Z0-9_]+$/.test(error.message) ? error.message : 'RENDER_FAILED'
+  renderError.value = code
+  setStatus('error', code)
+}
+
+onErrorCaptured(error => { fail(error); return false })
+watch(() => props.inputModel, value => {
+  if (value) model.value = value
+})
+onMounted(async () => {
+  try {
+    model.value = props.inputModel ?? readExportRenderModel()
+    await nextTick()
+    await document.fonts.ready
+    await inlineImages()
+    await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
+    setStatus('ready')
+  } catch (error) { fail(error) }
+})
+</script>
+
+<template>
+  <div
+    v-if="model"
+    :id="inputModel ? undefined : 'export-render-root'"
+    class="export-render-document"
+    :class="{ 'bg-slate-100': !inputModel }"
+  >
+    <ExportReportPage v-for="page in model.pages" :key="page.id" :page="page" :model="model">
+      <div v-if="page.section === 'patientDetails'" class="grid h-full grid-cols-2 gap-4 content-start pt-3 text-[11px]">
+        <div class="col-span-2 rounded-xl border border-slate-200 bg-slate-50 p-5">
+          <p class="text-[9px] font-bold uppercase tracking-wider text-slate-400">Patient</p>
+          <p class="mt-1 text-xl font-black">{{ model.patient.firstName }} {{ model.patient.lastName }}</p>
+          <p class="mt-1 text-slate-500">HN {{ model.patient.hn }}</p>
+        </div>
+        <dl v-for="item in [
+          ['Visit date', model.visit.date], ['Treatment phase', model.visit.phase],
+          ['Clinician', model.visit.doctorName], ['Clinician ID', model.visit.studentId],
+          ['Age', model.patient.age], ['Gender', model.patient.gender],
+          ['Nationality', model.patient.nationality], ['Visit status', model.visit.status],
+        ]" :key="String(item[0])" class="rounded-lg border border-slate-200 p-3">
+          <dt class="text-[8px] font-bold uppercase text-slate-400">{{ item[0] }}</dt><dd class="mt-1 font-semibold">{{ item[1] ?? 'Not recorded' }}</dd>
+        </dl>
+        <div v-if="model.visit.clinicalNote || model.patient.note" class="col-span-2 rounded-lg border border-slate-200 p-4 whitespace-pre-wrap">
+          <p class="text-[8px] font-bold uppercase text-slate-400">Clinical notes</p>{{ model.visit.clinicalNote || model.patient.note }}
+        </div>
+      </div>
+
+      <div v-else-if="page.section === 'chart' && patientInfo" class="export-chart-stage">
+        <AutoFitWrapper enable-auto-fit fit-height center-content :max-scale="0.65" :safe-inset="2" :animate="false">
+          <div class="export-chart-content" inert>
+            <PatientChartHeader v-if="model.options.includePatientDetails !== false" :patient-info="patientInfo" :summary="chartSummary" :show-summary="false" force-desktop patient-fields-disabled visit-fields-disabled />
+            <PeriodontalChartGrid class="mt-3" :chart-data="chartData" :selected-tooth-id="null" readonly fit-width />
+          </div>
+        </AutoFitWrapper>
+      </div>
+
+      <div v-else-if="page.section === 'diagnosis'" class="export-diagnosis-stage">
+        <AutoFitWrapper enable-auto-fit fit-height center-content :max-scale="0.75" :safe-inset="2" :animate="false">
+          <ExportDiagnosisReport :model="model" />
+        </AutoFitWrapper>
+      </div>
+
+      <div v-else-if="page.section === 'images'" class="export-board">
+        <template v-for="object in boardObjects" :key="object.id">
+          <img v-if="object.objectType === 'image' && boardAsset(object.assetId)" :src="boardAsset(object.assetId)" :style="boardObjectStyle(object)" class="export-board-object object-contain" />
+          <div v-else-if="object.objectType === 'note'" :style="boardObjectStyle(object)" class="export-board-object overflow-hidden whitespace-pre-wrap p-2">{{ object.noteText }}</div>
+        </template>
+      </div>
+
+      <div v-else class="pt-3 text-[11px] whitespace-pre-wrap">{{ model.visit.clinicalNote || model.patient.note || 'No notes were recorded.' }}</div>
+    </ExportReportPage>
+  </div>
+  <p v-else-if="renderError" class="p-6 font-mono text-red-700">{{ renderError }}</p>
+</template>
+
+<style>
+html:has(#export-render-root), body:has(#export-render-root), body:has(#export-render-root) #app { margin: 0; min-width: 0; background: #f1f5f9; }
+#export-render-root { min-height: 100vh; }
+.export-render-document > main { margin: 0 auto 16px; }
+.export-chart-stage { position: relative; width: 100%; height: 100%; overflow: hidden; }
+.export-diagnosis-stage { position: relative; width: 100%; height: 100%; overflow: hidden; }
+.export-chart-content { width: 1120px; pointer-events: none; user-select: none; }
+.export-board { position: relative; width: 100%; height: 100%; overflow: hidden; background: #101827; border-radius: 8px; }
+.export-board-object { position: absolute; transform-origin: center; border-radius: 4px; }
+@media print { .export-render-document > main { margin: 0; break-after: page; } }
+</style>

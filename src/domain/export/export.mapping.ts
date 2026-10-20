@@ -8,8 +8,15 @@ export const isSectionAvailable = (availability: SectionAvailability, id: Sectio
 
 /** Only sections that are ticked, available, and whose parent section is ticked. */
 export function selectedSections(state: ExportState, availability: SectionAvailability): SectionId[] {
+  if (state.format === 'excel') {
+    return isSectionAvailable(availability, 'chart') ? ['chart'] : []
+  }
+
   return SECTIONS.filter(
-    (s) => state.on[s.id] && isSectionAvailable(availability, s.id) && (!s.parent || state.on[s.parent]),
+    (s) => s.id !== 'imageNotes'
+      && state.on[s.id]
+      && isSectionAvailable(availability, s.id)
+      && (!s.parent || state.on[s.parent]),
   ).map((s) => s.id)
 }
 
@@ -21,10 +28,18 @@ export function buildExportRequest(
   const sections = selectedSections(state, availability)
   return {
     format: state.format,
+    includePatientDetails: state.includePatientDetails,
+    includeImageNotes: state.format !== 'excel'
+      && state.on.images
+      && state.on.imageNotes
+      && isSectionAvailable(availability, 'images')
+      && isSectionAvailable(availability, 'imageNotes'),
     sections,
     paperSize: state.paper,
-    orientations: Object.fromEntries(sections.map((id) => [id, state.orient[id]])),
-    grayscale: state.gray,
+    orientations: state.format === 'excel'
+      ? {}
+      : Object.fromEntries(sections.map((id) => [id, state.orient[id]])),
+    grayscale: state.format === 'excel' ? false : state.gray,
     ...(state.format === 'png' ? { pngDpi: state.pngDpi } : {}),
     baseFilename: baseFilename.trim() || 'periodontal-report',
   }
@@ -46,6 +61,7 @@ export function filenameFromDisposition(header: string | null, fallback: string)
 
 const ERROR_MESSAGES: Record<string, string> = {
   EXPORT_SOURCE_CHANGED: 'The saved visit changed. The preview was refreshed, please review it and export again.',
+  EXPORT_RENDERER_CHANGED: 'The report renderer changed. The preview was refreshed, please review it and export again.',
   EXPORT_QUEUE_FULL: 'The export service is busy. Please try again shortly.',
   EXPORT_TIMEOUT: 'The export took too long. Try fewer sections or a lower PNG quality.',
   EXPORT_LIMIT_EXCEEDED: 'The report is too large to export. Try fewer sections or a lower PNG quality.',

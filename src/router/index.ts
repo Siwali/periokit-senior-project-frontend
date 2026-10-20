@@ -29,6 +29,12 @@ const router = createRouter({
       meta: { requiresGuest: true },
     },
     {
+      path: "/export/render",
+      name: "export-render",
+      component: () => import("../views/ExportRenderView.vue"),
+      meta: { exportRenderer: true },
+    },
+    {
       path: "/patients",
       name: "my-patients",
       component: () => import("../views/MyPatientListView.vue"),
