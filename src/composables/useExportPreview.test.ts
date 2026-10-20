@@ -12,7 +12,7 @@ vi.mock('@/services/api/export.api', async () => {
 vi.mock('@/services/session', () => ({ handleUnauthorizedSession: vi.fn() }))
 vi.mock('@/services/token-storage', () => ({ getAuthHeaders: () => ({}) }))
 
-const { useExportPreview } = await import('./useExportPreview')
+const { previewVisualKey, useExportPreview } = await import('./useExportPreview')
 const { ExportApiError } = await import('@/services/api/export.api')
 
 const req = (): ExportPreviewRequest => ({
@@ -56,6 +56,14 @@ afterEach(() => {
 })
 
 describe('useExportPreview', () => {
+  it('treats the patient details preference as a visual change', () => {
+    expect(previewVisualKey(req())).not.toBe(previewVisualKey({ ...req(), includePatientDetails: false }))
+  })
+
+  it('treats the X-ray notes preference as a visual change', () => {
+    expect(previewVisualKey(req())).not.toBe(previewVisualKey({ ...req(), includeImageNotes: true }))
+  })
+
   it('loads one source and renders visual option changes locally', async () => {
     fetchExportSource.mockResolvedValue(source('a'))
     const preview = setup()

@@ -20,6 +20,7 @@ export function useExportReport(visitId: Ref<string | null>) {
 
   const state = reactive<ExportState>({
     format: 'pdf',
+    includePatientDetails: true,
     paper: 'a4',
     pngDpi: 150,
     orient: { chart: 'portrait', diagnosis: 'portrait', images: 'landscape', imageNotes: 'portrait' },

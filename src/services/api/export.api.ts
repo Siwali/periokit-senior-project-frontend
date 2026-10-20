@@ -7,6 +7,8 @@ import type { ExportRenderModel } from '@/domain/export/export-renderer'
 
 export interface ExportPreviewRequest {
   format: ExportFormat
+  includePatientDetails?: boolean
+  includeImageNotes?: boolean
   sections: SectionId[]
   paperSize: PaperSize
   orientations: Partial<Record<SectionId, Orientation>>

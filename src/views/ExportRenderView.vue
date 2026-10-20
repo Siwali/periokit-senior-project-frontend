@@ -31,8 +31,7 @@ const setStatus = (state: 'loading' | 'ready' | 'error', code?: string) => {
 setStatus('loading')
 
 const boardAsset = (id: string | null) => model.value?.imageBoard?.assets.find(asset => asset.id === id)?.source
-const boardObjects = computed(() => model.value ? boardObjectsForPage(model.value, 'images') : [])
-const boardNotes = computed(() => model.value ? boardObjectsForPage(model.value, 'imageNotes') : [])
+const boardObjects = computed(() => model.value ? boardObjectsForPage(model.value) : [])
 const boardBounds = computed(() => {
   const objects = model.value?.imageBoard?.objects ?? []
   if (!objects.length) return { minX: 0, minY: 0, width: 1, height: 1 }
@@ -120,7 +119,7 @@ onMounted(async () => {
       <div v-else-if="page.section === 'chart' && patientInfo" class="export-chart-stage">
         <AutoFitWrapper enable-auto-fit fit-height center-content :max-scale="0.65" :safe-inset="2" :animate="false">
           <div class="export-chart-content" inert>
-            <PatientChartHeader :patient-info="patientInfo" :summary="chartSummary" :show-summary="false" force-desktop patient-fields-disabled visit-fields-disabled />
+            <PatientChartHeader v-if="model.options.includePatientDetails !== false" :patient-info="patientInfo" :summary="chartSummary" :show-summary="false" force-desktop patient-fields-disabled visit-fields-disabled />
             <PeriodontalChartGrid class="mt-3" :chart-data="chartData" :selected-tooth-id="null" readonly fit-width />
           </div>
         </AutoFitWrapper>
@@ -137,13 +136,6 @@ onMounted(async () => {
           <img v-if="object.objectType === 'image' && boardAsset(object.assetId)" :src="boardAsset(object.assetId)" :style="boardObjectStyle(object)" class="export-board-object object-contain" />
           <div v-else-if="object.objectType === 'note'" :style="boardObjectStyle(object)" class="export-board-object overflow-hidden whitespace-pre-wrap p-2">{{ object.noteText }}</div>
         </template>
-      </div>
-
-      <div v-else-if="page.section === 'imageNotes'" class="space-y-3 pt-3 text-[10px]">
-        <div v-for="(note, index) in boardNotes" :key="note.id" class="rounded-lg border border-slate-200 p-4 whitespace-pre-wrap">
-          <p class="mb-1 text-[8px] font-bold uppercase text-slate-400">Image note {{ index + 1 }}</p>{{ note.noteText }}
-        </div>
-        <p v-if="!boardNotes.length" class="text-slate-500">No image notes were recorded.</p>
       </div>
 
       <div v-else class="pt-3 text-[11px] whitespace-pre-wrap">{{ model.visit.clinicalNote || model.patient.note || 'No notes were recorded.' }}</div>

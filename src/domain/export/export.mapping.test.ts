@@ -4,6 +4,7 @@ import type { ExportState } from './export.constants'
 
 const state = (patch: Partial<ExportState> = {}): ExportState => ({
   format: 'pdf',
+  includePatientDetails: true,
   paper: 'a4',
   pngDpi: 150,
   orient: { chart: 'landscape', diagnosis: 'portrait', images: 'landscape', imageNotes: 'portrait' },
@@ -16,9 +17,11 @@ describe('buildExportRequest', () => {
   it('maps ticked sections, their orientations and options', () => {
     expect(buildExportRequest(state({ gray: true }), {}, ' HN-1_report ')).toEqual({
       format: 'pdf',
-      sections: ['chart', 'diagnosis', 'images', 'imageNotes'],
+      includePatientDetails: true,
+      includeImageNotes: true,
+      sections: ['chart', 'diagnosis', 'images'],
       paperSize: 'a4',
-      orientations: { chart: 'landscape', diagnosis: 'portrait', images: 'landscape', imageNotes: 'portrait' },
+      orientations: { chart: 'landscape', diagnosis: 'portrait', images: 'landscape' },
       grayscale: true,
       baseFilename: 'HN-1_report',
     })
@@ -57,6 +60,20 @@ describe('buildExportRequest', () => {
     )
 
     expect(req.sections).toEqual([])
+  })
+
+  it('maps the patient and visit details preference', () => {
+    expect(buildExportRequest(state({ includePatientDetails: false }), {}, 'report').includePatientDetails).toBe(false)
+  })
+
+  it('treats X-ray notes as an overlay option instead of a separate page', () => {
+    const req = buildExportRequest(state(), {}, 'report')
+    expect(req.includeImageNotes).toBe(true)
+    expect(req.sections).not.toContain('imageNotes')
+
+    const withoutNotes = state()
+    withoutNotes.on.imageNotes = false
+    expect(buildExportRequest(withoutNotes, {}, 'report').includeImageNotes).toBe(false)
   })
 })
 

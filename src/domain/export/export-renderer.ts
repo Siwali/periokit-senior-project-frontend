@@ -72,7 +72,13 @@ export interface ExportRenderModel {
   protocolVersion: typeof EXPORT_RENDERER_PROTOCOL_VERSION
   snapshotVersion: string
   generatedAt: string
-  options: { format: ExportFormat; paperSize: PaperSize; grayscale: boolean }
+  options: {
+    format: ExportFormat
+    paperSize: PaperSize
+    grayscale: boolean
+    includePatientDetails?: boolean
+    includeImageNotes?: boolean
+  }
   pages: ExportRenderPageModel[]
   patient: {
     hn: string
@@ -222,11 +228,10 @@ export function rendererDiagnosisReport(model: ExportRenderModel): ExportDiagnos
 
 export function boardObjectsForPage(
   model: ExportRenderModel,
-  section: 'images' | 'imageNotes',
 ): ExportBoardObject[] {
   const objects = model.imageBoard?.objects ?? []
-  if (section === 'imageNotes') return objects.filter(object => object.objectType === 'note')
-  const includesNotes = model.pages.some(page => page.section === 'imageNotes')
+  const includesNotes = model.options.includeImageNotes
+    ?? model.pages.some(page => page.section === 'imageNotes')
   return includesNotes ? objects : objects.filter(object => object.objectType === 'image')
 }
 
@@ -251,8 +256,9 @@ export function buildBrowserRenderModel(
 ): ExportRenderModel {
   const paper = PAPER_SIZES.find(item => item.id === request.paperSize)
   if (!paper) throw new Error('RENDER_PAPER_SIZE_INVALID')
-  const pageCount = request.sections.length
-  const pages = request.sections.map((section, index) => {
+  const sections = request.sections.filter(section => section !== 'imageNotes')
+  const pageCount = sections.length
+  const pages = sections.map((section, index) => {
     const orientation = request.orientations[section]
       ?? (section === 'images' ? 'landscape' : 'portrait')
     const [portraitWidth, portraitHeight] = paper.mm
@@ -273,7 +279,13 @@ export function buildBrowserRenderModel(
   const { rendererVersion: _rendererVersion, availability: _availability, ...modelSource } = source
   return {
     ...modelSource,
-    options: { format: request.format, paperSize: request.paperSize, grayscale: request.grayscale },
+    options: {
+      format: request.format,
+      paperSize: request.paperSize,
+      grayscale: request.grayscale,
+      includePatientDetails: request.includePatientDetails !== false,
+      includeImageNotes: request.includeImageNotes ?? request.sections.includes('imageNotes'),
+    },
     pages,
   }
 }

@@ -18,6 +18,8 @@ export const previewVisualKey = (request: ExportPreviewRequest | null) => {
   if (!request) return 'null'
   return JSON.stringify({
     sections: request.sections,
+    includePatientDetails: request.includePatientDetails,
+    includeImageNotes: request.includeImageNotes,
     paperSize: request.paperSize,
     orientations: request.orientations,
     grayscale: request.grayscale,

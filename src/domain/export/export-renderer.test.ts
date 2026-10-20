@@ -44,12 +44,14 @@ describe('export renderer image sections', () => {
     },
   })
 
-  it('removes note objects from the image board when imageNotes is unchecked', () => {
-    expect(boardObjectsForPage(renderModel(['images']), 'images').map(object => object.id)).toEqual(['image'])
+  it('removes note objects from the image board when X-ray notes are unchecked', () => {
+    expect(boardObjectsForPage(renderModel(['images'])).map(object => object.id)).toEqual(['image'])
   })
 
-  it('keeps placed notes when imageNotes is selected', () => {
-    expect(boardObjectsForPage(renderModel(['images', 'imageNotes']), 'images').map(object => object.id)).toEqual(['image', 'note'])
+  it('keeps placed notes on the image page without creating a notes page', () => {
+    const model = renderModel(['images'])
+    model.options.includeImageNotes = true
+    expect(boardObjectsForPage(model).map(object => object.id)).toEqual(['image', 'note'])
   })
 })
 
@@ -115,5 +117,38 @@ describe('buildBrowserRenderModel', () => {
     ])
     expect(model.options.grayscale).toBe(true)
     expect(source).toEqual(before)
+  })
+
+  it('passes the patient details preference to the browser renderer', () => {
+    const source: ExportSource = {
+      protocolVersion: '1.0', snapshotVersion: 'snapshot', rendererVersion: 'legacy',
+      generatedAt: '2026-10-20T00:00:00Z', availability: {},
+      patient: { hn: '1', firstName: 'A', lastName: 'B', age: null, gender: null, nationality: null, note: null },
+      visit: { date: '2026-10-20', phase: 'before', doctorName: null, studentId: null, clinicalNote: null, status: 'saved' },
+      chart: null, diagnosis: null, imageBoard: null,
+    }
+    const model = buildBrowserRenderModel(source, {
+      format: 'pdf', includePatientDetails: false, sections: ['chart'], paperSize: 'a4',
+      orientations: {}, grayscale: false, baseFilename: 'report',
+    })
+
+    expect(model.options.includePatientDetails).toBe(false)
+  })
+
+  it('removes the legacy image-notes page while keeping notes on the image page', () => {
+    const source: ExportSource = {
+      protocolVersion: '1.0', snapshotVersion: 'snapshot', rendererVersion: 'legacy',
+      generatedAt: '2026-10-20T00:00:00Z', availability: {},
+      patient: { hn: '1', firstName: 'A', lastName: 'B', age: null, gender: null, nationality: null, note: null },
+      visit: { date: '2026-10-20', phase: 'before', doctorName: null, studentId: null, clinicalNote: null, status: 'saved' },
+      chart: null, diagnosis: null, imageBoard: null,
+    }
+    const model = buildBrowserRenderModel(source, {
+      format: 'pdf', includeImageNotes: true, sections: ['images', 'imageNotes'], paperSize: 'a4',
+      orientations: {}, grayscale: false, baseFilename: 'report',
+    })
+
+    expect(model.pages.map(page => page.section)).toEqual(['images'])
+    expect(model.options.includeImageNotes).toBe(true)
   })
 })

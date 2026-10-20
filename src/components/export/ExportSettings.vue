@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { User, ChevronDown, TriangleAlert, FileText, Image as ImageIcon, Sheet, Lock, ChevronsUpDown, Download, Save, X, LoaderCircle } from 'lucide-vue-next'
+import { User, ChevronDown, TriangleAlert, FileText, Image as ImageIcon, Sheet, ChevronsUpDown, Download, Save, X, LoaderCircle } from 'lucide-vue-next'
 import { storeToRefs } from 'pinia'
 import { usePeriodontalChartStore } from '@/stores/periodontal-chart'
 import { useVisitStore } from '@/stores/visit'
@@ -47,7 +47,7 @@ const STATUS_LABEL: Partial<Record<ExportStatus, string>> = {
 const visibleSections = computed(() => props.state.format === 'excel'
   ? SECTIONS.filter((s) => s.id === 'chart')
   : SECTIONS.filter((s) => !s.parent || props.state.on[s.parent]))
-const orientOf = (id: SectionId) => (props.state.format !== 'excel' ? props.state.orient[id] : undefined)
+const orientOf = (id: SectionId) => (props.state.format !== 'excel' && id !== 'imageNotes' ? props.state.orient[id] : undefined)
 const reasonOf = (id: SectionId) => (isSectionAvailable(props.availability, id) ? null : props.availability[id]?.reason || 'No saved data')
 const sectionChecked = (id: SectionId) => !reasonOf(id) && (props.state.format === 'excel' ? id === 'chart' : props.state.on[id])
 const sectionLocked = (id: SectionId) => !!reasonOf(id) || (props.state.format === 'excel' && id === 'chart')
@@ -117,16 +117,13 @@ const LABEL = 'text-[11px] font-bold text-slate-400 uppercase tracking-wide'
     <section :class="CARD">
       <p :class="LABEL" class="mb-2">Include</p>
       <div class="flex flex-col gap-1">
-        <div v-if="state.format !== 'excel'" class="flex items-start gap-2.5 p-2 rounded-lg cursor-default" title="Always in the report header">
-          <input type="checkbox" checked disabled class="mt-0.5 w-4 h-4 accent-[#0052ff]" />
+        <label class="flex items-start gap-2.5 p-2 rounded-lg hover:bg-slate-50">
+          <input v-model="state.includePatientDetails" type="checkbox" class="mt-0.5 w-4 h-4 accent-[#0052ff]" />
           <span class="flex-1">
-            <span class="block text-[12px] font-bold text-slate-500">Patient &amp; visit details</span>
-            <span class="block text-[10px] text-slate-500">Shown in the chart header, cannot be removed</span>
+            <span class="block text-[12px] font-bold">Patient &amp; visit details</span>
+            <span class="block text-[10px] text-slate-500">Include patient and visit information in the export</span>
           </span>
-          <span class="shrink-0 w-21 flex items-center justify-center gap-1 py-1 rounded-md bg-slate-100 text-[10px] font-bold text-slate-400">
-            <Lock class="w-3 h-3" />Always on
-          </span>
-        </div>
+        </label>
         <label
           v-for="s in visibleSections"
           :key="s.id"

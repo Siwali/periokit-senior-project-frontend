@@ -13,7 +13,10 @@ export function selectedSections(state: ExportState, availability: SectionAvaila
   }
 
   return SECTIONS.filter(
-    (s) => state.on[s.id] && isSectionAvailable(availability, s.id) && (!s.parent || state.on[s.parent]),
+    (s) => s.id !== 'imageNotes'
+      && state.on[s.id]
+      && isSectionAvailable(availability, s.id)
+      && (!s.parent || state.on[s.parent]),
   ).map((s) => s.id)
 }
 
@@ -25,6 +28,12 @@ export function buildExportRequest(
   const sections = selectedSections(state, availability)
   return {
     format: state.format,
+    includePatientDetails: state.includePatientDetails,
+    includeImageNotes: state.format !== 'excel'
+      && state.on.images
+      && state.on.imageNotes
+      && isSectionAvailable(availability, 'images')
+      && isSectionAvailable(availability, 'imageNotes'),
     sections,
     paperSize: state.paper,
     orientations: state.format === 'excel'
