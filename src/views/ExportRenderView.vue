@@ -2,6 +2,7 @@
 import { computed, nextTick, onErrorCaptured, onMounted, ref, watch } from 'vue'
 import PatientChartHeader from '@/components/chart/PatientChartHeader.vue'
 import PeriodontalChartGrid from '@/components/chart/PeriodontalChartGrid.vue'
+import AutoFitWrapper from '@/components/common/AutoFitWrapper.vue'
 import ExportReportPage from '@/components/export/ExportReportPage.vue'
 import {
   EXPORT_RENDERER_PROTOCOL_VERSION,
@@ -125,10 +126,12 @@ onMounted(async () => {
       </div>
 
       <div v-else-if="page.section === 'chart' && patientInfo" class="export-chart-stage">
-        <div class="export-chart-content">
-          <PatientChartHeader :patient-info="patientInfo" :summary="chartSummary" patient-fields-disabled visit-fields-disabled />
-          <PeriodontalChartGrid class="mt-3" :chart-data="chartData" :selected-tooth-id="null" readonly fit-width />
-        </div>
+        <AutoFitWrapper enable-auto-fit fit-height center-content :max-scale="0.65" :safe-inset="2" :animate="false">
+          <div class="export-chart-content" inert>
+            <PatientChartHeader :patient-info="patientInfo" :summary="chartSummary" :show-summary="false" force-desktop patient-fields-disabled visit-fields-disabled />
+            <PeriodontalChartGrid class="mt-3" :chart-data="chartData" :selected-tooth-id="null" readonly fit-width />
+          </div>
+        </AutoFitWrapper>
       </div>
 
       <div v-else-if="page.section === 'diagnosis'" class="h-full pt-3 text-[10px]">
@@ -169,7 +172,7 @@ html:has(#export-render-root), body:has(#export-render-root), body:has(#export-r
 #export-render-root { min-height: 100vh; }
 .export-render-document > main { margin: 0 auto 16px; }
 .export-chart-stage { position: relative; width: 100%; height: 100%; overflow: hidden; }
-.export-chart-content { width: 1120px; transform: scale(.65); transform-origin: left top; }
+.export-chart-content { width: 1120px; pointer-events: none; user-select: none; }
 .export-board { position: relative; width: 100%; height: 100%; overflow: hidden; background: #101827; border-radius: 8px; }
 .export-board-object { position: absolute; transform-origin: center; border-radius: 4px; }
 @media print { .export-render-document > main { margin: 0; break-after: page; } }
