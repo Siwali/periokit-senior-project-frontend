@@ -61,7 +61,7 @@ describe('useExportPreview', () => {
     const preview = setup()
     await vi.runAllTimersAsync()
     expect(fetchExportSource).toHaveBeenCalledTimes(1)
-    expect(preview.preview.value?.pages[0]?.widthMm).toBe(297)
+    expect(preview.preview.value?.pages[0]).toMatchObject({ widthMm: 210, heightMm: 297 })
 
     preview.body.value = { ...req(), paperSize: 'letter', orientations: { chart: 'portrait' } }
     await nextTick()

@@ -30,6 +30,10 @@ beforeEach(() => {
 })
 
 describe('useExportReport', () => {
+  it('defaults the periodontal chart to portrait', () => {
+    expect(setup().state.orient.chart).toBe('portrait')
+  })
+
   it('flags unsaved local changes', () => {
     expect(setup().hasUnsavedChanges.value).toBe(true)
   })

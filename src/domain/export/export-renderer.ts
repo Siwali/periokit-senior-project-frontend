@@ -191,7 +191,7 @@ export function buildBrowserRenderModel(
   const pageCount = request.sections.length
   const pages = request.sections.map((section, index) => {
     const orientation = request.orientations[section]
-      ?? (section === 'chart' || section === 'images' ? 'landscape' : 'portrait')
+      ?? (section === 'images' ? 'landscape' : 'portrait')
     const [portraitWidth, portraitHeight] = paper.mm
     const [widthMm, heightMm] = orientation === 'portrait'
       ? [portraitWidth, portraitHeight]
