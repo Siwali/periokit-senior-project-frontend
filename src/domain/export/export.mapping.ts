@@ -8,6 +8,10 @@ export const isSectionAvailable = (availability: SectionAvailability, id: Sectio
 
 /** Only sections that are ticked, available, and whose parent section is ticked. */
 export function selectedSections(state: ExportState, availability: SectionAvailability): SectionId[] {
+  if (state.format === 'excel') {
+    return isSectionAvailable(availability, 'chart') ? ['chart'] : []
+  }
+
   return SECTIONS.filter(
     (s) => state.on[s.id] && isSectionAvailable(availability, s.id) && (!s.parent || state.on[s.parent]),
   ).map((s) => s.id)
@@ -23,8 +27,10 @@ export function buildExportRequest(
     format: state.format,
     sections,
     paperSize: state.paper,
-    orientations: Object.fromEntries(sections.map((id) => [id, state.orient[id]])),
-    grayscale: state.gray,
+    orientations: state.format === 'excel'
+      ? {}
+      : Object.fromEntries(sections.map((id) => [id, state.orient[id]])),
+    grayscale: state.format === 'excel' ? false : state.gray,
     ...(state.format === 'png' ? { pngDpi: state.pngDpi } : {}),
     baseFilename: baseFilename.trim() || 'periodontal-report',
   }

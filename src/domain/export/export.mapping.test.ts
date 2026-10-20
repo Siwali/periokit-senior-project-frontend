@@ -36,6 +36,28 @@ describe('buildExportRequest', () => {
     expect(req.sections).toEqual(['chart'])
     expect(req.baseFilename).toBe('periodontal-report')
   })
+
+  it('limits Excel exports to the chart regardless of other section selections', () => {
+    const req = buildExportRequest(
+      state({ format: 'excel', on: { chart: false, diagnosis: true, images: true, imageNotes: true }, gray: true }),
+      {},
+      'patient-report',
+    )
+
+    expect(req.sections).toEqual(['chart'])
+    expect(req.orientations).toEqual({})
+    expect(req.grayscale).toBe(false)
+  })
+
+  it('does not request an unavailable chart for Excel', () => {
+    const req = buildExportRequest(
+      state({ format: 'excel' }),
+      { chart: { available: false, reason: 'No saved chart' } },
+      'patient-report',
+    )
+
+    expect(req.sections).toEqual([])
+  })
 })
 
 describe('filenameFromDisposition', () => {

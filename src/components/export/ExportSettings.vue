@@ -44,9 +44,13 @@ const STATUS_LABEL: Partial<Record<ExportStatus, string>> = {
   downloading: 'Downloading…',
 }
 
-const visibleSections = computed(() => SECTIONS.filter((s) => !s.parent || props.state.on[s.parent]))
+const visibleSections = computed(() => props.state.format === 'excel'
+  ? SECTIONS.filter((s) => s.id === 'chart')
+  : SECTIONS.filter((s) => !s.parent || props.state.on[s.parent]))
 const orientOf = (id: SectionId) => (props.state.format !== 'excel' ? props.state.orient[id] : undefined)
 const reasonOf = (id: SectionId) => (isSectionAvailable(props.availability, id) ? null : props.availability[id]?.reason || 'No saved data')
+const sectionChecked = (id: SectionId) => !reasonOf(id) && (props.state.format === 'excel' ? id === 'chart' : props.state.on[id])
+const sectionLocked = (id: SectionId) => !!reasonOf(id) || (props.state.format === 'excel' && id === 'chart')
 const busy = computed(() => props.status in STATUS_LABEL)
 
 function flipOrient(id: SectionId) {
@@ -113,7 +117,7 @@ const LABEL = 'text-[11px] font-bold text-slate-400 uppercase tracking-wide'
     <section :class="CARD">
       <p :class="LABEL" class="mb-2">Include</p>
       <div class="flex flex-col gap-1">
-        <div class="flex items-start gap-2.5 p-2 rounded-lg cursor-default" title="Always in the report header">
+        <div v-if="state.format !== 'excel'" class="flex items-start gap-2.5 p-2 rounded-lg cursor-default" title="Always in the report header">
           <input type="checkbox" checked disabled class="mt-0.5 w-4 h-4 accent-[#0052ff]" />
           <span class="flex-1">
             <span class="block text-[12px] font-bold text-slate-500">Patient &amp; visit details</span>
@@ -131,15 +135,15 @@ const LABEL = 'text-[11px] font-bold text-slate-400 uppercase tracking-wide'
           :title="reasonOf(s.id) ?? undefined"
         >
           <input
-            :checked="state.on[s.id] && !reasonOf(s.id)"
+            :checked="sectionChecked(s.id)"
             type="checkbox"
-            :disabled="!!reasonOf(s.id)"
+            :disabled="sectionLocked(s.id)"
             class="mt-0.5 w-4 h-4 accent-[#0052ff]"
             @change="state.on[s.id] = ($event.target as HTMLInputElement).checked"
           />
           <span class="flex-1">
             <span class="block text-[12px] font-bold">{{ s.label }}</span>
-            <span class="block text-[10px]" :class="reasonOf(s.id) ? 'text-amber-600' : 'text-slate-500'">{{ reasonOf(s.id) ?? s.desc }}</span>
+            <span class="block text-[10px]" :class="reasonOf(s.id) ? 'text-amber-600' : 'text-slate-500'">{{ reasonOf(s.id) ?? (state.format === 'excel' ? 'Excel includes only the periodontal chart' : s.desc) }}</span>
           </span>
           <button
             v-if="orientOf(s.id) && !reasonOf(s.id)"

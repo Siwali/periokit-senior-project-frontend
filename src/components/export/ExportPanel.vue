@@ -40,7 +40,7 @@ watch(() => [state.paper, { ...state.orient }], () => (zoom.value = null))
 
 const countLabel = computed(() => {
   const n = preview.value?.pageCount ?? 0
-  const unit = state.format === 'excel' ? 'sheet section' : state.format === 'png' ? 'image' : 'page'
+  const unit = state.format === 'excel' ? 'sheet' : state.format === 'png' ? 'image' : 'page'
   return `${n} ${unit}${n === 1 ? '' : 's'}`
 })
 </script>
