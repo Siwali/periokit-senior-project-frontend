@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { boardObjectsForPage, buildBrowserRenderModel, mapSnapshotChart, type ExportChartSnapshot, type ExportRenderModel } from './export-renderer'
+import { boardObjectsForPage, buildBrowserRenderModel, mapSnapshotChart, rendererDiagnosisReport, type ExportChartSnapshot, type ExportRenderModel } from './export-renderer'
 import type { ExportSource } from '@/services/api/export.api'
 
 const chart = (teeth: ExportChartSnapshot['teeth']): ExportChartSnapshot => ({
@@ -50,6 +50,48 @@ describe('export renderer image sections', () => {
 
   it('keeps placed notes when imageNotes is selected', () => {
     expect(boardObjectsForPage(renderModel(['images', 'imageNotes']), 'images').map(object => object.id)).toEqual(['image', 'note'])
+  })
+})
+
+describe('export renderer diagnosis adapter', () => {
+  const model = (): ExportRenderModel => ({
+    protocolVersion: '1.0', snapshotVersion: 'snapshot', generatedAt: '2026-10-20T00:00:00Z',
+    options: { format: 'pdf', paperSize: 'a4', grayscale: false },
+    pages: [{ id: 'diagnosis', section: 'diagnosis', title: 'Diagnosis', pageNumber: 1, pageCount: 1, widthMm: 210, heightMm: 297, orientation: 'portrait' }],
+    patient: { hn: '1', firstName: 'A', lastName: 'B', age: 50, gender: null, nationality: null, note: null },
+    visit: { date: '2026-10-20', phase: 'before', doctorName: null, studentId: null, clinicalNote: null, status: 'saved' },
+    chart: chart([{
+      number: 16, arch: 'upper', status: 'present', mobility: 0, prognosisKc: null, prognosisMn: null, note: null,
+      surfaces: [],
+      sites: [{ surface: 'buccal', position: 'MB', pdMm: 6, recessionMm: 0, calMm: 6, bop: true, plaque: false }],
+      furcations: [],
+    }]),
+    diagnosis: {
+      id: 'diagnosis', extent: 'generalized', updatedAt: '2026-10-20T00:00:00Z',
+      complexity: {
+        boneLossPercent: 40, teethLostToPerio: 0, directEvidence: null,
+        phenotype: 'commensurate', smoking: 'non_smoker', diabetes: 'none', ageYears: null,
+        calStageOverride: null, boneLossStageOverride: null, toothLossStageOverride: null,
+        complexityStageOverride: null,
+      },
+    },
+    imageBoard: null,
+  })
+
+  it('rebuilds the browser diagnosis from saved diagnosis and chart snapshots', () => {
+    const report = rendererDiagnosisReport(model())
+    expect(report?.assessment).toMatchObject({
+      finalStage: 'III', finalGrade: 'B', extent: 'generalized', boneLoss: 40, age: 50,
+    })
+    expect(report?.assessment.diagnosisTitle).toBe('Generalized Periodontitis, Stage III, Grade B')
+  })
+
+  it('normalizes malformed optional values instead of breaking export rendering', () => {
+    const input = model()
+    input.diagnosis!.complexity = { smoking: 'invalid', boneLossPercent: '40' }
+    const report = rendererDiagnosisReport(input)
+    expect(report?.inputs.smoking).toBeNull()
+    expect(report?.inputs.boneLossPercent).toBeNull()
   })
 })
 

@@ -4,6 +4,7 @@ import PatientChartHeader from '@/components/chart/PatientChartHeader.vue'
 import PeriodontalChartGrid from '@/components/chart/PeriodontalChartGrid.vue'
 import AutoFitWrapper from '@/components/common/AutoFitWrapper.vue'
 import ExportReportPage from '@/components/export/ExportReportPage.vue'
+import ExportDiagnosisReport from '@/components/export/ExportDiagnosisReport.vue'
 import {
   EXPORT_RENDERER_PROTOCOL_VERSION,
   boardObjectsForPage,
@@ -28,15 +29,6 @@ const setStatus = (state: 'loading' | 'ready' | 'error', code?: string) => {
   window.__PERIOKIT_EXPORT_STATUS__ = { state, protocolVersion: EXPORT_RENDERER_PROTOCOL_VERSION, ...(code ? { code } : {}) }
 }
 setStatus('loading')
-
-const diagnosisRows = computed(() => {
-  const complexity = model.value?.diagnosis?.complexity
-  if (!complexity || typeof complexity !== 'object' || Array.isArray(complexity)) return []
-  return Object.entries(complexity as Record<string, unknown>).map(([key, value]) => ({
-    key: key.replace(/([A-Z])/g, ' $1').replace(/_/g, ' '),
-    value: value === null || value === '' ? 'Not recorded' : String(value).replace(/_/g, ' '),
-  }))
-})
 
 const boardAsset = (id: string | null) => model.value?.imageBoard?.assets.find(asset => asset.id === id)?.source
 const boardObjects = computed(() => model.value ? boardObjectsForPage(model.value, 'images') : [])
@@ -134,17 +126,10 @@ onMounted(async () => {
         </AutoFitWrapper>
       </div>
 
-      <div v-else-if="page.section === 'diagnosis'" class="h-full pt-3 text-[10px]">
-        <div class="rounded-xl border border-blue-200 bg-blue-50 p-4">
-          <p class="text-[8px] font-bold uppercase tracking-wider text-blue-600">Extent</p>
-          <p class="mt-1 text-lg font-black capitalize">{{ model.diagnosis?.extent?.replace('_', ' ') || 'Not recorded' }}</p>
-        </div>
-        <div class="mt-4 overflow-hidden rounded-xl border border-slate-200">
-          <div v-for="row in diagnosisRows" :key="row.key" class="grid grid-cols-2 border-b border-slate-100 px-4 py-2.5 last:border-0">
-            <span class="capitalize text-slate-500">{{ row.key }}</span><b class="capitalize">{{ row.value }}</b>
-          </div>
-          <p v-if="!diagnosisRows.length" class="p-5 text-slate-500">No diagnosis details were recorded.</p>
-        </div>
+      <div v-else-if="page.section === 'diagnosis'" class="export-diagnosis-stage">
+        <AutoFitWrapper enable-auto-fit fit-height center-content :max-scale="0.75" :safe-inset="2" :animate="false">
+          <ExportDiagnosisReport :model="model" />
+        </AutoFitWrapper>
       </div>
 
       <div v-else-if="page.section === 'images'" class="export-board">
@@ -172,6 +157,7 @@ html:has(#export-render-root), body:has(#export-render-root), body:has(#export-r
 #export-render-root { min-height: 100vh; }
 .export-render-document > main { margin: 0 auto 16px; }
 .export-chart-stage { position: relative; width: 100%; height: 100%; overflow: hidden; }
+.export-diagnosis-stage { position: relative; width: 100%; height: 100%; overflow: hidden; }
 .export-chart-content { width: 1120px; pointer-events: none; user-select: none; }
 .export-board { position: relative; width: 100%; height: 100%; overflow: hidden; background: #101827; border-radius: 8px; }
 .export-board-object { position: absolute; transform-origin: center; border-radius: 4px; }

@@ -1,6 +1,11 @@
 import { createInitialChartData } from '@/domain/chart/chart.factory'
 import { calculateChartSummary } from '@/domain/chart/chart.calculations'
 import type { ChartData, PatientInfo, Surface } from '@/domain/chart/chart.types'
+import { deriveDiagnosisAssessment, type DiagnosisAssessment } from '@/domain/diagnosis/diagnosis.assessment'
+import { collectChartFindings } from '@/domain/diagnosis/diagnosis.findings'
+import type { DiagnosisComplexityInputDto, DiagnosisResponseDto } from '@/domain/diagnosis/diagnosis.api-mapper'
+import { fromDiagnosisResponseDto } from '@/domain/diagnosis/diagnosis.api-mapper'
+import type { ChartFindings, DiagnosisInputs } from '@/domain/diagnosis/diagnosis.types'
 import { PAPER_SIZES, type ExportFormat, type PaperSize, type SectionId } from './export.constants'
 import type { ExportPreviewRequest, ExportSource } from '@/services/api/export.api'
 
@@ -156,6 +161,64 @@ export function rendererPatientInfo(model: ExportRenderModel): PatientInfo {
 }
 
 export const rendererChartSummary = (chart: ChartData) => calculateChartSummary(chart)
+
+const nullableNumber = (value: unknown): number | null =>
+  typeof value === 'number' && Number.isFinite(value) ? value : null
+
+const nullableEnum = <T extends string>(value: unknown, allowed: readonly T[]): T | null =>
+  typeof value === 'string' && allowed.includes(value as T) ? value as T : null
+
+function normalizeDiagnosisComplexity(value: unknown): DiagnosisComplexityInputDto {
+  const source = value && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {}
+  const stageValues = ['stage_1', 'stage_2', 'stage_3', 'stage_4'] as const
+  return {
+    boneLossPercent: nullableNumber(source.boneLossPercent),
+    teethLostToPerio: nullableNumber(source.teethLostToPerio),
+    directEvidence: nullableEnum(source.directEvidence, ['no_loss', 'lt_2mm', 'gte_2mm'] as const),
+    phenotype: nullableEnum(source.phenotype, ['heavy_biofilm', 'commensurate', 'exceeds'] as const),
+    smoking: nullableEnum(source.smoking, ['non_smoker', 'lt_10', 'gte_10'] as const),
+    diabetes: nullableEnum(source.diabetes, ['none', 'hba1c_lt_7', 'hba1c_gte_7'] as const),
+    ageYears: nullableNumber(source.ageYears),
+    calStageOverride: nullableEnum(source.calStageOverride, stageValues),
+    boneLossStageOverride: nullableEnum(source.boneLossStageOverride, stageValues),
+    toothLossStageOverride: nullableEnum(source.toothLossStageOverride, stageValues),
+    complexityStageOverride: nullableEnum(source.complexityStageOverride, stageValues),
+  }
+}
+
+export interface ExportDiagnosisReportModel {
+  inputs: DiagnosisInputs
+  findings: ChartFindings
+  assessment: DiagnosisAssessment
+}
+
+export function rendererDiagnosisReport(model: ExportRenderModel): ExportDiagnosisReportModel | null {
+  if (!model.diagnosis) return null
+  const response: DiagnosisResponseDto = {
+    extent: nullableEnum(model.diagnosis.extent, ['localized', 'generalized', 'molar_incisor'] as const),
+    complexity: normalizeDiagnosisComplexity(model.diagnosis.complexity),
+  }
+  const inputs: DiagnosisInputs = {
+    boneLossPercent: null,
+    teethLostToPerio: null,
+    extent: null,
+    stageMarks: { cal: null, boneLoss: null, toothLoss: null, complexity: null },
+    directEvidence: null,
+    ageYears: null,
+    phenotype: null,
+    smoking: null,
+    diabetes: null,
+    ...fromDiagnosisResponseDto(response),
+  }
+  const findings = collectChartFindings(mapSnapshotChart(model.chart))
+  return {
+    inputs,
+    findings,
+    assessment: deriveDiagnosisAssessment(inputs, findings, model.patient.age),
+  }
+}
 
 export function boardObjectsForPage(
   model: ExportRenderModel,
