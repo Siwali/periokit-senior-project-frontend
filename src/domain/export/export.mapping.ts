@@ -46,6 +46,7 @@ export function filenameFromDisposition(header: string | null, fallback: string)
 
 const ERROR_MESSAGES: Record<string, string> = {
   EXPORT_SOURCE_CHANGED: 'The saved visit changed. The preview was refreshed, please review it and export again.',
+  EXPORT_RENDERER_CHANGED: 'The report renderer changed. The preview was refreshed, please review it and export again.',
   EXPORT_QUEUE_FULL: 'The export service is busy. Please try again shortly.',
   EXPORT_TIMEOUT: 'The export took too long. Try fewer sections or a lower PNG quality.',
   EXPORT_LIMIT_EXCEEDED: 'The report is too large to export. Try fewer sections or a lower PNG quality.',

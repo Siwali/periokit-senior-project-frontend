@@ -74,7 +74,10 @@ export async function fetchExportPreview(visitId: string, request: ExportPreview
 
 export async function downloadExportFile(
   visitId: string,
-  request: ExportPreviewRequest & { expectedSnapshotVersion: string; expectedRendererVersion: string },
+  request: ExportPreviewRequest & {
+    expectedSnapshotVersion: string
+    expectedRendererVersion: string
+  },
   signal: AbortSignal,
   onDownloading?: () => void,
 ) {

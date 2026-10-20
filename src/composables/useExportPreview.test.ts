@@ -17,7 +17,14 @@ const { ExportApiError } = await import('@/services/api/export.api')
 const req = (format: 'pdf' | 'png' = 'pdf'): ExportPreviewRequest => ({
   format, sections: ['chart'], paperSize: 'a4', orientations: {}, grayscale: false, baseFilename: 'r',
 })
-const result = (snapshotVersion: string) => ({ snapshotVersion, availability: {}, pageCount: 1, pages: [], warnings: [] })
+const result = (snapshotVersion: string) => ({
+  snapshotVersion,
+  rendererVersion: 'legacy',
+  availability: {},
+  pageCount: 1,
+  pages: [],
+  warnings: [],
+})
 
 function deferred<T>() {
   let resolve!: (v: T) => void
@@ -48,6 +55,31 @@ describe('useExportPreview', () => {
     await vi.advanceTimersByTimeAsync(100)
     expect(fetchExportPreview).toHaveBeenCalledTimes(1)
     expect(p.preview.value?.snapshotVersion).toBe('a')
+  })
+
+  it('does not reload when only download-only options change', async () => {
+    fetchExportPreview.mockResolvedValue(result('a'))
+    const p = setup()
+    await vi.advanceTimersByTimeAsync(100)
+    expect(fetchExportPreview).toHaveBeenCalledTimes(1)
+
+    p.body.value = { ...req('png'), pngDpi: 300, baseFilename: 'another-name' }
+    await nextTick()
+    await vi.advanceTimersByTimeAsync(100)
+
+    expect(fetchExportPreview).toHaveBeenCalledTimes(1)
+  })
+
+  it('reloads when a visual option changes', async () => {
+    fetchExportPreview.mockResolvedValue(result('a'))
+    const p = setup()
+    await vi.advanceTimersByTimeAsync(100)
+
+    p.body.value = { ...req(), paperSize: 'letter' }
+    await nextTick()
+    await vi.advanceTimersByTimeAsync(100)
+
+    expect(fetchExportPreview).toHaveBeenCalledTimes(2)
   })
 
   it('aborts the old request and ignores its late response after a visit change', async () => {

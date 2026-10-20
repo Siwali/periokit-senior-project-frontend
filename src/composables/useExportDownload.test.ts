@@ -29,7 +29,10 @@ describe('useExportDownload', () => {
     })
     const d = setup()
     expect(await d.start('v1', request, 'snap', '1.0')).toEqual({ status: 'completed', filename: 'HN-1.pdf' })
-    expect(downloadExportFile.mock.calls[0]![1]).toMatchObject({ expectedSnapshotVersion: 'snap', expectedRendererVersion: '1.0' })
+    expect(downloadExportFile.mock.calls[0]![1]).toMatchObject({
+      expectedSnapshotVersion: 'snap',
+      expectedRendererVersion: '1.0',
+    })
     expect(d.save).toHaveBeenCalledWith(blob, 'HN-1.pdf')
     expect(d.status.value).toBe('completed')
   })
@@ -37,7 +40,10 @@ describe('useExportDownload', () => {
   it('reports stale on 409 and does not save', async () => {
     downloadExportFile.mockRejectedValueOnce(new ExportApiError('x', 409, 'EXPORT_SOURCE_CHANGED'))
     const d = setup()
-    expect(await d.start('v1', request, 'snap', '1.0')).toEqual({ status: 'stale' })
+    expect(await d.start('v1', request, 'snap', '1.0')).toEqual({
+      status: 'stale',
+      code: 'EXPORT_SOURCE_CHANGED',
+    })
     expect(d.save).not.toHaveBeenCalled()
   })
 
@@ -58,6 +64,16 @@ describe('useExportDownload', () => {
     d.cancel()
     expect(await pending).toEqual({ status: 'cancelled' })
     expect(d.status.value).toBe('cancelled')
+    expect(d.save).not.toHaveBeenCalled()
+  })
+
+  it('reports stale when the renderer version changed', async () => {
+    downloadExportFile.mockRejectedValueOnce(new ExportApiError('x', 409, 'EXPORT_RENDERER_CHANGED'))
+    const d = setup()
+    expect(await d.start('v1', request, 'snap', '1.0')).toEqual({
+      status: 'stale',
+      code: 'EXPORT_RENDERER_CHANGED',
+    })
     expect(d.save).not.toHaveBeenCalled()
   })
 })

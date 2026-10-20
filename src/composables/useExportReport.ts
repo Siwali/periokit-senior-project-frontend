@@ -54,10 +54,15 @@ export function useExportReport(visitId: Ref<string | null>) {
     const id = visitId.value
     const current = preview.value
     if (!id || !current) return
-    const result = await download.start(id, request.value, current.snapshotVersion, current.rendererVersion)
+    const result = await download.start(
+      id,
+      request.value,
+      current.snapshotVersion,
+      current.rendererVersion,
+    )
     if (result.status === 'completed') notify.success(`${result.filename} downloaded`)
     else if (result.status === 'stale') {
-      notify.warning(exportErrorMessage({ code: 'EXPORT_SOURCE_CHANGED' }))
+      notify.warning(exportErrorMessage({ code: result.code }))
       await refresh()
     } else if (result.status === 'failed') notify.error(exportErrorMessage(result.error))
   }

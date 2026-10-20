@@ -58,7 +58,7 @@ describe('useExportReport', () => {
   })
 
   it('refreshes the preview instead of downloading on 409', async () => {
-    start.mockResolvedValueOnce({ status: 'stale' })
+    start.mockResolvedValueOnce({ status: 'stale', code: 'EXPORT_SOURCE_CHANGED' })
     await setup().exportSaved()
     expect(notify.warning).toHaveBeenCalled()
     expect(refresh).toHaveBeenCalled()

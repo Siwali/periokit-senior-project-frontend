@@ -4,6 +4,17 @@ import { exportErrorMessage, type SectionAvailability } from '@/domain/export/ex
 
 const isAbort = (error: unknown) => error instanceof DOMException && error.name === 'AbortError'
 
+/** Settings that can change the visible preview. Download-only options are deliberately excluded. */
+export const previewVisualKey = (request: ExportPreviewRequest | null) => {
+  if (!request) return 'null'
+  return JSON.stringify({
+    sections: request.sections,
+    paperSize: request.paperSize,
+    orientations: request.orientations,
+    grayscale: request.grayscale,
+  })
+}
+
 /**
  * Debounced server preview. Every new visit/options change aborts the request in flight,
  * and a sequence number keeps a late response from overwriting a newer one.
@@ -78,7 +89,7 @@ export function useExportPreview(
     preview.value = null
     availability.value = {}
   })
-  watch([visitId, () => JSON.stringify(request.value)], schedule, { immediate: true })
+  watch([visitId, () => previewVisualKey(request.value)], schedule, { immediate: true })
 
   onScopeDispose(cancel)
 

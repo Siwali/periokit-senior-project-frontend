@@ -5,7 +5,7 @@ export type ExportStatus = 'idle' | 'queued' | 'preparing' | 'downloading' | 'co
 export type ExportResult =
   | { status: 'completed'; filename: string }
   | { status: 'cancelled' }
-  | { status: 'stale' }
+  | { status: 'stale'; code: 'EXPORT_SOURCE_CHANGED' | 'EXPORT_RENDERER_CHANGED' }
   | { status: 'failed'; error: unknown }
 
 function saveBlob(blob: Blob, filename: string) {
@@ -28,7 +28,12 @@ export function useExportDownload(save: typeof saveBlob = saveBlob) {
     status.value = 'cancelled'
   }
 
-  async function start(visitId: string, request: ExportPreviewRequest, snapshotVersion: string, rendererVersion: string): Promise<ExportResult> {
+  async function start(
+    visitId: string,
+    request: ExportPreviewRequest,
+    snapshotVersion: string,
+    rendererVersion: string,
+  ): Promise<ExportResult> {
     cancel()
     const mine = new AbortController()
     controller = mine
@@ -38,7 +43,11 @@ export function useExportDownload(save: typeof saveBlob = saveBlob) {
     try {
       const { blob, filename } = await downloadExportFile(
         visitId,
-        { ...request, expectedSnapshotVersion: snapshotVersion, expectedRendererVersion: rendererVersion },
+        {
+          ...request,
+          expectedSnapshotVersion: snapshotVersion,
+          expectedRendererVersion: rendererVersion,
+        },
         mine.signal,
         () => (status.value = 'downloading'),
       )
@@ -49,7 +58,12 @@ export function useExportDownload(save: typeof saveBlob = saveBlob) {
     } catch (error) {
       if (mine.signal.aborted) return { status: 'cancelled' }
       status.value = 'failed'
-      if (error instanceof ExportApiError && error.code === 'EXPORT_SOURCE_CHANGED') return { status: 'stale' }
+      if (error instanceof ExportApiError && error.code === 'EXPORT_SOURCE_CHANGED') {
+        return { status: 'stale', code: error.code }
+      }
+      if (error instanceof ExportApiError && error.code === 'EXPORT_RENDERER_CHANGED') {
+        return { status: 'stale', code: error.code }
+      }
       return { status: 'failed', error }
     } finally {
       clearTimeout(preparing)
