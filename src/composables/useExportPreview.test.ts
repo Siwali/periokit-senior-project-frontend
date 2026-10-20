@@ -81,6 +81,28 @@ describe('useExportPreview', () => {
     expect(fetchExportPreview).not.toHaveBeenCalled()
   })
 
+  it('keeps rapid visual changes local after the source is loaded', async () => {
+    const savedSource = source('a')
+    fetchExportSource.mockResolvedValue(savedSource)
+    const preview = setup()
+    await vi.runAllTimersAsync()
+
+    for (const paperSize of ['a4', 'letter', 'legal', 'a4', 'legal'] as const) {
+      preview.body.value = {
+        ...req(),
+        paperSize,
+        orientations: { chart: paperSize === 'letter' ? 'portrait' : 'landscape' },
+        grayscale: paperSize === 'legal',
+      }
+      await nextTick()
+    }
+
+    expect(fetchExportSource).toHaveBeenCalledTimes(1)
+    expect(fetchExportPreview).not.toHaveBeenCalled()
+    expect(preview.preview.value?.pages[0]).toMatchObject({ widthMm: 355.6, heightMm: 215.9 })
+    expect(savedSource).toEqual(source('a'))
+  })
+
   it('aborts the old source request after a visit change', async () => {
     const first = deferred<ExportSource>()
     fetchExportSource.mockReturnValueOnce(first.promise).mockResolvedValueOnce(source('v2'))
